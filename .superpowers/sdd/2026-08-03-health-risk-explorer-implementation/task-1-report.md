@@ -66,3 +66,38 @@ The production build completed successfully. No development server or browser pr
 ## Concerns
 
 The mandated initializer was invoked once but could not initialize a non-empty worktree. The direct copy used the same bundled starter and preserved the existing documentation/history; no second initializer run occurred. The successful build includes Vinext's existing informational static route-classification message.
+
+## Fix round 1 — remove starter account and data surfaces
+
+### Files changed
+
+- Deleted `app/chatgpt-auth.ts`, `db/`, `drizzle.config.ts`, `drizzle/`, and the optional D1 example.
+- Simplified `worker/index.ts`, `vite.config.ts`, and `build/sites-vite-plugin.ts` so the static client app has no account helper, D1/R2 bindings, Drizzle migration packaging, database binding, or image-optimization endpoint.
+- Removed Drizzle dependencies and the migration script from `package.json` and refreshed `package-lock.json`.
+- Replaced `README.md` with project-specific local-only prototype documentation.
+
+### Verification commands and exact outcomes
+
+```sh
+npm test -- landing.test.tsx
+```
+
+Exit code 0. Vitest reported `Test Files 1 passed (1)` and `Tests 1 passed (1)`.
+
+```sh
+npm run build
+```
+
+Exit code 0. `vinext build` completed all five build phases. It emitted the existing informational `Unknown` static route-classification note and no build error.
+
+```sh
+rg -n 'chatgpt-auth|from "next/headers"|from "next/navigation"|from "cloudflare:workers"|from "drizzle|drizzle-|D1Database|d1_databases|r2_buckets|db/(index|schema)' app build worker vite.config.ts package.json package-lock.json
+```
+
+Exit code 1 (the expected `rg` no-match status); the wrapper reported `AUTH_DB_DRIZZLE_AUDIT: clean (no matches)`.
+
+```sh
+git diff --check
+```
+
+Exit code 0 with no whitespace errors.
