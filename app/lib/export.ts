@@ -1,4 +1,5 @@
 import { questionBank } from "../data/questions";
+import type { PresentedPurityScoreResult } from "../i18n/presentation";
 import type { ConfirmedLabValue } from "./labs";
 import type { ActionItem, PurityScoreResult } from "./scoring";
 import type {
@@ -14,7 +15,7 @@ export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v2" as const;
 export type ResultReport = {
   readonly subjectAgeYears: number | null;
   readonly assessmentDepth: AnalysisDepth;
-  readonly score: PurityScoreResult;
+  readonly score: PurityScoreResult | PresentedPurityScoreResult;
   readonly riskLeaves: ReadonlyArray<RiskLeaf>;
   readonly actions: ReadonlyArray<ActionItem>;
   readonly confirmedLabs: ReadonlyArray<ConfirmedLabValue>;
