@@ -4,13 +4,19 @@ import { useEffect, useState } from "react";
 import { Assessment } from "./components/assessment";
 import { ConsentScreen } from "./components/consent-screen";
 import { Landing } from "./components/landing";
+import type { ConfirmedLabValue } from "./lib/labs";
 import type { AnalysisDepth, AnswerMap, ProfileContext } from "./lib/types";
 
 type AppScreen =
   | { kind: "landing" }
   | { kind: "consent"; depth: AnalysisDepth }
   | { kind: "assessment"; depth: AnalysisDepth; profile: ProfileContext }
-  | { kind: "results"; answers: AnswerMap; profile: ProfileContext };
+  | {
+      kind: "results";
+      answers: AnswerMap;
+      confirmedLabs: ConfirmedLabValue[];
+      profile: ProfileContext;
+    };
 
 export default function Home() {
   const [screen, setScreen] = useState<AppScreen>({ kind: "landing" });
@@ -52,8 +58,13 @@ export default function Home() {
         <Assessment
           depth={screen.depth}
           profile={screen.profile}
-          onComplete={(answers) =>
-            setScreen({ kind: "results", answers, profile: screen.profile })
+          onComplete={(answers, confirmedLabs) =>
+            setScreen({
+              kind: "results",
+              answers,
+              confirmedLabs,
+              profile: screen.profile,
+            })
           }
         />
       </main>

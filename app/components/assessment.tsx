@@ -16,14 +16,39 @@ import type {
   QuestionnaireState,
 } from "../lib/types";
 import { Intermission } from "./intermission";
+import { LabImport } from "./lab-import";
 import { LivingCanopy } from "./living-canopy";
 import { QuestionControl } from "./question-control";
+import type { ConfirmedLabValue, LabMarker } from "../lib/labs";
 
 export type AssessmentProps = {
   depth: AnalysisDepth;
   profile: ProfileContext;
-  onComplete: (answers: AnswerMap) => void;
+  onComplete: (answers: AnswerMap, confirmedLabs: ConfirmedLabValue[]) => void;
 };
+
+const LAB_ANSWER_IDS: Readonly<Record<LabMarker, string>> = {
+  glucose: "lab_value_glucose",
+  total_cholesterol: "lab_value_total_cholesterol",
+  hdl_cholesterol: "lab_value_hdl_cholesterol",
+  ldl_cholesterol: "lab_value_ldl_cholesterol",
+  triglycerides: "lab_value_triglycerides",
+  hba1c: "lab_value_hba1c",
+  creatinine_serum: "lab_value_creatinine",
+  hemoglobin_blood: "lab_value_hemoglobin",
+  ferritin: "lab_value_ferritin",
+  vitamin_d_25oh: "lab_value_vitamin_d",
+  alt: "lab_value_alt",
+  ast: "lab_value_ast",
+  egfr: "lab_value_egfr",
+  tsh: "lab_value_tsh",
+};
+
+function printedLabAnswer(value: ConfirmedLabValue): string {
+  const range = value.rawRange ? ` (${value.rawRange})` : "";
+  const flag = value.printedFlag ? ` ${value.printedFlag}` : "";
+  return `${value.valueText} ${value.rawUnit}${range}${flag}`;
+}
 
 const INTERMISSION_LIMITS: Readonly<Record<AnalysisDepth, number>> = {
   quick: 2,
@@ -63,6 +88,8 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   }));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [awaitingLabImport, setAwaitingLabImport] = useState(false);
+  const [confirmedLabs, setConfirmedLabs] = useState<ConfirmedLabValue[]>([]);
   const [intermission, setIntermission] = useState<{
     completedDomain: HealthDomain;
     completed: number;
@@ -86,22 +113,20 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
     return () => media.removeEventListener("change", updatePreference);
   }, []);
 
-  function recordAnswer(value: NonNullable<AnswerMap[string]> | null) {
-    if (!question) return;
-    const nextState = reconcileAssessmentState(depth, questionBank, profile, {
-      ...answers,
-      [question.id]: value,
-    });
-    setQuestionnaire(nextState);
+  function advanceAfterAnswer(
+    answeredQuestion: Question,
+    nextState: QuestionnaireState,
+    labsForHandoff = confirmedLabs,
+  ) {
     const nextQuestion = getNextQuestion(nextState);
     if (!nextQuestion) {
-      onComplete(nextState.answers);
+      onComplete(nextState.answers, labsForHandoff);
       return;
     }
     const completed = nextState.queue.findIndex(
-      (candidate) => candidate.id === question.id,
+      (candidate) => candidate.id === answeredQuestion.id,
     ) + 1;
-    const milestoneKey = question.id;
+    const milestoneKey = answeredQuestion.id;
     setCurrentIndex(nextState.queue.indexOf(nextQuestion));
     if (
       milestoneIndices(nextState.queue, depth).has(completed) &&
@@ -110,8 +135,54 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
     ) {
       shownMilestones.current.add(milestoneKey);
       intermissionCount.current += 1;
-      setIntermission({ completedDomain: question.domain, completed });
+      setIntermission({ completedDomain: answeredQuestion.domain, completed });
     }
+  }
+
+  function recordAnswer(value: NonNullable<AnswerMap[string]> | null) {
+    if (!question) return;
+    const nextState = reconcileAssessmentState(depth, questionBank, profile, {
+      ...answers,
+      [question.id]: value,
+    });
+    setQuestionnaire(nextState);
+    if (question.id === "has_recent_labs") {
+      if (value === true) {
+        setAwaitingLabImport(true);
+        return;
+      }
+      setConfirmedLabs([]);
+    }
+    advanceAfterAnswer(question, nextState);
+  }
+
+  function finishLabImport(values: ConfirmedLabValue[]) {
+    if (!question || question.id !== "has_recent_labs") return;
+    const importedAnswers = Object.fromEntries(
+      values.map((value) => [LAB_ANSWER_IDS[value.marker], printedLabAnswer(value)]),
+    );
+    const nextState = reconcileAssessmentState(depth, questionBank, profile, {
+      ...questionnaire.answers,
+      ...importedAnswers,
+    });
+    setConfirmedLabs(values);
+    setQuestionnaire(nextState);
+    setAwaitingLabImport(false);
+    advanceAfterAnswer(question, nextState, values);
+  }
+
+  function cancelLabImport() {
+    if (!question || question.id !== "has_recent_labs") return;
+    setAwaitingLabImport(false);
+    advanceAfterAnswer(question, questionnaire);
+  }
+
+  if (awaitingLabImport) {
+    return (
+      <section className="journey assessment assessment--lab-import">
+        <LabImport onConfirm={finishLabImport} onCancel={cancelLabImport} />
+      </section>
+    );
   }
 
   if (intermission) {

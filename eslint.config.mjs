@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Immutable third-party PDF/OCR workers and WebAssembly are copied from npm.
+    "public/lab-assets/**",
   ]),
 ]);
 
