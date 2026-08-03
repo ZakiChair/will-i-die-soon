@@ -67,7 +67,15 @@ function urgentRule(
     title,
     copy: "Seek emergency care now.",
     inputs: [questionId],
-    sourceIds,
+    sourceIds: [
+      ...new Set([
+        ...sourceIds,
+        "whoBasicEmergencyCare",
+        "us911EmergencyAssistance",
+        "nhsWhenToCall999",
+        "swissEmergencyNumbers",
+      ]),
+    ],
     evidenceTier: "authoritative-safety",
     urgency: "urgent",
     signal: "urgent",
@@ -83,7 +91,7 @@ const immediateRedFlagRules: RiskRule[] = [
   urgentRule(
     "urgent-chest",
     "urgent_chest_discomfort_now",
-    "Immediate chest-symptom action",
+    "Immediate cardiopulmonary action",
     "chest",
     ["nhsChestPain", "whoBasicEmergencyCare"],
     "Confirmed new or severe chest discomfort now",
@@ -92,7 +100,7 @@ const immediateRedFlagRules: RiskRule[] = [
   urgentRule(
     "urgent-breathing",
     "urgent_breathing_now",
-    "Immediate breathing action",
+    "Immediate cardiopulmonary action",
     "breathing",
     ["nhsShortnessOfBreath", "nhsChildFirstAid", "whoBasicEmergencyCare"],
     "Confirmed severe breathing difficulty now",
@@ -149,7 +157,14 @@ const immediateRedFlagRules: RiskRule[] = [
     title: "Immediate pregnancy or safeguarding action",
     copy: "Get urgent pregnancy or safeguarding help now.",
     inputs: ["pregnancy_relevant", "adolescent_pregnancy_urgent_safety"],
-    sourceIds: ["whoAdolescentPregnancy", "whoPregnancyHealthServices"],
+    sourceIds: [
+      "whoAdolescentPregnancy",
+      "whoPregnancyHealthServices",
+      "whoBasicEmergencyCare",
+      "us911EmergencyAssistance",
+      "nhsWhenToCall999",
+      "swissEmergencyNumbers",
+    ],
     evidenceTier: "guideline-action",
     urgency: "urgent",
     signal: "urgent",
@@ -338,7 +353,7 @@ const mentalWellbeingRules: RiskRule[] = [
     copy:
       "Ask a trusted adult or health professional for help talking about how things have been feeling.",
     inputs: ["child_feeling_support"],
-    sourceIds: ["nhsChildMentalHealthSupport"],
+    sourceIds: ["nhsChildMentalHealthSupport", "whoAdolescentFriendlyServices"],
     evidenceTier: "guideline-action",
     urgency: "support",
     signal: "worth-attention",
@@ -508,7 +523,7 @@ const dependencyRules: RiskRule[] = [
     group: "dependency",
     title: "Adolescent substance-safety follow-up",
     copy:
-      "A past-year collapse, seizure, severe breathing problem, chest symptom, or immediate safety concern related to substance use is worth sharing promptly with a trusted adult and qualified health professional.",
+      "A past-year collapse, seizure, severe breathing problem, chest symptom, or safety concern related to substance use is worth sharing promptly with a trusted adult and qualified health professional. If one of these is happening now, use the immediate emergency route.",
     inputs: [
       "current_tobacco_nicotine",
       "alcohol_frequency",
@@ -523,6 +538,7 @@ const dependencyRules: RiskRule[] = [
       "whoAdolescentFriendlyServices",
       "samhsaYouthSubstanceSupport",
       "cdcPolysubstanceOverdose",
+      "whoBasicEmergencyCare",
     ],
     evidenceTier: "guideline-action",
     urgency: "support",
@@ -544,12 +560,45 @@ const dependencyRules: RiskRule[] = [
   },
 ];
 
+const glpRecognizedIngredient = equalsAny("glp1_detail_active_ingredient", [
+  "tirzepatide",
+  "semaglutide",
+  "liraglutide",
+  "dulaglutide",
+]);
+const glpRetinopathyLabelIngredient = equalsAny(
+  "glp1_detail_active_ingredient",
+  ["tirzepatide", "semaglutide", "dulaglutide"],
+);
+const glpLabelSources: NonNullable<RiskRule["conditionalSources"]> = [
+  {
+    sourceId: "dailymedZepboundTirzepatide",
+    condition: equals("glp1_detail_active_ingredient", "tirzepatide"),
+  },
+  {
+    sourceId: "dailymedWegovySemaglutide",
+    condition: equals("glp1_detail_active_ingredient", "semaglutide"),
+  },
+  {
+    sourceId: "dailymedSaxendaLiraglutide",
+    condition: equals("glp1_detail_active_ingredient", "liraglutide"),
+  },
+  {
+    sourceId: "dailymedTrulicityDulaglutide",
+    condition: equals("glp1_detail_active_ingredient", "dulaglutide"),
+  },
+];
 const glpAllergy: RiskCondition = {
-  all: [equals("uses_glp1", true), includes("glp1_detail_current_symptoms", "allergy")],
+  all: [
+    equals("uses_glp1", true),
+    glpRecognizedIngredient,
+    includes("glp1_detail_current_symptoms", "allergy"),
+  ],
 };
 const glpGastrointestinal: RiskCondition = {
   all: [
     equals("uses_glp1", true),
+    glpRecognizedIngredient,
     {
       any: [
         includes("glp1_detail_current_symptoms", "abdominal"),
@@ -561,6 +610,7 @@ const glpGastrointestinal: RiskCondition = {
 const glpGlucoseSymptoms: RiskCondition = {
   all: [
     equals("uses_glp1", true),
+    glpRecognizedIngredient,
     equals("glp1_detail_glucose_medicines", true),
     includes("glp1_detail_current_symptoms", "fainting"),
   ],
@@ -568,6 +618,7 @@ const glpGlucoseSymptoms: RiskCondition = {
 const glpDiabetesVision: RiskCondition = {
   all: [
     equals("uses_glp1", true),
+    glpRetinopathyLabelIngredient,
     equals("glp1_detail_indication", "diabetes"),
     includes("glp1_detail_current_symptoms", "vision"),
   ],
@@ -581,7 +632,27 @@ const glpRelevantHistory = includesAny("glp1_detail_relevant_history", [
   "men2",
 ]);
 const glpHistoryReview: RiskCondition = {
-  all: [equals("uses_glp1", true), glpRelevantHistory],
+  all: [
+    equals("uses_glp1", true),
+    glpRecognizedIngredient,
+    {
+      any: [
+        includesAny("glp1_detail_relevant_history", [
+          "pancreatitis",
+          "gallbladder",
+          "gastroparesis",
+          "kidney",
+          "men2",
+        ]),
+        {
+          all: [
+            glpRetinopathyLabelIngredient,
+            includes("glp1_detail_relevant_history", "eye"),
+          ],
+        },
+      ],
+    },
+  ],
 };
 const glpPregnancyProcedure = includesAny("glp1_detail_procedure_pregnancy", [
   "pregnant",
@@ -590,7 +661,11 @@ const glpPregnancyProcedure = includesAny("glp1_detail_procedure_pregnancy", [
   "procedure",
 ]);
 const glpPregnancyProcedureReview: RiskCondition = {
-  all: [equals("uses_glp1", true), glpPregnancyProcedure],
+  all: [
+    equals("uses_glp1", true),
+    glpRecognizedIngredient,
+    glpPregnancyProcedure,
+  ],
 };
 const isotretinoinPhysicalSymptoms = includesAny("isotretinoin_detail_symptoms", [
   "head_vision",
@@ -644,14 +719,25 @@ const topicalMinoxidilScalpReview: RiskCondition = {
 const topicalMinoxidilSymptomReview: RiskCondition = {
   all: [equals("uses_minoxidil", true), topicalMinoxidil, minoxidilCardiacSymptoms],
 };
-const researchProductConcerns = includesAny("research_detail_storage_symptoms", [
-  "warm",
-  "damaged",
+const researchProductStorageConcerns = includesAny(
+  "research_detail_storage_symptoms",
+  ["warm", "damaged"],
+);
+const researchProductReactionConcerns = includesAny("research_detail_storage_symptoms", [
   "site",
   "systemic",
 ]);
 const researchProductConditionReview: RiskCondition = {
-  all: [equals("uses_research_peptides", true), researchProductConcerns],
+  all: [
+    equals("uses_research_peptides", true),
+    researchProductReactionConcerns,
+  ],
+};
+const researchProductStorageReview: RiskCondition = {
+  all: [
+    equals("uses_research_peptides", true),
+    researchProductStorageConcerns,
+  ],
 };
 const anabolicCardiorespiratorySymptoms = includesAny("anabolic_detail_symptoms", [
   "chest_breath",
@@ -712,8 +798,13 @@ const medicationReviewRules: RiskRule[] = [
     title: "Severe-allergy symptom review while using a GLP-1 medicine",
     copy:
       "Severe allergic symptoms reported while using a GLP-1 medicine are worth prompt clinical review; use the current severe-allergy question for call-now routing.",
-    inputs: ["uses_glp1", "glp1_detail_current_symptoms"],
-    sourceIds: ["fdaGlp1Label", "nhsAnaphylaxis"],
+    inputs: [
+      "uses_glp1",
+      "glp1_detail_active_ingredient",
+      "glp1_detail_current_symptoms",
+    ],
+    sourceIds: ["nhsAnaphylaxis"],
+    conditionalSources: glpLabelSources,
     evidenceTier: "authoritative-safety",
     urgency: "prompt-review",
     signal: "high-signal",
@@ -735,8 +826,13 @@ const medicationReviewRules: RiskRule[] = [
     title: "GLP-1 symptom review",
     copy:
       "Severe abdominal symptoms or persistent vomiting or diarrhoea while using a GLP-1 medicine are worth prompt clinical review.",
-    inputs: ["uses_glp1", "glp1_detail_current_symptoms"],
-    sourceIds: ["fdaGlp1Label"],
+    inputs: [
+      "uses_glp1",
+      "glp1_detail_active_ingredient",
+      "glp1_detail_current_symptoms",
+    ],
+    sourceIds: [],
+    conditionalSources: glpLabelSources,
     evidenceTier: "authoritative-safety",
     urgency: "prompt-review",
     signal: "high-signal",
@@ -764,10 +860,12 @@ const medicationReviewRules: RiskRule[] = [
       "Fainting, confusion, sweating, or shaking reported alongside insulin or a sulfonylurea is worth prompt clinical review; these answers do not establish low blood glucose.",
     inputs: [
       "uses_glp1",
+      "glp1_detail_active_ingredient",
       "glp1_detail_glucose_medicines",
       "glp1_detail_current_symptoms",
     ],
-    sourceIds: ["fdaGlp1Label"],
+    sourceIds: [],
+    conditionalSources: glpLabelSources,
     evidenceTier: "authoritative-safety",
     urgency: "prompt-review",
     signal: "high-signal",
@@ -795,10 +893,12 @@ const medicationReviewRules: RiskRule[] = [
       "Vision change reported during GLP-1 use for diabetes is worth prompt review with a qualified clinician or eye-care professional.",
     inputs: [
       "uses_glp1",
+      "glp1_detail_active_ingredient",
       "glp1_detail_indication",
       "glp1_detail_current_symptoms",
     ],
-    sourceIds: ["fdaGlp1Label"],
+    sourceIds: [],
+    conditionalSources: glpLabelSources,
     evidenceTier: "authoritative-safety",
     urgency: "prompt-review",
     signal: "high-signal",
@@ -824,8 +924,13 @@ const medicationReviewRules: RiskRule[] = [
     title: "GLP-1 relevant-history review",
     copy:
       "The reported medical history is worth discussing with the prescriber; this route does not decide whether the medicine is suitable.",
-    inputs: ["uses_glp1", "glp1_detail_relevant_history"],
-    sourceIds: ["fdaGlp1Label"],
+    inputs: [
+      "uses_glp1",
+      "glp1_detail_active_ingredient",
+      "glp1_detail_relevant_history",
+    ],
+    sourceIds: [],
+    conditionalSources: glpLabelSources,
     evidenceTier: "authoritative-safety",
     urgency: "prompt-review",
     signal: "worth-attention",
@@ -846,8 +951,13 @@ const medicationReviewRules: RiskRule[] = [
     title: "GLP-1 pregnancy or procedure context",
     copy:
       "Pregnancy, trying to conceive, breastfeeding, or planned deep sedation or anaesthesia is worth prompt review with the prescriber or procedural team.",
-    inputs: ["uses_glp1", "glp1_detail_procedure_pregnancy"],
-    sourceIds: ["fdaGlp1Label", "nhsPregnancyMedicines"],
+    inputs: [
+      "uses_glp1",
+      "glp1_detail_active_ingredient",
+      "glp1_detail_procedure_pregnancy",
+    ],
+    sourceIds: ["nhsPregnancyMedicines"],
+    conditionalSources: glpLabelSources,
     evidenceTier: "authoritative-safety",
     urgency: "prompt-review",
     signal: "high-signal",
@@ -1054,7 +1164,7 @@ const medicationReviewRules: RiskRule[] = [
     copy:
       "Infection, severe illness, surgery, or major injury during systemic corticosteroid use is worth prompt prescriber or clinical review.",
     inputs: ["uses_systemic_corticosteroids", "corticosteroid_detail_infection_context"],
-    sourceIds: ["fdaPrednisone", "mhraCorticosteroids"],
+    sourceIds: ["eseEndocrineSocietyGlucocorticoidAdrenalInsufficiency"],
     evidenceTier: "authoritative-safety",
     urgency: "prompt-review",
     signal: "high-signal",
@@ -1144,7 +1254,7 @@ const medicationReviewRules: RiskRule[] = [
     copy:
       "A product from an online research seller or unknown source has uncertain identity and quality and is worth discussing with a pharmacist or clinician.",
     inputs: ["uses_research_peptides", "research_detail_source"],
-    sourceIds: ["fdaUnapprovedDrugs", "fdaCompoundedRisks"],
+    sourceIds: ["fdaUnapprovedDrugs"],
     evidenceTier: "evidence-limited-association",
     urgency: "prompt-review",
     signal: "worth-attention",
@@ -1181,12 +1291,12 @@ const medicationReviewRules: RiskRule[] = [
   {
     id: "research-product-condition-review",
     group: "medication-substance-review",
-    title: "Research-product condition or reaction review",
+    title: "Research-product reaction review",
     copy:
-      "A warm or damaged product, worsening injection-site symptoms, or unexpected whole-body symptoms is worth prompt pharmacist or clinical review; this does not establish product identity or cause.",
+      "Worsening injection-site or unexpected whole-body symptoms after a research, unapproved, or compounded product are worth prompt clinical review; this does not establish product identity or cause.",
     inputs: ["uses_research_peptides", "research_detail_storage_symptoms"],
-    sourceIds: ["fdaCompoundedRisks", "cdcInjectionSafety"],
-    evidenceTier: "authoritative-safety",
+    sourceIds: ["fdaProductProblems"],
+    evidenceTier: "evidence-limited-association",
     urgency: "prompt-review",
     signal: "high-signal",
     condition: researchProductConditionReview,
@@ -1198,8 +1308,34 @@ const medicationReviewRules: RiskRule[] = [
       ),
       factor(
         "research_detail_storage_symptoms",
-        "Storage, packaging, injection-site, or whole-body concern reported",
-        researchProductConcerns,
+        "Injection-site or whole-body concern reported",
+        researchProductReactionConcerns,
+      ),
+    ],
+    applicability: adults,
+  },
+  {
+    id: "research-product-storage-review",
+    group: "medication-substance-review",
+    title: "Research-product storage or packaging review",
+    copy:
+      "A warm or damaged product cannot be assessed without its exact product-specific storage and packaging instructions. Compare the label and ask a pharmacist, qualified clinician, or manufacturer before relying on it.",
+    inputs: ["uses_research_peptides", "research_detail_storage_symptoms"],
+    sourceIds: ["fdaMedicationStorage"],
+    evidenceTier: "evidence-limited-association",
+    urgency: "prompt-review",
+    signal: "worth-attention",
+    condition: researchProductStorageReview,
+    factors: [
+      factor(
+        "uses_research_peptides",
+        "Current research, unapproved, or compounded injectable use",
+        equals("uses_research_peptides", true),
+      ),
+      factor(
+        "research_detail_storage_symptoms",
+        "Warm delivery or damaged packaging reported",
+        researchProductStorageConcerns,
       ),
     ],
     applicability: adults,
@@ -1533,7 +1669,11 @@ const reproductiveRules: RiskRule[] = [
     copy:
       "A new or worsening concern during pregnancy or after birth is worth prompt assessment by a qualified pregnancy-care professional. This route does not identify a cause or severity.",
     inputs: ["pregnancy_relevant", "pregnancy_new_concern"],
-    sourceIds: ["cdcPregnantPostpartum", "whoPregnancyHealthServices"],
+    sourceIds: [
+      "cdcPregnantPostpartum",
+      "whoPregnancyHealthServices",
+      "whoPostpartumHealthServices",
+    ],
     evidenceTier: "guideline-action",
     urgency: "prompt-review",
     signal: "high-signal",
@@ -1665,7 +1805,7 @@ const musculoskeletalRules: RiskRule[] = [
     copy:
       "Lower weekly aerobic or strength activity may be associated with poorer long-term health; personal limitations and safe options are worth discussing.",
     inputs: ["weekly_moderate_activity_minutes", "movement_strength_days"],
-    sourceIds: ["cdcAdultActivity"],
+    sourceIds: ["cdcAdultActivity", "whoPhysicalActivity"],
     evidenceTier: "guideline-action",
     urgency: "long-term",
     signal: "worth-attention",

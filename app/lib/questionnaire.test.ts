@@ -124,6 +124,32 @@ describe("question bank invariants", () => {
     );
   });
 
+  test("captures GLP-1 active ingredient as structured identity without parsing free text", () => {
+    const ingredient = questionBank.find(
+      (question) => question.id === "glp1_detail_active_ingredient",
+    );
+
+    expect(ingredient).toEqual(
+      expect.objectContaining({
+        domain: "glp1",
+        answerType: "single",
+        minAge: 18,
+        condition: {
+          questionId: "uses_glp1",
+          operator: "equals",
+          value: true,
+        },
+      }),
+    );
+    expect(ingredient?.options?.map((option) => option.value)).toEqual([
+      "tirzepatide",
+      "semaglutide",
+      "liraglutide",
+      "dulaglutide",
+      "other_or_unsure",
+    ]);
+  });
+
   test("uses observable, time-bounded emergency wording and age-gates self-harm at 13", () => {
     const byId = new Map(questionBank.map((question) => [question.id, question]));
 

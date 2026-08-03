@@ -14,7 +14,14 @@ import {
   evaluateRisks,
   sortRisksForDisplay,
 } from "./risk-engine";
-import type { AnswerMap, ProfileContext, RiskCondition, RiskLeaf } from "./types";
+import type {
+  AnswerMap,
+  AnswerValue,
+  ProfileContext,
+  RiskCondition,
+  RiskLeaf,
+  RiskRule,
+} from "./types";
 
 const adultUS: ProfileContext = { age: 35, countryCode: "US" };
 const adultGB: ProfileContext = { age: 35, countryCode: "GB" };
@@ -46,7 +53,141 @@ function conditionQuestionIds(
   return ids;
 }
 
+function mergeConditionAnswers(
+  left: Record<string, AnswerValue>,
+  right: Record<string, AnswerValue>,
+): Record<string, AnswerValue> {
+  const merged = { ...left };
+  for (const [questionId, value] of Object.entries(right)) {
+    const existing = merged[questionId];
+    if (existing === undefined || existing === value) {
+      merged[questionId] = value;
+      continue;
+    }
+    if (Array.isArray(existing) && Array.isArray(value)) {
+      merged[questionId] = [...new Set([...existing, ...value])];
+      continue;
+    }
+    throw new Error(`Cannot construct a valid answer for ${questionId}.`);
+  }
+  return merged;
+}
+
+function satisfyingAnswers(condition: RiskCondition): Record<string, AnswerValue> {
+  if ("all" in condition) {
+    return condition.all.reduce<Record<string, AnswerValue>>(
+      (answers, part) => mergeConditionAnswers(answers, satisfyingAnswers(part)),
+      {},
+    );
+  }
+  if ("any" in condition) return satisfyingAnswers(condition.any[0]);
+  if (condition.operator === "includes") {
+    return { [condition.questionId]: [condition.value] };
+  }
+  if (condition.operator === "equals") {
+    return { [condition.questionId]: condition.value };
+  }
+  return {
+    [condition.questionId]:
+      condition.operator === "less-than"
+        ? Math.max(condition.validMin ?? 0, condition.value - 1)
+        : condition.value,
+  };
+}
+
+function profileForRule(rule: RiskRule, countryCode: string): ProfileContext {
+  const { minAge = 0, maxAge } = rule.applicability;
+  const age =
+    maxAge === undefined
+      ? Math.max(35, minAge)
+      : Math.max(minAge, Math.min(maxAge, maxAge >= 15 ? 15 : maxAge));
+  return { age, countryCode };
+}
+
+describe("global rule source support matrix", () => {
+  test.each(
+    riskRules.flatMap((rule) =>
+      ["US", "GB", "CH", "DE", "OTHER"].map((countryCode) => [
+        rule.id,
+        countryCode,
+        rule,
+      ] as const),
+    ),
+  )("keeps %s supported in %s", (_ruleId, countryCode, rule) => {
+    expect(rule.applicability.countries, rule.id).toBe("all");
+    const leaves = evaluateRisks(
+      satisfyingAnswers(rule.condition),
+      profileForRule(rule, countryCode),
+      prototypePolicy,
+    );
+
+    expect(
+      leaves.find((leaf) => leaf.ruleId === rule.id),
+      `${rule.id} lost all applicable evidence in ${countryCode}`,
+    ).toBeDefined();
+  });
+});
+
 describe("evidence and release contracts", () => {
+  test("separates publisher origin from content and operational applicability", () => {
+    for (const source of Object.values(evidenceSources)) {
+      const contract = source as typeof source & {
+        applicability?: { countries: "all" | ReadonlyArray<string>; minAge?: number; maxAge?: number };
+        operationalCountries?: ReadonlyArray<string>;
+      };
+      const validOrigin =
+        contract.jurisdictions === "all" ||
+        (Array.isArray(contract.jurisdictions) &&
+          contract.jurisdictions.length > 0 &&
+          contract.jurisdictions.every((country) => /^[A-Z]{2}$/.test(country)));
+      expect(validOrigin, source.id).toBe(true);
+      expect(contract.applicability, source.id).toEqual(
+        expect.objectContaining({ countries: expect.anything() }),
+      );
+      if (contract.operationalCountries !== undefined) {
+        expect(contract.operationalCountries, source.id).not.toHaveLength(0);
+      }
+    }
+
+    expect(evidenceSources.nhsChangingMole.jurisdictions).toEqual(["GB"]);
+    expect(
+      (evidenceSources.nhsChangingMole as typeof evidenceSources.nhsChangingMole & {
+        applicability: { countries: "all" | ReadonlyArray<string> };
+      }).applicability.countries,
+    ).toBe("all");
+  });
+
+  test.each([
+    { jurisdictions: [] },
+    { jurisdictions: [""] },
+    { applicability: { countries: [] } },
+    { applicability: { countries: "all", minAge: 18, maxAge: 12 } },
+    { operationalCountries: [] },
+  ])("rejects malformed source scope metadata %#", (override) => {
+    const source = {
+      ...evidenceSources.cdcAdultSleep,
+      applicability: { countries: "all" as const },
+      ...override,
+    };
+    const leaf: RiskLeaf = {
+      id: "source-contract",
+      ruleId: "source-contract",
+      rulesetVersion: RISK_RULESET_VERSION,
+      group: "sleep",
+      title: "Source contract",
+      copy: "This pattern is worth discussing.",
+      evidenceTier: "guideline-action",
+      urgency: "long-term",
+      signal: "worth-attention",
+      factors: ["A factor"],
+      missingInputs: [],
+      sources: [source as typeof evidenceSources.cdcAdultSleep],
+      applicability: { countries: "all" },
+    };
+
+    expect(() => assertEvidenceContract(leaf)).toThrow(/source.*(?:scope|applicability|jurisdiction|operational)/i);
+  });
+
   test("rejects probability on every non-validated evidence tier", () => {
     expect(() =>
       assertEvidenceContract({
@@ -102,13 +243,26 @@ describe("evidence and release contracts", () => {
     expect(riskRules.length).toBeGreaterThan(0);
     expect(
       riskRules.every(
-        (rule) =>
-          rule.inputs.length > 0 &&
-          rule.sourceIds.length > 0 &&
-          rule.inputs.every(
+        (rule) => {
+          const conditionalSources = (
+            rule as RiskRule & {
+              conditionalSources?: ReadonlyArray<{
+                sourceId: string;
+                condition: RiskCondition;
+              }>;
+            }
+          ).conditionalSources ?? [];
+          return (
+            rule.inputs.length > 0 &&
+            rule.sourceIds.length + conditionalSources.length > 0 &&
+            rule.inputs.every(
             (input) => /^[a-z][a-z0-9_]*$/.test(input) && questionIds.has(input),
-          ) &&
-          rule.sourceIds.every((sourceId) => sourceIds.has(sourceId)),
+            ) &&
+            [...rule.sourceIds, ...conditionalSources.map((item) => item.sourceId)].every(
+              (sourceId) => sourceIds.has(sourceId),
+            )
+          );
+        },
       ),
     ).toBe(true);
     expect(
@@ -131,6 +285,7 @@ describe("evidence and release contracts", () => {
   test("exposes the current reviewed regulator and NHS records on consumer-visible leaves", () => {
     const glp = leafById("glp1-history-review", {
       uses_glp1: true,
+      glp1_detail_active_ingredient: "tirzepatide",
       glp1_detail_relevant_history: ["pancreatitis"],
     });
     const steroid = leafById("systemic-steroid-illness-review", {
@@ -145,17 +300,17 @@ describe("evidence and release contracts", () => {
 
     expect(glp.sources).toContainEqual(
       expect.objectContaining({
-        id: "fda-glp1-label",
+        id: "dailymed-zepbound-tirzepatide",
         title: "Zepbound (tirzepatide) prescribing information",
-        url: "https://www.accessdata.fda.gov/drugsatfda_docs/label/2026/217806s042lbl.pdf",
+        url: "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=487cd7e7-434c-4925-99fa-aa80b1cc776b&version=38",
         reviewedAt: "2026-08-03",
       }),
     );
     expect(steroid.sources).toContainEqual(
       expect.objectContaining({
-        id: "fda-prednisone-label",
-        title: "Rayos (prednisone) prescribing information",
-        url: "https://www.accessdata.fda.gov/drugsatfda_docs/label/2024/202020s013lbl.pdf",
+        id: "ese-endocrine-society-glucocorticoid-adrenal-insufficiency",
+        title: "Glucocorticoid-Induced Adrenal Insufficiency",
+        url: "https://www.endocrine.org/clinical-practice-guidelines/glucocorticoid-induced-adrenal-insufficiency",
         reviewedAt: "2026-08-03",
       }),
     );
@@ -165,6 +320,17 @@ describe("evidence and release contracts", () => {
         title: "Moles",
         url: "https://www.nhs.uk/conditions/moles/",
         reviewedAt: "2026-08-03",
+      }),
+    );
+  });
+
+  test("registers the primary WHO adolescent-pregnancy publication rather than its news release", () => {
+    expect(evidenceSources.whoAdolescentPregnancy).toEqual(
+      expect.objectContaining({
+        title:
+          "WHO guideline on preventing early pregnancy and poor reproductive outcomes among adolescents in low- and middle-income countries",
+        url: "https://www.who.int/publications/i/item/9789240104105",
+        applicability: { maxAge: 19, countries: "all" },
       }),
     );
   });
@@ -337,7 +503,7 @@ describe("evidence and release contracts", () => {
     ).toContain("adult-short-sleep");
   });
 
-  test("emits only sources applicable to the confirmed profile country", () => {
+  test("uses content applicability without treating publisher origin as user scope", () => {
     const gbSkin = leafById(
       "changing-skin-mark-review",
       { sun_changing_mole: true },
@@ -346,9 +512,14 @@ describe("evidence and release contracts", () => {
     expect(gbSkin.sources.map((source) => source.id)).toContain(
       "nhs-changing-mole",
     );
-    expect(
-      leafIds({ sun_changing_mole: true }, adultUS),
-    ).not.toContain("changing-skin-mark-review");
+    const usSkin = leafById(
+      "changing-skin-mark-review",
+      { sun_changing_mole: true },
+      adultUS,
+    );
+    expect(usSkin.sources.map((source) => source.id)).toContain(
+      "nhs-changing-mole",
+    );
 
     const usUrgent = leafById(
       "urgent-chest",
@@ -356,15 +527,8 @@ describe("evidence and release contracts", () => {
       adultUS,
     );
     expect(usUrgent.sources.length).toBeGreaterThan(0);
-    expect(
-      usUrgent.sources.every(
-        (source) =>
-          source.jurisdictions === "all" ||
-          source.jurisdictions.includes("US"),
-      ),
-    ).toBe(true);
-    expect(usUrgent.sources.map((source) => source.id)).not.toContain(
-      "nhs-chest-pain",
+    expect(usUrgent.sources.map((source) => source.id)).toContain(
+      "us-911-emergency-assistance",
     );
   });
 
@@ -378,6 +542,7 @@ describe("evidence and release contracts", () => {
     const psychedelic = byId.get("psychedelic-aftereffect-review");
     const researchSource = byId.get("research-product-source-review");
     const researchReaction = byId.get("research-product-condition-review");
+    const researchStorage = byId.get("research-product-storage-review");
 
     expect(adolescentSupport?.sourceIds).not.toContain("cdcYrbs");
     expect(adolescentSupport?.sourceIds).toEqual(
@@ -387,6 +552,7 @@ describe("evidence and release contracts", () => {
       ]),
     );
     expect(adolescentSafety?.sourceIds).not.toContain("cdcYrbs");
+    expect(adolescentSafety?.sourceIds).toContain("whoBasicEmergencyCare");
     expect(adolescentPregnancy?.sourceIds).toContain(
       "whoPregnancyHealthServices",
     );
@@ -396,12 +562,13 @@ describe("evidence and release contracts", () => {
         urgency: "support",
       }),
     );
-    expect(researchSource?.sourceIds).toEqual(
-      expect.arrayContaining(["fdaUnapprovedDrugs", "fdaCompoundedRisks"]),
-    );
-    expect(researchReaction?.sourceIds).toEqual(
-      expect.arrayContaining(["fdaCompoundedRisks", "cdcInjectionSafety"]),
-    );
+    expect(researchSource?.sourceIds).toEqual(["fdaUnapprovedDrugs"]);
+    expect(researchReaction?.sourceIds).toEqual(["fdaProductProblems"]);
+    expect(researchReaction?.evidenceTier).toBe("evidence-limited-association");
+    expect(researchReaction?.sourceIds).not.toContain("cdcInjectionSafety");
+    expect(researchReaction?.sourceIds).not.toContain("fdaCompoundedRisks");
+    expect(researchStorage?.sourceIds).toEqual(["fdaMedicationStorage"]);
+    expect(researchStorage?.evidenceTier).toBe("evidence-limited-association");
     expect(researchSource?.sourceIds).not.toEqual(
       expect.arrayContaining(["fdaUnapprovedGlp1", "fdaCompoundedSemaglutide"]),
     );
@@ -423,6 +590,42 @@ describe("evidence and release contracts", () => {
 });
 
 describe("strict emergency routing", () => {
+  test.each(
+    riskRules
+      .filter((rule) => rule.urgency === "urgent")
+      .flatMap((rule) =>
+        [
+          ["US", "911", "us-911-emergency-assistance"],
+          ["GB", "999", "nhs-when-to-call-999"],
+          ["CH", "144", "swiss-emergency-numbers"],
+          ["OTHER", "local emergency service", "who-basic-emergency-care"],
+        ].map(([countryCode, expectedCopy, expectedSourceId]) => [
+          rule.id,
+          countryCode,
+          rule,
+          expectedCopy,
+          expectedSourceId,
+        ] as const),
+      ),
+  )(
+    "keeps operational copy and evidence coherent for %s in %s",
+    (_ruleId, countryCode, rule, expectedCopy, expectedSourceId) => {
+      const leaf = evaluateRisks(
+        satisfyingAnswers(rule.condition),
+        profileForRule(rule, countryCode),
+        prototypePolicy,
+      ).find((candidate) => candidate.ruleId === rule.id);
+
+      expect(leaf, rule.id).toBeDefined();
+      expect(leaf?.copy.toLowerCase()).toContain(expectedCopy.toLowerCase());
+      expect(leaf?.copy).not.toMatch(/drive yourself/i);
+      expect(leaf?.sources.map((source) => source.id)).toContain(expectedSourceId);
+      if (countryCode === "OTHER") {
+        expect(leaf?.copy).not.toMatch(/\b(?:911|999|144|145)\b/);
+      }
+    },
+  );
+
   test.each([
     ["urgent_chest_discomfort_now", "urgent-chest"],
     ["urgent_breathing_now", "urgent-breathing"],
@@ -474,7 +677,10 @@ describe("strict emergency routing", () => {
         },
         profile,
       ),
-    ).toEqual(["urgent-adolescent-pregnancy-safety"]);
+    ).toEqual([
+      "urgent-adolescent-pregnancy-safety",
+      "minor-pregnancy-support",
+    ]);
 
     for (const gate of [false, "unsure", null] as const) {
       expect(
@@ -504,13 +710,18 @@ describe("strict emergency routing", () => {
   });
 
   test.each([
-    [adultUS, "911"],
-    [adultGB, "999"],
-    [adultCH, "144"],
-    [{ age: 35, countryCode: "OTHER" }, "local emergency"],
-  ] as const)("uses only the confirmed country for emergency copy", (profile, expected) => {
+    [adultUS, "911", "us-911-emergency-assistance"],
+    [adultGB, "999", "nhs-chest-pain"],
+    [adultCH, "144", "swiss-emergency-numbers"],
+    [{ age: 35, countryCode: "OTHER" }, "local emergency service", "who-basic-emergency-care"],
+  ] as const)("keeps emergency copy and operational evidence coherent for %#", (profile, expected, expectedSource) => {
     const leaf = leafById("urgent-chest", { urgent_chest_discomfort_now: true }, profile);
     expect(leaf.copy.toLowerCase()).toContain(expected.toLowerCase());
+    expect(leaf.sources.map((source) => source.id)).toContain(expectedSource);
+    expect(leaf.copy).not.toMatch(/drive yourself/i);
+    if (profile.countryCode === "OTHER") {
+      expect(leaf.copy).not.toMatch(/\b(?:911|999|144|145)\b/);
+    }
   });
 
   test("adds Swiss poison information only to the poisoning route", () => {
@@ -527,18 +738,20 @@ describe("strict emergency routing", () => {
     expect(chest.copy).not.toMatch(/145/);
   });
 
-  test("an urgent signal suppresses a lower-priority duplicate", () => {
+  test("retains a semantically distinct activity-breathlessness review beside urgent action", () => {
     const leaves = evaluateRisks(
       { urgent_breathing_now: true, breathlessness_activity: true },
       adultUS,
       prototypePolicy,
     );
 
-    expect(leaves.map((leaf) => leaf.id)).toContain("urgent-breathing");
-    expect(leaves.map((leaf) => leaf.id)).not.toContain("breathlessness-review");
+    expect(leaves.map((leaf) => leaf.id)).toEqual([
+      "urgent-breathing",
+      "breathlessness-review",
+    ]);
   });
 
-  test("a winning urgent leaf preserves the factors and sources of duplicate routes", () => {
+  test("keeps medicine context separate from a direct urgent symptom route", () => {
     const leaves = evaluateRisks(
       {
         urgent_chest_discomfort_now: true,
@@ -550,23 +763,68 @@ describe("strict emergency routing", () => {
       prototypePolicy,
     );
 
-    expect(leaves.map((leaf) => leaf.id)).toEqual(["urgent-chest"]);
-    expect(leaves[0].factors).toEqual(
-      expect.arrayContaining([
-        "Confirmed new or severe chest discomfort now",
-        "Current minoxidil use",
-        "Cardiovascular symptoms reported while using it",
-      ]),
+    expect(leaves.map((leaf) => leaf.id)).toEqual([
+      "urgent-chest",
+      "oral-minoxidil-symptom-review",
+    ]);
+    expect(leaves[0].factors).toEqual([
+      "Confirmed new or severe chest discomfort now",
+    ]);
+    expect(leaves[1].sources.map((source) => source.id)).toContain(
+      "fda-oral-minoxidil",
     );
-    expect(leaves[0].sources.map((source) => source.id)).toEqual(
-      expect.arrayContaining([
-        "who-basic-emergency-care",
-        "fda-oral-minoxidil",
-      ]),
+  });
+
+  test("merges only explicitly equivalent chest and breathing emergency actions", () => {
+    const leaves = evaluateRisks(
+      {
+        urgent_chest_discomfort_now: true,
+        urgent_breathing_now: true,
+      },
+      adultUS,
+      prototypePolicy,
     );
-    expect(leaves[0].sources.map((source) => source.id)).not.toContain(
-      "nhs-chest-pain",
+
+    expect(leaves).toHaveLength(1);
+    expect(leaves[0].id).toBe("urgent-chest");
+    expect(leaves[0].factors).toEqual([
+      "Confirmed new or severe chest discomfort now",
+      "Confirmed severe breathing difficulty now",
+    ]);
+  });
+
+  test("keeps chest, breathing, and medicine contexts deterministic without arbitrary merging", () => {
+    const entries = [
+      ["urgent_chest_discomfort_now", true],
+      ["urgent_breathing_now", true],
+      ["uses_minoxidil", true],
+      ["minoxidil_detail_route_product", "oral"],
+      ["minoxidil_detail_cardiac_symptoms", ["chest"]],
+    ] as const;
+    const forward = Object.fromEntries(entries) as AnswerMap;
+    const reverse = Object.fromEntries([...entries].reverse()) as AnswerMap;
+    const expectedIds = ["urgent-chest", "oral-minoxidil-symptom-review"];
+
+    expect(evaluateRisks(forward, adultUS, prototypePolicy).map((leaf) => leaf.id)).toEqual(expectedIds);
+    expect(evaluateRisks(reverse, adultUS, prototypePolicy)).toEqual(
+      evaluateRisks(forward, adultUS, prototypePolicy),
     );
+  });
+
+  test("preserves self-harm and poisoning instructions as separate emergency contexts", () => {
+    const leaves = evaluateRisks(
+      { urgent_self_harm_now: true, urgent_overdose_poisoning_now: true },
+      adultCH,
+      prototypePolicy,
+    );
+    const byId = new Map(leaves.map((leaf) => [leaf.id, leaf]));
+
+    expect(leaves.map((leaf) => leaf.id)).toEqual([
+      "urgent-self-harm",
+      "urgent-overdose-poisoning",
+    ]);
+    expect(byId.get("urgent-overdose-poisoning")?.copy).toMatch(/145|package/i);
+    expect(byId.get("urgent-self-harm")?.copy).toMatch(/trusted person|stay.*with/i);
   });
 
   test("retains semantically distinct same-urgency medicine and substance leaves", () => {
@@ -611,7 +869,7 @@ describe("strict emergency routing", () => {
     expect(byId.get("stimulant-symptom-review")?.title).toMatch(/stimulant/i);
   });
 
-  test("lets urgent breathing action win while retaining medicine context safely", () => {
+  test("keeps urgent breathing action and medicine context as distinct leaves", () => {
     const leaves = evaluateRisks(
       {
         urgent_breathing_now: true,
@@ -623,23 +881,20 @@ describe("strict emergency routing", () => {
       prototypePolicy,
     );
 
-    expect(leaves.map((leaf) => leaf.id)).toEqual(["urgent-breathing"]);
-    expect(leaves[0].factors).toEqual(
+    expect(leaves.map((leaf) => leaf.id)).toEqual([
+      "urgent-breathing",
+      "oral-minoxidil-symptom-review",
+    ]);
+    expect(leaves[0].factors).toEqual([
+      "Confirmed severe breathing difficulty now",
+    ]);
+    expect(leaves[1].factors).toEqual(
       expect.arrayContaining([
-        "Confirmed severe breathing difficulty now",
         "Current minoxidil use",
         "Oral minoxidil route reported",
         "Cardiovascular symptoms reported while using it",
       ]),
     );
-    expect(leaves[0].sources.map((source) => source.id)).toEqual(
-      expect.arrayContaining([
-        "who-basic-emergency-care",
-        "fda-oral-minoxidil",
-      ]),
-    );
-    expect(leaves[0].missingInputs).toEqual([]);
-    expect(leaves[0].copy).toMatch(/related.*context/i);
   });
 
   test("produces deterministic semantic ordering independent of answer insertion order", () => {
@@ -660,7 +915,7 @@ describe("strict emergency routing", () => {
     );
   });
 
-  test("deduplicates direct neurologic and personal-safety routes without losing context", () => {
+  test("retains distinct neurologic and personal-safety review contexts", () => {
     const neurologic = evaluateRisks(
       {
         urgent_stroke_signs_now: true,
@@ -670,10 +925,10 @@ describe("strict emergency routing", () => {
       adultUS,
       prototypePolicy,
     );
-    expect(neurologic.map((leaf) => leaf.id)).toEqual(["urgent-stroke"]);
-    expect(neurologic[0].factors).toContain(
-      "Current anabolic, SARM, or steroid-like product use",
-    );
+    expect(neurologic.map((leaf) => leaf.id)).toEqual([
+      "urgent-stroke",
+      "anabolic-neurologic-review",
+    ]);
 
     const personalSafety = evaluateRisks(
       {
@@ -683,8 +938,10 @@ describe("strict emergency routing", () => {
       adultUS,
       prototypePolicy,
     );
-    expect(personalSafety.map((leaf) => leaf.id)).toEqual(["urgent-self-harm"]);
-    expect(personalSafety[0].factors).toContain("Frequent low or hopeless mood");
+    expect(personalSafety.map((leaf) => leaf.id)).toEqual([
+      "urgent-self-harm",
+      "low-mood-support",
+    ]);
   });
 
   test("qualifies severe-bleeding first aid when an object may be embedded", () => {
@@ -702,12 +959,17 @@ describe("structured qualitative rules", () => {
     expect(
       leafIds({
         uses_glp1: true,
+        glp1_detail_active_ingredient: "tirzepatide",
         glp1_detail_current_symptoms: ["none", "allergy"],
       }),
     ).not.toContain("glp1-severe-allergy");
 
     expect(
-      leafIds({ uses_glp1: true, glp1_detail_current_symptoms: ["allergy"] }),
+      leafIds({
+        uses_glp1: true,
+        glp1_detail_active_ingredient: "tirzepatide",
+        glp1_detail_current_symptoms: ["allergy"],
+      }),
     ).toContain("glp1-severe-allergy");
   });
 
@@ -715,6 +977,7 @@ describe("structured qualitative rules", () => {
     "requires the exact medication gate instead of %s",
     (gate) => {
       const answers: Record<string, unknown> = {
+        glp1_detail_active_ingredient: "tirzepatide",
         glp1_detail_current_symptoms: ["allergy"],
       };
       if (gate !== undefined) answers.uses_glp1 = gate;
@@ -766,7 +1029,20 @@ describe("structured qualitative rules", () => {
           "Responding to children and adolescents who have been sexually abused: WHO clinical guidelines",
         url: "https://www.who.int/publications/i/item/9789241550147",
         jurisdictions: "all",
+        applicability: { maxAge: 17, countries: "all" },
       }),
+    );
+    expect(globalLeaf.sources.map((source) => source.id)).not.toContain(
+      "who-sexual-violence-support",
+    );
+
+    const adultLeaf = leafById(
+      "sexual-safety-support",
+      { sexual_contact_safety: true },
+      adultCH,
+    );
+    expect(adultLeaf.sources.map((source) => source.id)).not.toContain(
+      "who-child-adolescent-sexual-abuse",
     );
 
     for (const value of [false, "unsure", null, "true", 1] as const) {
@@ -835,6 +1111,25 @@ describe("structured qualitative rules", () => {
       );
     }
   });
+
+  test.each(["CH", "GB", "OTHER"] as const)(
+    "cites direct postpartum health-service guidance for new concerns in %s",
+    (countryCode) => {
+      const leaf = leafById(
+        "pregnancy-new-concern-review",
+        { pregnancy_relevant: true, pregnancy_new_concern: true },
+        { age: 35, countryCode },
+      );
+
+      expect(leaf.sources).toContainEqual(
+        expect.objectContaining({
+          id: "who-postpartum-health-services",
+          title: "Getting the health services you need: after childbirth",
+          url: "https://www.who.int/tools/your-life-your-health/life-phase/pregnancy--birth-and-after-childbirth/getting-the-health-services-you-need-after-childbirth",
+        }),
+      );
+    },
+  );
 
   test("keeps pregnancy medicine review sourced outside the United Kingdom", () => {
     const answers = {
@@ -1004,6 +1299,7 @@ describe("structured qualitative rules", () => {
     const leaves = evaluateRisks(
       {
         uses_glp1: true,
+        glp1_detail_active_ingredient: "tirzepatide",
         glp1_detail_current_symptoms: ["abdominal"],
         uses_minoxidil: true,
         minoxidil_detail_route_product: "oral",
@@ -1023,10 +1319,128 @@ describe("structured qualitative rules", () => {
 
 describe("audited medication and substance class routes", () => {
   test.each([
+    ["tirzepatide", "dailymed-zepbound-tirzepatide"],
+    ["semaglutide", "dailymed-wegovy-semaglutide"],
+    ["liraglutide", "dailymed-saxenda-liraglutide"],
+    ["dulaglutide", "dailymed-trulicity-dulaglutide"],
+  ] as const)(
+    "uses only the product-appropriate official label for %s",
+    (ingredient, expectedSourceId) => {
+      const leaf = leafById("glp1-gastrointestinal-review", {
+        uses_glp1: true,
+        glp1_detail_active_ingredient: ingredient,
+        glp1_detail_current_symptoms: ["abdominal"],
+      });
+      const labelSourceIds = leaf.sources
+        .map((source) => source.id)
+        .filter((sourceId) => sourceId.startsWith("dailymed-"));
+
+      expect(labelSourceIds).toEqual([expectedSourceId]);
+    },
+  );
+
+  test.each([
+    [
+      "glp1-severe-allergy",
+      { glp1_detail_current_symptoms: ["allergy"] },
+    ],
+    [
+      "glp1-gastrointestinal-review",
+      { glp1_detail_current_symptoms: ["abdominal"] },
+    ],
+    [
+      "glp1-glucose-symptom-review",
+      {
+        glp1_detail_glucose_medicines: true,
+        glp1_detail_current_symptoms: ["fainting"],
+      },
+    ],
+    [
+      "glp1-diabetes-vision-review",
+      {
+        glp1_detail_indication: "diabetes",
+        glp1_detail_current_symptoms: ["vision"],
+      },
+    ],
+    [
+      "glp1-history-review",
+      { glp1_detail_relevant_history: ["pancreatitis"] },
+    ],
+    [
+      "glp1-pregnancy-procedure-review",
+      { glp1_detail_procedure_pregnancy: ["procedure"] },
+    ],
+  ] as const)(
+    "requires a recognized structured ingredient for %s",
+    (expectedId, detail) => {
+      const base = { uses_glp1: true, ...detail } as AnswerMap;
+
+      expect(leafIds(base)).not.toContain(expectedId);
+      expect(
+        leafIds({
+          ...base,
+          glp1_detail_product_source: "Zepbound tirzepatide",
+        }),
+      ).not.toContain(expectedId);
+      expect(
+        leafIds({
+          ...base,
+          glp1_detail_active_ingredient: "other_or_unsure",
+        }),
+      ).not.toContain(expectedId);
+    },
+  );
+
+  test("narrows the diabetes-vision route to labels that directly address retinopathy", () => {
+    const detail = {
+      uses_glp1: true,
+      glp1_detail_indication: "diabetes",
+      glp1_detail_current_symptoms: ["vision"],
+    } as const;
+
+    expect(
+      leafIds({ ...detail, glp1_detail_active_ingredient: "liraglutide" }),
+    ).not.toContain("glp1-diabetes-vision-review");
+    for (const ingredient of ["tirzepatide", "semaglutide", "dulaglutide"] as const) {
+      expect(
+        leafIds({ ...detail, glp1_detail_active_ingredient: ingredient }),
+      ).toContain("glp1-diabetes-vision-review");
+    }
+  });
+
+  test.each([
+    [
+      "dailymed-zepbound-tirzepatide",
+      "Zepbound (tirzepatide) prescribing information",
+      "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=487cd7e7-434c-4925-99fa-aa80b1cc776b&version=38",
+    ],
+    [
+      "dailymed-wegovy-semaglutide",
+      "Wegovy (semaglutide) prescribing information",
+      "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=ee06186f-2aa3-4990-a760-757579d8f77b&version=19",
+    ],
+    [
+      "dailymed-saxenda-liraglutide",
+      "Saxenda (liraglutide) prescribing information",
+      "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=3946d389-0926-4f77-a708-0acb8153b143&version=22",
+    ],
+    [
+      "dailymed-trulicity-dulaglutide",
+      "Trulicity (dulaglutide) prescribing information",
+      "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=463050bd-2b1c-40f5-b3c3-0a04bb433309&version=60",
+    ],
+  ] as const)("registers current official product label %s", (id, title, url) => {
+    expect(Object.values(evidenceSources)).toContainEqual(
+      expect.objectContaining({ id, title, url, reviewedAt: "2026-08-03" }),
+    );
+  });
+
+  test.each([
     [
       "GLP-1 fainting with glucose-lowering medicines",
       {
         uses_glp1: true,
+        glp1_detail_active_ingredient: "tirzepatide",
         glp1_detail_glucose_medicines: true,
         glp1_detail_current_symptoms: ["fainting"],
       },
@@ -1036,6 +1450,7 @@ describe("audited medication and substance class routes", () => {
       "GLP-1 vision change in diabetes",
       {
         uses_glp1: true,
+        glp1_detail_active_ingredient: "tirzepatide",
         glp1_detail_indication: "diabetes",
         glp1_detail_current_symptoms: ["vision"],
       },
@@ -1045,6 +1460,7 @@ describe("audited medication and substance class routes", () => {
       "GLP-1 relevant history",
       {
         uses_glp1: true,
+        glp1_detail_active_ingredient: "tirzepatide",
         glp1_detail_relevant_history: ["pancreatitis"],
       },
       "glp1-history-review",
@@ -1053,6 +1469,7 @@ describe("audited medication and substance class routes", () => {
       "GLP-1 pregnancy or procedure context",
       {
         uses_glp1: true,
+        glp1_detail_active_ingredient: "tirzepatide",
         glp1_detail_procedure_pregnancy: ["procedure"],
       },
       "glp1-pregnancy-procedure-review",
@@ -1151,6 +1568,7 @@ describe("audited medication and substance class routes", () => {
   test("keeps temporally ambiguous medication symptoms out of call-now routing", () => {
     const glpAllergy = leafById("glp1-severe-allergy", {
       uses_glp1: true,
+      glp1_detail_active_ingredient: "tirzepatide",
       glp1_detail_current_symptoms: ["allergy"],
     });
     const researchSystemic = leafById("research-product-condition-review", {
@@ -1168,8 +1586,25 @@ describe("audited medication and substance class routes", () => {
     }
   });
 
-  test.each(["warm", "damaged", "site", "systemic"] as const)(
-    "routes research-product concern %s only to professional review",
+  test.each(["warm", "damaged"] as const)(
+    "routes research-product storage concern %s to evidence-limited pharmacist review",
+    (concern) => {
+      const leaf = leafById("research-product-storage-review", {
+        uses_research_peptides: true,
+        research_detail_storage_symptoms: [concern],
+      });
+
+      expect(leaf.urgency).toBe("prompt-review");
+      expect(leaf.evidenceTier).toBe("evidence-limited-association");
+      expect(leaf.sources.map((source) => source.id)).toEqual([
+        "fda-medicine-storage",
+      ]);
+      expect(leaf.copy).toMatch(/label|pharmacist|manufacturer/i);
+    },
+  );
+
+  test.each(["site", "systemic"] as const)(
+    "routes research-product reaction concern %s without injection-practice overclaiming",
     (concern) => {
       const leaf = leafById("research-product-condition-review", {
         uses_research_peptides: true,
@@ -1177,8 +1612,25 @@ describe("audited medication and substance class routes", () => {
       });
 
       expect(leaf.urgency).toBe("prompt-review");
+      expect(leaf.evidenceTier).toBe("evidence-limited-association");
+      expect(leaf.sources.map((source) => source.id)).not.toContain(
+        "cdc-injection-safety",
+      );
+      expect(leaf.copy).not.toMatch(/storage|warm|damaged/i);
     },
   );
+
+  test("does not treat every unapproved product as a compounded product", () => {
+    const leaf = leafById("research-product-source-review", {
+      uses_research_peptides: true,
+      research_detail_source: "online",
+    });
+
+    expect(leaf.sources.map((source) => source.id)).toEqual([
+      "fda-unapproved-drugs",
+    ]);
+    expect(leaf.copy).not.toMatch(/compound/i);
+  });
 
   test.each([
     ["chest_breath", "anabolic-cardiorespiratory-review"],
@@ -1196,7 +1648,7 @@ describe("audited medication and substance class routes", () => {
     expect(leaf.copy).not.toMatch(/call .*emergency|you have|caused by/i);
   });
 
-  test("groups isotretinoin mood context and lets a direct current self-harm route win", () => {
+  test("keeps isotretinoin mood context separate from a direct self-harm route", () => {
     const review = leafById("isotretinoin-mood-review", {
       uses_isotretinoin: true,
       isotretinoin_detail_symptoms: ["mood"],
@@ -1213,7 +1665,7 @@ describe("audited medication and substance class routes", () => {
       prototypePolicy,
     );
     expect(withImmediateSafety.map((leaf) => leaf.id)).toContain("urgent-self-harm");
-    expect(withImmediateSafety.map((leaf) => leaf.id)).not.toContain(
+    expect(withImmediateSafety.map((leaf) => leaf.id)).toContain(
       "isotretinoin-mood-review",
     );
   });
@@ -1349,7 +1801,26 @@ describe("audited medication and substance class routes", () => {
 
     expect(leaf.urgency).toBe("support");
     expect(leaf.copy).not.toMatch(/call .*emergency/i);
+    expect(leaf.copy).toMatch(/if .*happening now.*immediate.*emergency/i);
   });
+
+  test.each(["CH", "GB", "OTHER"] as const)(
+    "supports adolescent severe substance signals directly outside the US in %s",
+    (countryCode) => {
+      const leaf = leafById(
+        "adolescent-substance-safety-support",
+        { uses_cannabis: true, adolescent_substance_urgent_safety: true },
+        { age: 15, countryCode },
+      );
+
+      expect(leaf.sources.map((source) => source.id)).toContain(
+        "who-basic-emergency-care",
+      );
+      expect(leaf.sources.map((source) => source.id)).toContain(
+        "who-adolescent-friendly-services",
+      );
+    },
+  );
 
   test("rejects a stale adolescent safety answer without any substance gate", () => {
     expect(

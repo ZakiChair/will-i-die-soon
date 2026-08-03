@@ -8,16 +8,31 @@ function source(
   publisher: string,
   url: string,
   jurisdictions: EvidenceSource["jurisdictions"] = "all",
+  options: {
+    applicability?: EvidenceSource["applicability"];
+    operationalCountries?: ReadonlyArray<string>;
+  } = {},
 ): EvidenceSource {
-  return { id, title, publisher, url, reviewedAt: REVIEWED_AT, jurisdictions };
+  return {
+    id,
+    title,
+    publisher,
+    url,
+    reviewedAt: REVIEWED_AT,
+    jurisdictions,
+    applicability: options.applicability ?? { countries: "all" },
+    ...(options.operationalCountries
+      ? { operationalCountries: options.operationalCountries }
+      : {}),
+  };
 }
 
 /**
  * Audited primary sources available to the qualitative rule engine.
  *
- * Jurisdictions describe where the source's operational guidance originates;
- * they do not cause the engine to infer a user's location. Emergency copy is
- * selected separately from the country the participant confirms.
+ * `jurisdictions` records publisher/regulator provenance only. `applicability`
+ * declares where the content supports rule copy, while `operationalCountries`
+ * separately declares local numbers, services, or workflows.
  */
 export const evidenceSources = {
   nhsChestPain: source(
@@ -26,6 +41,7 @@ export const evidenceSources = {
     "NHS",
     "https://www.nhs.uk/conditions/chest-pain/",
     ["GB"],
+    { operationalCountries: ["GB"] },
   ),
   nhsShortnessOfBreath: source(
     "nhs-shortness-of-breath",
@@ -33,6 +49,7 @@ export const evidenceSources = {
     "NHS",
     "https://www.nhs.uk/symptoms/shortness-of-breath/",
     ["GB"],
+    { operationalCountries: ["GB"] },
   ),
   nhsStroke: source(
     "nhs-stroke-symptoms",
@@ -40,6 +57,7 @@ export const evidenceSources = {
     "NHS",
     "https://www.nhs.uk/conditions/stroke/symptoms/",
     ["GB"],
+    { operationalCountries: ["GB"] },
   ),
   nhsAnaphylaxis: source(
     "nhs-anaphylaxis",
@@ -47,6 +65,7 @@ export const evidenceSources = {
     "NHS",
     "https://www.nhs.uk/conditions/anaphylaxis/",
     ["GB"],
+    { operationalCountries: ["GB"] },
   ),
   nhsPoisoning: source(
     "nhs-poisoning",
@@ -54,6 +73,7 @@ export const evidenceSources = {
     "NHS",
     "https://www.nhs.uk/conditions/poisoning/",
     ["GB"],
+    { operationalCountries: ["GB"] },
   ),
   nhsFirstAid: source(
     "nhs-first-aid",
@@ -61,6 +81,7 @@ export const evidenceSources = {
     "NHS",
     "https://www.nhs.uk/tests-and-treatments/first-aid/",
     ["GB"],
+    { operationalCountries: ["GB"] },
   ),
   nhsChildFirstAid: source(
     "nhs-child-first-aid",
@@ -68,6 +89,10 @@ export const evidenceSources = {
     "NHS",
     "https://www.nhs.uk/baby/first-aid-and-safety/first-aid/what-to-do-if-your-child-has-an-accident/",
     ["GB"],
+    {
+      applicability: { maxAge: 17, countries: "all" },
+      operationalCountries: ["GB"],
+    },
   ),
   samhsa988: source(
     "samhsa-988-faqs",
@@ -75,6 +100,43 @@ export const evidenceSources = {
     "Substance Abuse and Mental Health Services Administration",
     "https://www.samhsa.gov/mental-health/988/faqs",
     ["US"],
+    {
+      applicability: { countries: ["US"] },
+      operationalCountries: ["US"],
+    },
+  ),
+  us911EmergencyAssistance: source(
+    "us-911-emergency-assistance",
+    "Calling 911",
+    "National 911 Program",
+    "https://www.911.gov/calling-911/",
+    ["US"],
+    {
+      applicability: { countries: ["US"] },
+      operationalCountries: ["US"],
+    },
+  ),
+  nhsWhenToCall999: source(
+    "nhs-when-to-call-999",
+    "When to call 999",
+    "NHS",
+    "https://www.nhs.uk/nhs-services/urgent-and-emergency-care-services/when-to-call-999/",
+    ["GB"],
+    {
+      applicability: { countries: ["GB"] },
+      operationalCountries: ["GB"],
+    },
+  ),
+  swissEmergencyNumbers: source(
+    "swiss-emergency-numbers",
+    "Emergencies and danger",
+    "Swiss Confederation, cantons and communes",
+    "https://www.ch.ch/en/safety-and-justice/emergencies-and-danger/",
+    ["CH"],
+    {
+      applicability: { countries: ["CH"] },
+      operationalCountries: ["CH"],
+    },
   ),
   niceSelfHarm: source(
     "nice-self-harm",
@@ -101,6 +163,7 @@ export const evidenceSources = {
     "Centers for Disease Control and Prevention",
     "https://www.cdc.gov/heart-disease/about/sleep-and-heart-health.html",
     ["US"],
+    { applicability: { minAge: 18, countries: "all" } },
   ),
   nhsSleepApnoea: source(
     "nhs-sleep-apnoea",
@@ -128,6 +191,13 @@ export const evidenceSources = {
     "Centers for Disease Control and Prevention",
     "https://www.cdc.gov/physical-activity-basics/guidelines/adults.html",
     ["US"],
+    { applicability: { minAge: 18, countries: "all" } },
+  ),
+  whoPhysicalActivity: source(
+    "who-physical-activity-guidelines",
+    "WHO guidelines on physical activity and sedentary behaviour",
+    "World Health Organization",
+    "https://www.who.int/publications/i/item/9789240015128",
   ),
   whoHealthyDiet: source(
     "who-healthy-diet",
@@ -148,6 +218,7 @@ export const evidenceSources = {
     "National Institute for Health and Care Excellence",
     "https://www.nice.org.uk/guidance/ng222/chapter/Recommendations",
     ["GB"],
+    { applicability: { minAge: 18, countries: "all" } },
   ),
   whoDepression: source(
     "who-depression",
@@ -161,6 +232,7 @@ export const evidenceSources = {
     "NHS",
     "https://www.nhs.uk/mental-health/children-and-young-adults/mental-health-support/mental-health-services/",
     ["GB"],
+    { applicability: { maxAge: 17, countries: ["GB"] } },
   ),
   niaaaAlcoholControl: source(
     "niaaa-alcohol-control",
@@ -216,6 +288,8 @@ export const evidenceSources = {
     "Making health services adolescent friendly",
     "World Health Organization",
     "https://www.who.int/publications/i/item/9789241503594",
+    "all",
+    { applicability: { maxAge: 19, countries: "all" } },
   ),
   samhsaYouthSubstanceSupport: source(
     "samhsa-youth-substance-support",
@@ -223,6 +297,7 @@ export const evidenceSources = {
     "Substance Abuse and Mental Health Services Administration",
     "https://www.samhsa.gov/find-support/how-to-cope/teens-young-adults",
     ["US"],
+    { applicability: { minAge: 13, maxAge: 25, countries: ["US"] } },
   ),
   nhsJaundice: source(
     "nhs-jaundice",
@@ -251,24 +326,31 @@ export const evidenceSources = {
     "NHS",
     "https://www.nhs.uk/live-well/sexual-health/help-after-rape-and-sexual-assault/",
     ["GB"],
+    { applicability: { minAge: 13, countries: ["GB"] } },
   ),
   whoSexualViolenceSupport: source(
     "who-sexual-violence-support",
     "Health care for women subjected to intimate partner violence or sexual violence: a clinical handbook",
     "World Health Organization",
     "https://www.who.int/publications/i/item/WHO-RHR-14.26",
+    "all",
+    { applicability: { minAge: 18, countries: "all" } },
   ),
   whoChildAdolescentSexualAbuse: source(
     "who-child-adolescent-sexual-abuse",
     "Responding to children and adolescents who have been sexually abused: WHO clinical guidelines",
     "World Health Organization",
     "https://www.who.int/publications/i/item/9789241550147",
+    "all",
+    { applicability: { maxAge: 17, countries: "all" } },
   ),
   whoAdolescentPregnancy: source(
     "who-adolescent-pregnancy",
-    "WHO guideline on preventing early pregnancy and poor reproductive outcomes",
+    "WHO guideline on preventing early pregnancy and poor reproductive outcomes among adolescents in low- and middle-income countries",
     "World Health Organization",
-    "https://www.who.int/news/item/23-04-2025-who-releases-new-guideline-to-prevent-adolescent-pregnancies-and-improve-girls--health",
+    "https://www.who.int/publications/i/item/9789240104105",
+    "all",
+    { applicability: { maxAge: 19, countries: "all" } },
   ),
   nhsPregnancyMedicines: source(
     "nhs-pregnancy-medicines",
@@ -276,6 +358,7 @@ export const evidenceSources = {
     "NHS",
     "https://www.nhs.uk/pregnancy/keeping-well/medicines/",
     ["GB"],
+    { applicability: { countries: ["GB"] } },
   ),
   whoPregnancyHealthServices: source(
     "who-pregnancy-health-services",
@@ -283,12 +366,19 @@ export const evidenceSources = {
     "World Health Organization",
     "https://www.who.int/tools/your-life-your-health/life-phase/pregnancy--birth-and-after-childbirth/getting-the-health-services-you-need-during-pregnancy",
   ),
+  whoPostpartumHealthServices: source(
+    "who-postpartum-health-services",
+    "Getting the health services you need: after childbirth",
+    "World Health Organization",
+    "https://www.who.int/tools/your-life-your-health/life-phase/pregnancy--birth-and-after-childbirth/getting-the-health-services-you-need-after-childbirth",
+  ),
   cdcPregnantPostpartum: source(
     "cdc-pregnant-postpartum",
     "Pregnant and Postpartum Women",
     "Centers for Disease Control and Prevention",
     "https://www.cdc.gov/hearher/pregnant-postpartum/index.html",
     ["US"],
+    { applicability: { countries: ["US"] } },
   ),
   cdcMedicinePregnancy: source(
     "cdc-medicine-pregnancy",
@@ -296,6 +386,7 @@ export const evidenceSources = {
     "Centers for Disease Control and Prevention",
     "https://www.cdc.gov/medicine-and-pregnancy/about/index.html",
     ["US"],
+    { applicability: { countries: ["US"] } },
   ),
   whoPregnancyMedicineSafety: source(
     "who-pregnancy-medicine-safety",
@@ -309,11 +400,32 @@ export const evidenceSources = {
     "World Health Organization",
     "https://www.who.int/initiatives/medication-without-harm",
   ),
-  fdaGlp1Label: source(
-    "fda-glp1-label",
+  dailymedZepboundTirzepatide: source(
+    "dailymed-zepbound-tirzepatide",
     "Zepbound (tirzepatide) prescribing information",
-    "U.S. Food and Drug Administration",
-    "https://www.accessdata.fda.gov/drugsatfda_docs/label/2026/217806s042lbl.pdf",
+    "DailyMed / U.S. Food and Drug Administration",
+    "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=487cd7e7-434c-4925-99fa-aa80b1cc776b&version=38",
+    ["US"],
+  ),
+  dailymedWegovySemaglutide: source(
+    "dailymed-wegovy-semaglutide",
+    "Wegovy (semaglutide) prescribing information",
+    "DailyMed / U.S. Food and Drug Administration",
+    "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=ee06186f-2aa3-4990-a760-757579d8f77b&version=19",
+    ["US"],
+  ),
+  dailymedSaxendaLiraglutide: source(
+    "dailymed-saxenda-liraglutide",
+    "Saxenda (liraglutide) prescribing information",
+    "DailyMed / U.S. Food and Drug Administration",
+    "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=3946d389-0926-4f77-a708-0acb8153b143&version=22",
+    ["US"],
+  ),
+  dailymedTrulicityDulaglutide: source(
+    "dailymed-trulicity-dulaglutide",
+    "Trulicity (dulaglutide) prescribing information",
+    "DailyMed / U.S. Food and Drug Administration",
+    "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=463050bd-2b1c-40f5-b3c3-0a04bb433309&version=60",
     ["US"],
   ),
   fdaUnapprovedGlp1: source(
@@ -342,6 +454,20 @@ export const evidenceSources = {
     "Safe Injection Practices and Your Health",
     "Centers for Disease Control and Prevention",
     "https://www.cdc.gov/injection-safety/about/index.html",
+    ["US"],
+  ),
+  fdaMedicationStorage: source(
+    "fda-medicine-storage",
+    "Safe Drug Use After a Natural Disaster",
+    "U.S. Food and Drug Administration",
+    "https://www.fda.gov/drugs/emergency-preparedness-drugs/safe-drug-use-after-natural-disaster",
+    ["US"],
+  ),
+  fdaProductProblems: source(
+    "fda-product-problems",
+    "Product Problems",
+    "U.S. Food and Drug Administration",
+    "https://www.fda.gov/safety/reporting-serious-problems-fda/product-problems",
     ["US"],
   ),
   fdaIsotretinoin: source(
@@ -385,6 +511,7 @@ export const evidenceSources = {
     "U.S. Food and Drug Administration",
     "https://www.accessdata.fda.gov/drugsatfda_docs/label/2024/202020s013lbl.pdf",
     ["US"],
+    { applicability: { countries: ["US"] } },
   ),
   eseEndocrineSocietyGlucocorticoidAdrenalInsufficiency: source(
     "ese-endocrine-society-glucocorticoid-adrenal-insufficiency",
@@ -398,6 +525,7 @@ export const evidenceSources = {
     "NHS England & NHS Improvement / MHRA Central Alerting System",
     "https://www.cas.mhra.gov.uk/ViewandAcknowledgment/ViewAlert.aspx?AlertID=103082",
     ["GB"],
+    { applicability: { minAge: 18, countries: ["GB"] } },
   ),
   mhraCorticosteroids: source(
     "mhra-corticosteroids",
@@ -419,6 +547,7 @@ export const evidenceSources = {
     "Swiss Federal Office of Public Health",
     "https://www.bag.admin.ch/de/hilfsangebote-sucht",
     ["CH"],
+    { applicability: { countries: ["CH"] } },
   ),
   fophUfiEmergency: source(
     "foph-ufi-emergency",
@@ -426,5 +555,9 @@ export const evidenceSources = {
     "Swiss Federal Office of Public Health",
     "https://www.bag.admin.ch/en/the-ufi-code-rapid-aid-in-an-emergency",
     ["CH"],
+    {
+      applicability: { countries: ["CH"] },
+      operationalCountries: ["CH"],
+    },
   ),
 } as const satisfies Record<string, EvidenceSource>;

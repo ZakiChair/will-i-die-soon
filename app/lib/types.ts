@@ -130,7 +130,12 @@ export type EvidenceSource = {
   publisher: string;
   url: string;
   reviewedAt: string;
+  /** Publisher or regulator provenance only; never a user-country filter. */
   jurisdictions: "all" | ReadonlyArray<string>;
+  /** Countries and ages for which the cited content supports the associated copy. */
+  applicability: RiskApplicability;
+  /** Countries where this source directly supports a local operational instruction. */
+  operationalCountries?: ReadonlyArray<string>;
 };
 
 export type RiskApplicability = {
@@ -183,6 +188,10 @@ export type RiskRule = {
   copy: string;
   inputs: ReadonlyArray<string>;
   sourceIds: ReadonlyArray<string>;
+  conditionalSources?: ReadonlyArray<{
+    sourceId: string;
+    condition: RiskCondition;
+  }>;
   evidenceTier: EvidenceTier;
   urgency: RiskUrgency;
   signal: RiskSignal;

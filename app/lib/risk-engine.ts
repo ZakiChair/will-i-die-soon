@@ -178,7 +178,7 @@ function policyAllows(rule: RiskRule, policy: ReleasePolicy): boolean {
   return policy.allowQualitativeRules;
 }
 
-function emergencyNumber(countryCode: string): string {
+function emergencyNumber(countryCode: string): string | undefined {
   switch (normalizedCountry(countryCode)) {
     case "US":
       return "911";
@@ -187,40 +187,67 @@ function emergencyNumber(countryCode: string): string {
     case "CH":
       return "144";
     default:
-      return "your local emergency number";
+      return undefined;
   }
 }
 
-function emergencyCopy(kind: EmergencyKind, countryCode: string): string {
+function supportsOperationalAction(
+  sources: ReadonlyArray<EvidenceSource>,
+  countryCode: string,
+): boolean {
   const country = normalizedCountry(countryCode);
-  const number = emergencyNumber(country);
-  const call = `Call ${number} now for emergency care.`;
+  return sources.some((source) =>
+    source.operationalCountries?.some(
+      (candidate) => normalizedCountry(candidate) === country,
+    ),
+  );
+}
+
+function emergencyCopy(
+  kind: EmergencyKind,
+  countryCode: string,
+  sources: ReadonlyArray<EvidenceSource>,
+): string {
+  const country = normalizedCountry(countryCode);
+  const number = supportsOperationalAction(sources, country)
+    ? emergencyNumber(country)
+    : undefined;
+  const call = number
+    ? `Call ${number} now for emergency care.`
+    : "Contact your local emergency service now.";
 
   if (kind === "self-harm") {
     const crisis =
       country === "US"
         ? " You can also call or text 988 for crisis support."
-        : " Stay with a trusted person if possible while help is arranged.";
-    return `${call}${crisis} Do not stay alone or drive yourself.`;
+        : "";
+    return `${call}${crisis} Stay with a trusted person if possible while help is arranged.`;
   }
 
   if (kind === "pregnancy-safety") {
-    return `Get urgent pregnancy or safeguarding help now from a qualified health professional or a trusted adult who can help you reach care. If there is a severe symptom, immediate physical danger, or you cannot stay safe, call ${number} now. Do not drive yourself.`;
+    const severeAction = number
+      ? `call ${number} now`
+      : "contact your local emergency service now";
+    return `Get urgent pregnancy or safeguarding help now from a qualified health professional or a trusted adult who can help you reach care. If there is a severe symptom, immediate physical danger, or you cannot stay safe, ${severeAction}.`;
   }
 
-  if (kind === "overdose-poisoning" && country === "CH") {
-    return `${call} Poison information is available on 145. Keep the product or package nearby if it is safe to do so, and do not drive yourself.`;
+  if (
+    kind === "overdose-poisoning" &&
+    country === "CH" &&
+    sources.some((source) => source.id === "foph-ufi-emergency")
+  ) {
+    return `${call} Poison information is available on 145. Keep the product or package nearby if it is safe to do so.`;
   }
 
   if (kind === "overdose-poisoning") {
-    return `${call} Keep the product or package nearby if it is safe to do so, and do not drive yourself.`;
+    return `${call} Keep the product or package nearby if it is safe to do so.`;
   }
 
   if (kind === "severe-bleeding") {
-    return `${call} If no object is embedded, apply firm direct pressure with a clean cloth or dressing. Do not remove an embedded object. Do not drive yourself.`;
+    return `${call} If no object is embedded, apply firm direct pressure with a clean cloth or dressing. Do not remove an embedded object.`;
   }
 
-  return `${call} Do not drive yourself.`;
+  return call;
 }
 
 function numericConditionsFor(
@@ -279,7 +306,7 @@ function materializeLeaf(
     group: rule.group,
     title: rule.title,
     copy: rule.emergencyKind
-      ? emergencyCopy(rule.emergencyKind, profile.countryCode)
+      ? emergencyCopy(rule.emergencyKind, profile.countryCode, sources)
       : rule.copy,
     evidenceTier: rule.evidenceTier,
     urgency: rule.urgency,
@@ -298,18 +325,32 @@ function sourceApplies(
   source: EvidenceSource,
   profile: ProfileContext,
 ): boolean {
-  if (source.jurisdictions === "all") return true;
+  const { applicability } = source;
+  if (applicability.minAge !== undefined && profile.age < applicability.minAge) {
+    return false;
+  }
+  if (applicability.maxAge !== undefined && profile.age > applicability.maxAge) {
+    return false;
+  }
+  if (applicability.countries === "all") return true;
   const country = normalizedCountry(profile.countryCode);
-  return source.jurisdictions.some(
+  return applicability.countries.some(
     (candidate) => normalizedCountry(candidate) === country,
   );
 }
 
 function resolveApplicableSources(
   rule: RiskRule,
+  answers: AnswerMap,
   profile: ProfileContext,
 ): EvidenceSource[] {
-  return rule.sourceIds
+  const sourceIds = [
+    ...rule.sourceIds,
+    ...(rule.conditionalSources ?? [])
+      .filter((reference) => matchesCondition(reference.condition, answers))
+      .map((reference) => reference.sourceId),
+  ];
+  return [...new Set(sourceIds)]
     .map((sourceId) => {
       const source = evidenceSources[sourceId as keyof typeof evidenceSources];
       if (!source) {
@@ -325,28 +366,33 @@ function resolveApplicableSources(
 function deduplicateLeaves(
   leaves: ReadonlyArray<{ leaf: RiskLeaf; dedupeKey?: string }>,
 ): RiskLeaf[] {
-  const selected = new Map<string, number[]>();
+  const selected = new Map<string, number>();
   const result: RiskLeaf[] = [];
 
   for (const candidate of [...leaves].sort(
     (left, right) =>
       urgencyOrder[left.leaf.urgency] - urgencyOrder[right.leaf.urgency],
   )) {
-    const key = candidate.dedupeKey ?? candidate.leaf.id;
-    const selectedIndexes = selected.get(key) ?? [];
-    const urgentIndex = selectedIndexes.find(
-      (index) => result[index].urgency === "urgent",
-    );
+    if (!candidate.dedupeKey) {
+      result.push(candidate.leaf);
+      continue;
+    }
+    const signature = JSON.stringify([
+      candidate.dedupeKey,
+      candidate.leaf.title,
+      candidate.leaf.copy,
+      candidate.leaf.group,
+      candidate.leaf.evidenceTier,
+      candidate.leaf.urgency,
+      candidate.leaf.signal,
+      candidate.leaf.applicability,
+    ]);
+    const existingIndex = selected.get(signature);
 
-    if (candidate.leaf.urgency !== "urgent" && urgentIndex !== undefined) {
-      const winner = result[urgentIndex];
-      const relatedContextNote =
-        " Related reported health or medicine context is retained in the factors and sources below; it does not identify the cause or change the emergency action.";
+    if (existingIndex !== undefined) {
+      const winner = result[existingIndex];
       const merged: RiskLeaf = {
         ...winner,
-        copy: winner.copy.includes(relatedContextNote.trim())
-          ? winner.copy
-          : `${winner.copy}${relatedContextNote}`,
         factors: [...new Set([...winner.factors, ...candidate.leaf.factors])],
         missingInputs: [
           ...new Set([...winner.missingInputs, ...candidate.leaf.missingInputs]),
@@ -361,18 +407,11 @@ function deduplicateLeaves(
         ],
       };
       assertEvidenceContract(merged);
-      result[urgentIndex] = merged;
+      result[existingIndex] = merged;
       continue;
     }
 
-    if (selectedIndexes.length === 0) {
-      selected.set(key, [result.length]);
-      result.push(candidate.leaf);
-      continue;
-    }
-
-    selectedIndexes.push(result.length);
-    selected.set(key, selectedIndexes);
+    selected.set(signature, result.length);
     result.push(candidate.leaf);
   }
 
@@ -478,6 +517,47 @@ export function assertEvidenceContract(leaf: RiskLeaf): void {
     ) {
       throw new Error("Every evidence source requires identity, URL, and review date.");
     }
+    const validOrigin =
+      source.jurisdictions === "all" ||
+      (Array.isArray(source.jurisdictions) &&
+        source.jurisdictions.length > 0 &&
+        new Set(source.jurisdictions).size === source.jurisdictions.length &&
+        source.jurisdictions.every((country) => /^[A-Z]{2}$/.test(country)));
+    const sourceCountries = source.applicability?.countries;
+    const validContentCountries =
+      sourceCountries === "all" ||
+      (Array.isArray(sourceCountries) &&
+        sourceCountries.length > 0 &&
+        new Set(sourceCountries).size === sourceCountries.length &&
+        sourceCountries.every((country) => /^(?:[A-Z]{2}|OTHER)$/.test(country)));
+    const validSourceAges =
+      source.applicability !== undefined &&
+      (source.applicability.minAge === undefined ||
+        (Number.isInteger(source.applicability.minAge) &&
+          source.applicability.minAge >= 0)) &&
+      (source.applicability.maxAge === undefined ||
+        (Number.isInteger(source.applicability.maxAge) &&
+          source.applicability.maxAge >= 0)) &&
+      (source.applicability.minAge === undefined ||
+        source.applicability.maxAge === undefined ||
+        source.applicability.minAge <= source.applicability.maxAge);
+    const validOperationalCountries =
+      source.operationalCountries === undefined ||
+      (Array.isArray(source.operationalCountries) &&
+        source.operationalCountries.length > 0 &&
+        new Set(source.operationalCountries).size ===
+          source.operationalCountries.length &&
+        source.operationalCountries.every((country) => /^[A-Z]{2}$/.test(country)));
+    if (
+      !validOrigin ||
+      !validContentCountries ||
+      !validSourceAges ||
+      !validOperationalCountries
+    ) {
+      throw new Error(
+        "Every evidence source requires valid source jurisdiction, applicability, population, and operational scope metadata.",
+      );
+    }
   }
 }
 
@@ -501,8 +581,15 @@ export function evaluateRisks(
     .filter((rule) => policyAllows(rule, policy))
     .filter((rule) => isApplicable(rule, profile))
     .filter((rule) => matchesCondition(rule.condition, answers))
-    .map((rule) => ({ rule, sources: resolveApplicableSources(rule, profile) }))
-    .filter((candidate) => candidate.sources.length > 0)
+    .map((rule) => {
+      const sources = resolveApplicableSources(rule, answers, profile);
+      if (sources.length === 0) {
+        throw new Error(
+          `Risk rule ${rule.id} has no applicable evidence for the confirmed profile.`,
+        );
+      }
+      return { rule, sources };
+    })
     .map(({ rule, sources }) => ({
       leaf: materializeLeaf(rule, answers, profile, sources),
       dedupeKey: rule.dedupeKey,
