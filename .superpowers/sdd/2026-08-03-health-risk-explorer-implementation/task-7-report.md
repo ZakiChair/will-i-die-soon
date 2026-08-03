@@ -12,7 +12,7 @@ headline.
 
 - `public/media/canopy-hero.webp` is the 1920×1080 landing poster (245,576 bytes).
 - `public/media/canopy-loop.mp4` is a 10.0-second, 1920×1080, 30 fps H.264 video-only loop
-  (2,027,294 bytes). `ffprobe` reports one video stream and no audio stream.
+  (2,586,133 bytes). `ffprobe` reports 300 frames, one video stream, and no audio stream.
 - `public/media/sleep-intermission.webp` is 1920×1080 (260,270 bytes).
 - `public/media/metabolism-intermission.webp` is 1920×1080 (346,596 bytes).
 - `public/media/recovery-intermission.webp` is 1920×1080 (186,858 bytes).
@@ -101,7 +101,15 @@ component and CSS tests exercise the initial, ready, and error states.
 Metadata tests exercise a configured `NEXT_PUBLIC_SITE_URL`, missing and malformed values, and
 an unsupported protocol. They verify the local fallback, absolute resolution of both Open Graph
 and Twitter URLs, one descriptor per channel, the shared `/og.png` path, and explicit Twitter
-alt text. No media binary was changed as part of this correction.
+alt text.
+
+The controller also measured a visible 4.2% crop reset in the original linear push-in: decoded
+final-to-first SSIM was 0.406540 while an ordinary adjacent pair was 0.999474. The replacement
+uses a stable source texture and a cosine zoom that returns to the same crop and zero boundary
+velocity. The same decoded boundary check now measures about 0.957, with no geometric reset;
+the remaining difference is H.264 intra/inter compression rather than a change in crop. Full-
+frame inspection confirmed the cycle eases back to its starting composition instead of
+snapping. The replacement remains a 10.0-second, 1920×1080, 30 fps, video-only H.264 asset.
 
 ## Final verification
 
