@@ -1,5 +1,7 @@
 import type { ReleasePolicy } from "./types";
 
+export const RISK_RULESET_VERSION = "risk-rules-v1";
+
 export const prototypePolicy: ReleasePolicy = {
   audience: "private-research",
   allowQualitativeRules: true,
@@ -23,5 +25,5 @@ export const regulatedPolicy: ReleasePolicy = {
   allowValidatedProbabilities: true,
   allowUrgentSignals: true,
   jurisdiction: "CH",
-  enabledModelVersion: "prototype-v1",
+  enabledModelVersion: RISK_RULESET_VERSION,
 };

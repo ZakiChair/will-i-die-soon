@@ -1,10 +1,12 @@
 import { evidenceSources } from "../data/evidence";
 import { questionBank } from "../data/questions";
 import { riskRules } from "../data/rules";
+import { RISK_RULESET_VERSION } from "./release-policy";
 import type {
   AnswerMap,
   AnswerValue,
   EmergencyKind,
+  EvidenceSource,
   ProfileContext,
   Question,
   ReleasePolicy,
@@ -46,6 +48,10 @@ const riskGroups = new Set([
   "skin-hair",
   "reproductive-health",
   "musculoskeletal",
+]);
+const minorPregnancySupportIds = new Set([
+  "minor-pregnancy-support",
+  "sexual-safety-support",
 ]);
 
 function hasAnswer(answers: AnswerMap, questionId: string): boolean {
@@ -118,6 +124,10 @@ function matchesCondition(condition: RiskCondition, answers: AnswerMap): boolean
     : answer >= condition.value;
 }
 
+function normalizedCountry(countryCode: string): string {
+  return countryCode.trim().toUpperCase();
+}
+
 function isApplicable(rule: RiskRule, profile: ProfileContext): boolean {
   const { applicability } = rule;
   if (applicability.minAge !== undefined && profile.age < applicability.minAge) {
@@ -128,17 +138,32 @@ function isApplicable(rule: RiskRule, profile: ProfileContext): boolean {
   }
   if (applicability.countries === "all") return true;
 
-  const country = profile.countryCode.toUpperCase();
-  return applicability.countries.some((candidate) => candidate.toUpperCase() === country);
+  const country = normalizedCountry(profile.countryCode);
+  return applicability.countries.some(
+    (candidate) => normalizedCountry(candidate) === country,
+  );
 }
 
-function validatePolicy(policy: ReleasePolicy): void {
+function validatePolicy(policy: ReleasePolicy, profile: ProfileContext): void {
   if (policy.audience !== "regulated") return;
   if (!policy.jurisdiction?.trim()) {
     throw new Error("A regulated release policy requires an explicit jurisdiction.");
   }
   if (!policy.enabledModelVersion?.trim()) {
     throw new Error("A regulated release policy requires an enabled model version.");
+  }
+  if (
+    normalizedCountry(policy.jurisdiction) !==
+    normalizedCountry(profile.countryCode)
+  ) {
+    throw new Error(
+      "The regulated policy jurisdiction must match the confirmed profile country.",
+    );
+  }
+  if (policy.enabledModelVersion !== RISK_RULESET_VERSION) {
+    throw new Error(
+      `Unsupported risk ruleset or model version: ${policy.enabledModelVersion}.`,
+    );
   }
 }
 
@@ -154,7 +179,7 @@ function policyAllows(rule: RiskRule, policy: ReleasePolicy): boolean {
 }
 
 function emergencyNumber(countryCode: string): string {
-  switch (countryCode.toUpperCase()) {
+  switch (normalizedCountry(countryCode)) {
     case "US":
       return "911";
     case "GB":
@@ -167,7 +192,7 @@ function emergencyNumber(countryCode: string): string {
 }
 
 function emergencyCopy(kind: EmergencyKind, countryCode: string): string {
-  const country = countryCode.toUpperCase();
+  const country = normalizedCountry(countryCode);
   const number = emergencyNumber(country);
   const call = `Call ${number} now for emergency care.`;
 
@@ -242,18 +267,15 @@ function materializeLeaf(
   rule: RiskRule,
   answers: AnswerMap,
   profile: ProfileContext,
+  sources: ReadonlyArray<EvidenceSource>,
 ): RiskLeaf {
-  const sources = rule.sourceIds.map((sourceId) => {
-    const source = evidenceSources[sourceId as keyof typeof evidenceSources];
-    if (!source) throw new Error(`Risk rule ${rule.id} references unknown source ${sourceId}.`);
-    return source;
-  });
   const factors = rule.factors
     .filter((candidate) => matchesCondition(candidate.condition, answers))
     .map((candidate) => candidate.label);
   const leaf: RiskLeaf = {
     id: rule.id,
     ruleId: rule.id,
+    rulesetVersion: RISK_RULESET_VERSION,
     group: rule.group,
     title: rule.title,
     copy: rule.emergencyKind
@@ -272,10 +294,38 @@ function materializeLeaf(
   return leaf;
 }
 
+function sourceApplies(
+  source: EvidenceSource,
+  profile: ProfileContext,
+): boolean {
+  if (source.jurisdictions === "all") return true;
+  const country = normalizedCountry(profile.countryCode);
+  return source.jurisdictions.some(
+    (candidate) => normalizedCountry(candidate) === country,
+  );
+}
+
+function resolveApplicableSources(
+  rule: RiskRule,
+  profile: ProfileContext,
+): EvidenceSource[] {
+  return rule.sourceIds
+    .map((sourceId) => {
+      const source = evidenceSources[sourceId as keyof typeof evidenceSources];
+      if (!source) {
+        throw new Error(
+          `Risk rule ${rule.id} references unknown source ${sourceId}.`,
+        );
+      }
+      return source;
+    })
+    .filter((source) => sourceApplies(source, profile));
+}
+
 function deduplicateLeaves(
   leaves: ReadonlyArray<{ leaf: RiskLeaf; dedupeKey?: string }>,
 ): RiskLeaf[] {
-  const selected = new Map<string, number>();
+  const selected = new Map<string, number[]>();
   const result: RiskLeaf[] = [];
 
   for (const candidate of [...leaves].sort(
@@ -283,31 +333,47 @@ function deduplicateLeaves(
       urgencyOrder[left.leaf.urgency] - urgencyOrder[right.leaf.urgency],
   )) {
     const key = candidate.dedupeKey ?? candidate.leaf.id;
-    const selectedIndex = selected.get(key);
-    if (selectedIndex === undefined) {
-      selected.set(key, result.length);
+    const selectedIndexes = selected.get(key) ?? [];
+    const urgentIndex = selectedIndexes.find(
+      (index) => result[index].urgency === "urgent",
+    );
+
+    if (candidate.leaf.urgency !== "urgent" && urgentIndex !== undefined) {
+      const winner = result[urgentIndex];
+      const relatedContextNote =
+        " Related reported health or medicine context is retained in the factors and sources below; it does not identify the cause or change the emergency action.";
+      const merged: RiskLeaf = {
+        ...winner,
+        copy: winner.copy.includes(relatedContextNote.trim())
+          ? winner.copy
+          : `${winner.copy}${relatedContextNote}`,
+        factors: [...new Set([...winner.factors, ...candidate.leaf.factors])],
+        missingInputs: [
+          ...new Set([...winner.missingInputs, ...candidate.leaf.missingInputs]),
+        ],
+        sources: [
+          ...new Map(
+            [...winner.sources, ...candidate.leaf.sources].map((source) => [
+              source.id,
+              source,
+            ]),
+          ).values(),
+        ],
+      };
+      assertEvidenceContract(merged);
+      result[urgentIndex] = merged;
+      continue;
+    }
+
+    if (selectedIndexes.length === 0) {
+      selected.set(key, [result.length]);
       result.push(candidate.leaf);
       continue;
     }
 
-    const winner = result[selectedIndex];
-    const merged: RiskLeaf = {
-      ...winner,
-      factors: [...new Set([...winner.factors, ...candidate.leaf.factors])],
-      missingInputs: [
-        ...new Set([...winner.missingInputs, ...candidate.leaf.missingInputs]),
-      ],
-      sources: [
-        ...new Map(
-          [...winner.sources, ...candidate.leaf.sources].map((source) => [
-            source.id,
-            source,
-          ]),
-        ).values(),
-      ],
-    };
-    assertEvidenceContract(merged);
-    result[selectedIndex] = merged;
+    selectedIndexes.push(result.length);
+    selected.set(key, selectedIndexes);
+    result.push(candidate.leaf);
   }
 
   return result;
@@ -322,6 +388,9 @@ export function assertEvidenceContract(leaf: RiskLeaf): void {
   }
   if (typeof leaf.ruleId !== "string" || leaf.ruleId.trim().length === 0) {
     throw new Error("A risk leaf requires a rule id.");
+  }
+  if (leaf.rulesetVersion !== RISK_RULESET_VERSION) {
+    throw new Error("A risk leaf requires the supported ruleset version.");
   }
   if (typeof leaf.title !== "string" || leaf.title.trim().length === 0) {
     throw new Error("A risk leaf requires a title.");
@@ -426,14 +495,16 @@ export function evaluateRisks(
   profile: ProfileContext,
   policy: ReleasePolicy,
 ): RiskLeaf[] {
-  validatePolicy(policy);
+  validatePolicy(policy, profile);
 
   const candidates = riskRules
     .filter((rule) => policyAllows(rule, policy))
     .filter((rule) => isApplicable(rule, profile))
     .filter((rule) => matchesCondition(rule.condition, answers))
-    .map((rule) => ({
-      leaf: materializeLeaf(rule, answers, profile),
+    .map((rule) => ({ rule, sources: resolveApplicableSources(rule, profile) }))
+    .filter((candidate) => candidate.sources.length > 0)
+    .map(({ rule, sources }) => ({
+      leaf: materializeLeaf(rule, answers, profile, sources),
       dedupeKey: rule.dedupeKey,
     }));
 
@@ -442,7 +513,8 @@ export function evaluateRisks(
     leaves = leaves.filter((leaf) => leaf.urgency === "urgent" || leaf.urgency === "support");
     if (validStructuredAnswer(answers, "pregnancy_relevant") === true) {
       leaves = leaves.filter(
-        (leaf) => leaf.urgency === "urgent" || leaf.id === "minor-pregnancy-support",
+        (leaf) =>
+          leaf.urgency === "urgent" || minorPregnancySupportIds.has(leaf.id),
       );
     }
   }

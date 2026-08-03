@@ -7,6 +7,7 @@ import {
   prototypePolicy,
   publicWellnessPolicy,
   regulatedPolicy,
+  RISK_RULESET_VERSION,
 } from "./release-policy";
 import {
   assertEvidenceContract,
@@ -51,6 +52,7 @@ describe("evidence and release contracts", () => {
       assertEvidenceContract({
         id: "invalid-probability",
         ruleId: "invalid-probability",
+        rulesetVersion: RISK_RULESET_VERSION,
         group: "sleep",
         title: "Invalid",
         copy: "This is worth discussing with a clinician.",
@@ -70,6 +72,7 @@ describe("evidence and release contracts", () => {
     const base = {
       id: "invalid-copy",
       ruleId: "invalid-copy",
+      rulesetVersion: RISK_RULESET_VERSION,
       group: "sleep" as const,
       title: "Invalid",
       evidenceTier: "guideline-action" as const,
@@ -125,12 +128,77 @@ describe("evidence and release contracts", () => {
     }
   });
 
-  test.each(["group", "evidenceTier", "urgency", "signal", "applicability"] as const)(
+  test("exposes the current reviewed regulator and NHS records on consumer-visible leaves", () => {
+    const glp = leafById("glp1-history-review", {
+      uses_glp1: true,
+      glp1_detail_relevant_history: ["pancreatitis"],
+    });
+    const steroid = leafById("systemic-steroid-illness-review", {
+      uses_systemic_corticosteroids: true,
+      corticosteroid_detail_infection_context: ["infection"],
+    });
+    const skin = leafById(
+      "changing-skin-mark-review",
+      { sun_changing_mole: true },
+      adultGB,
+    );
+
+    expect(glp.sources).toContainEqual(
+      expect.objectContaining({
+        id: "fda-glp1-label",
+        title: "Zepbound (tirzepatide) prescribing information",
+        url: "https://www.accessdata.fda.gov/drugsatfda_docs/label/2026/217806s042lbl.pdf",
+        reviewedAt: "2026-08-03",
+      }),
+    );
+    expect(steroid.sources).toContainEqual(
+      expect.objectContaining({
+        id: "fda-prednisone-label",
+        title: "Rayos (prednisone) prescribing information",
+        url: "https://www.accessdata.fda.gov/drugsatfda_docs/label/2024/202020s013lbl.pdf",
+        reviewedAt: "2026-08-03",
+      }),
+    );
+    expect(skin.sources).toContainEqual(
+      expect.objectContaining({
+        id: "nhs-changing-mole",
+        title: "Moles",
+        url: "https://www.nhs.uk/conditions/moles/",
+        reviewedAt: "2026-08-03",
+      }),
+    );
+  });
+
+  test("consumes every declared sexual, adult pregnancy, and steroid safety answer", () => {
+    const consumedInputs = new Set(riskRules.flatMap((rule) => rule.inputs));
+
+    for (const questionId of [
+      "sexual_contact_safety",
+      "pregnancy_new_concern",
+      "pregnancy_care_access",
+      "pregnancy_medication_review",
+      "pregnancy_feeling_safe",
+      "corticosteroid_detail_missed_or_stopped",
+      "corticosteroid_detail_omission_symptoms",
+    ]) {
+      expect(consumedInputs.has(questionId), questionId).toBe(true);
+    }
+  });
+
+  test.each([
+    "rulesetVersion",
+    "group",
+    "evidenceTier",
+    "urgency",
+    "signal",
+    "applicability",
+  ] as const)(
     "rejects a leaf missing required %s metadata",
     (field) => {
       const complete: RiskLeaf = {
         id: "complete",
         ruleId: "complete",
+        rulesetVersion: RISK_RULESET_VERSION,
         group: "sleep",
         title: "Complete",
         copy: "This pattern is worth discussing.",
@@ -212,6 +280,134 @@ describe("evidence and release contracts", () => {
         (leaf) => leaf.probability === undefined,
       ),
     ).toBe(true);
+  });
+
+  test("fails a regulated evaluation closed on jurisdiction or ruleset mismatch", () => {
+    expect(() =>
+      evaluateRisks(
+        { diagnosed_high_blood_pressure: true, diet_added_salt: "daily" },
+        adultUS,
+        regulatedPolicy,
+      ),
+    ).toThrow(/jurisdiction.*profile|profile.*jurisdiction/i);
+    expect(() =>
+      evaluateRisks(
+        { diagnosed_high_blood_pressure: true, diet_added_salt: "daily" },
+        adultCH,
+        { ...regulatedPolicy, enabledModelVersion: "invented-rules-v99" },
+      ),
+    ).toThrow(/unsupported.*(?:model|ruleset).*version/i);
+
+    const matching = evaluateRisks(
+      { diagnosed_high_blood_pressure: true, diet_added_salt: "daily" },
+      { age: 35, countryCode: "ch" },
+      { ...regulatedPolicy, jurisdiction: " CH " },
+    );
+    expect(matching).toHaveLength(1);
+    expect(matching[0]).toEqual(
+      expect.objectContaining({
+        id: "blood-pressure-salt-context",
+        rulesetVersion: regulatedPolicy.enabledModelVersion,
+      }),
+    );
+  });
+
+  test("keeps private and public policy behavior independent of regulated metadata", () => {
+    expect(
+      evaluateRisks(
+        { usual_sleep_hours: 6 },
+        adultUS,
+        {
+          ...prototypePolicy,
+          jurisdiction: "CH",
+          enabledModelVersion: "invented-rules-v99",
+        },
+      ).map((leaf) => leaf.id),
+    ).toContain("adult-short-sleep");
+    expect(
+      evaluateRisks(
+        { usual_sleep_hours: 6 },
+        adultUS,
+        {
+          ...publicWellnessPolicy,
+          jurisdiction: "CH",
+          enabledModelVersion: "invented-rules-v99",
+        },
+      ).map((leaf) => leaf.id),
+    ).toContain("adult-short-sleep");
+  });
+
+  test("emits only sources applicable to the confirmed profile country", () => {
+    const gbSkin = leafById(
+      "changing-skin-mark-review",
+      { sun_changing_mole: true },
+      adultGB,
+    );
+    expect(gbSkin.sources.map((source) => source.id)).toContain(
+      "nhs-changing-mole",
+    );
+    expect(
+      leafIds({ sun_changing_mole: true }, adultUS),
+    ).not.toContain("changing-skin-mark-review");
+
+    const usUrgent = leafById(
+      "urgent-chest",
+      { urgent_chest_discomfort_now: true },
+      adultUS,
+    );
+    expect(usUrgent.sources.length).toBeGreaterThan(0);
+    expect(
+      usUrgent.sources.every(
+        (source) =>
+          source.jurisdictions === "all" ||
+          source.jurisdictions.includes("US"),
+      ),
+    ).toBe(true);
+    expect(usUrgent.sources.map((source) => source.id)).not.toContain(
+      "nhs-chest-pain",
+    );
+  });
+
+  test("uses evidence tiers and sources that match the shipped route claims", () => {
+    const byId = new Map(riskRules.map((rule) => [rule.id, rule]));
+    const adolescentSupport = byId.get("adolescent-substance-support");
+    const adolescentSafety = byId.get("adolescent-substance-safety-support");
+    const adolescentPregnancy = byId.get(
+      "urgent-adolescent-pregnancy-safety",
+    );
+    const psychedelic = byId.get("psychedelic-aftereffect-review");
+    const researchSource = byId.get("research-product-source-review");
+    const researchReaction = byId.get("research-product-condition-review");
+
+    expect(adolescentSupport?.sourceIds).not.toContain("cdcYrbs");
+    expect(adolescentSupport?.sourceIds).toEqual(
+      expect.arrayContaining([
+        "whoAdolescentFriendlyServices",
+        "samhsaYouthSubstanceSupport",
+      ]),
+    );
+    expect(adolescentSafety?.sourceIds).not.toContain("cdcYrbs");
+    expect(adolescentPregnancy?.sourceIds).toContain(
+      "whoPregnancyHealthServices",
+    );
+    expect(psychedelic).toEqual(
+      expect.objectContaining({
+        evidenceTier: "evidence-limited-association",
+        urgency: "support",
+      }),
+    );
+    expect(researchSource?.sourceIds).toEqual(
+      expect.arrayContaining(["fdaUnapprovedDrugs", "fdaCompoundedRisks"]),
+    );
+    expect(researchReaction?.sourceIds).toEqual(
+      expect.arrayContaining(["fdaCompoundedRisks", "cdcInjectionSafety"]),
+    );
+    expect(researchSource?.sourceIds).not.toEqual(
+      expect.arrayContaining(["fdaUnapprovedGlp1", "fdaCompoundedSemaglutide"]),
+    );
+    expect(researchReaction?.sourceIds).not.toEqual(
+      expect.arrayContaining(["fdaUnapprovedGlp1", "fdaCompoundedSemaglutide"]),
+    );
   });
 
   test("keeps public wellness output informational without prompt-review triage", () => {
@@ -363,7 +559,104 @@ describe("strict emergency routing", () => {
       ]),
     );
     expect(leaves[0].sources.map((source) => source.id)).toEqual(
-      expect.arrayContaining(["nhs-chest-pain", "fda-oral-minoxidil"]),
+      expect.arrayContaining([
+        "who-basic-emergency-care",
+        "fda-oral-minoxidil",
+      ]),
+    );
+    expect(leaves[0].sources.map((source) => source.id)).not.toContain(
+      "nhs-chest-pain",
+    );
+  });
+
+  test("retains semantically distinct same-urgency medicine and substance leaves", () => {
+    const answers = {
+      uses_minoxidil: true,
+      minoxidil_detail_route_product: "oral",
+      minoxidil_detail_cardiac_symptoms: ["chest"],
+      uses_anabolic_steroids: true,
+      anabolic_detail_symptoms: ["chest_breath"],
+      uses_nonmedical_stimulants: true,
+      stimulant_detail_symptoms: true,
+    } as const;
+    const leaves = evaluateRisks(answers, adultUS, prototypePolicy);
+    const byId = new Map(leaves.map((leaf) => [leaf.id, leaf]));
+
+    expect(leaves.map((leaf) => leaf.id)).toEqual([
+      "anabolic-cardiorespiratory-review",
+      "stimulant-symptom-review",
+      "oral-minoxidil-symptom-review",
+    ].sort((left, right) => {
+      const leftTitle = byId.get(left)?.title ?? "";
+      const rightTitle = byId.get(right)?.title ?? "";
+      return leftTitle.localeCompare(rightTitle) || left.localeCompare(right);
+    }));
+    expect(byId.get("oral-minoxidil-symptom-review")?.sources.map((source) => source.id)).toEqual([
+      "fda-oral-minoxidil",
+    ]);
+    expect(byId.get("anabolic-cardiorespiratory-review")?.sources.map((source) => source.id)).toEqual([
+      "fda-bodybuilding-products",
+      "fda-sarms-warning",
+    ]);
+    expect(byId.get("stimulant-symptom-review")?.sources.map((source) => source.id)).toEqual([
+      "fda-stimulant-misuse",
+      "cdc-stimulant-overdose",
+    ]);
+    expect(byId.get("oral-minoxidil-symptom-review")?.factors).not.toContain(
+      "Current anabolic, SARM, or steroid-like product use",
+    );
+    expect(byId.get("anabolic-cardiorespiratory-review")?.factors).not.toContain(
+      "Current minoxidil use",
+    );
+    expect(byId.get("stimulant-symptom-review")?.title).toMatch(/stimulant/i);
+  });
+
+  test("lets urgent breathing action win while retaining medicine context safely", () => {
+    const leaves = evaluateRisks(
+      {
+        urgent_breathing_now: true,
+        uses_minoxidil: true,
+        minoxidil_detail_route_product: "oral",
+        minoxidil_detail_cardiac_symptoms: ["breath"],
+      },
+      adultUS,
+      prototypePolicy,
+    );
+
+    expect(leaves.map((leaf) => leaf.id)).toEqual(["urgent-breathing"]);
+    expect(leaves[0].factors).toEqual(
+      expect.arrayContaining([
+        "Confirmed severe breathing difficulty now",
+        "Current minoxidil use",
+        "Oral minoxidil route reported",
+        "Cardiovascular symptoms reported while using it",
+      ]),
+    );
+    expect(leaves[0].sources.map((source) => source.id)).toEqual(
+      expect.arrayContaining([
+        "who-basic-emergency-care",
+        "fda-oral-minoxidil",
+      ]),
+    );
+    expect(leaves[0].missingInputs).toEqual([]);
+    expect(leaves[0].copy).toMatch(/related.*context/i);
+  });
+
+  test("produces deterministic semantic ordering independent of answer insertion order", () => {
+    const entries = [
+      ["uses_minoxidil", true],
+      ["minoxidil_detail_route_product", "oral"],
+      ["minoxidil_detail_cardiac_symptoms", ["chest"]],
+      ["uses_anabolic_steroids", true],
+      ["anabolic_detail_symptoms", ["chest_breath"]],
+      ["uses_nonmedical_stimulants", true],
+      ["stimulant_detail_symptoms", true],
+    ] as const;
+    const forward = Object.fromEntries(entries) as AnswerMap;
+    const reverse = Object.fromEntries([...entries].reverse()) as AnswerMap;
+
+    expect(evaluateRisks(forward, adultUS, prototypePolicy)).toEqual(
+      evaluateRisks(reverse, adultUS, prototypePolicy),
     );
   });
 
@@ -443,6 +736,223 @@ describe("structured qualitative rules", () => {
         prototypePolicy,
       ),
     ).toEqual([]);
+  });
+
+  test("routes a declared sexual pressure, consent, or safety worry to support", () => {
+    const adolescentProfile = { age: 15, countryCode: "GB" };
+    const leaf = leafById(
+      "sexual-safety-support",
+      { sexual_contact_safety: true },
+      adolescentProfile,
+    );
+
+    expect(leaf.urgency).toBe("support");
+    expect(leaf.applicability).toEqual({ minAge: 13, countries: "all" });
+    expect(leaf.factors).toContain(
+      "Worry about pressure, consent, or safety in a sexual situation",
+    );
+    expect(leaf.sources.map((source) => source.id)).toEqual(
+      expect.arrayContaining(["nhs-sexual-assault-support"]),
+    );
+    const globalLeaf = leafById(
+      "sexual-safety-support",
+      { sexual_contact_safety: true },
+      { age: 15, countryCode: "CH" },
+    );
+    expect(globalLeaf.sources).toContainEqual(
+      expect.objectContaining({
+        id: "who-child-adolescent-sexual-abuse",
+        title:
+          "Responding to children and adolescents who have been sexually abused: WHO clinical guidelines",
+        url: "https://www.who.int/publications/i/item/9789241550147",
+        jurisdictions: "all",
+      }),
+    );
+
+    for (const value of [false, "unsure", null, "true", 1] as const) {
+      expect(
+        leafIds({ sexual_contact_safety: value }, adolescentProfile),
+      ).not.toContain("sexual-safety-support");
+    }
+  });
+
+  test("retains adolescent sexual-safety support alongside pregnancy support", () => {
+    const ids = leafIds(
+      {
+        sexual_contact_safety: true,
+        pregnancy_relevant: true,
+        adolescent_pregnancy_urgent_safety: false,
+      },
+      { age: 15, countryCode: "GB" },
+    );
+
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "sexual-safety-support",
+        "minor-pregnancy-support",
+      ]),
+    );
+  });
+
+  test("routes each gated adult pregnancy declaration without diagnosing or changing medicines", () => {
+    const answers = {
+      pregnancy_relevant: true,
+      pregnancy_new_concern: true,
+      pregnancy_care_access: false,
+      pregnancy_medication_review: "no",
+      pregnancy_feeling_safe: false,
+    } as const;
+    const leaves = evaluateRisks(answers, adultGB, prototypePolicy);
+    const byId = new Map(leaves.map((leaf) => [leaf.id, leaf]));
+
+    expect([...byId.keys()]).toEqual(
+      expect.arrayContaining([
+        "pregnancy-new-concern-review",
+        "pregnancy-care-safety-support",
+        "pregnancy-medicine-review",
+      ]),
+    );
+    expect(byId.get("pregnancy-new-concern-review")?.urgency).toBe(
+      "prompt-review",
+    );
+    expect(byId.get("pregnancy-care-safety-support")?.urgency).toBe("support");
+    expect(byId.get("pregnancy-care-safety-support")?.factors).toEqual(
+      expect.arrayContaining([
+        "No current access to a maternity or pregnancy-care professional",
+        "Does not currently feel safe and supported",
+      ]),
+    );
+    expect(byId.get("pregnancy-medicine-review")?.urgency).toBe(
+      "prompt-review",
+    );
+    expect(byId.get("pregnancy-medicine-review")?.sources.map((source) => source.id)).toContain(
+      "nhs-pregnancy-medicines",
+    );
+    for (const leaf of byId.values()) {
+      expect(leaf.copy).not.toMatch(/you have|caused by/i);
+      expect(leaf.copy).not.toMatch(
+        /\b(?:start|stop|change)\b.*\b(?:medicine|dose|treatment)\b/i,
+      );
+    }
+  });
+
+  test("keeps pregnancy medicine review sourced outside the United Kingdom", () => {
+    const answers = {
+      pregnancy_relevant: true,
+      pregnancy_medication_review: "planned",
+    } as const;
+    const leaf = leafById("pregnancy-medicine-review", answers);
+
+    expect(leaf.sources.map((source) => source.id)).toEqual(
+      expect.arrayContaining([
+        "cdc-medicine-pregnancy",
+        "who-pregnancy-medicine-safety",
+        "who-medication-without-harm",
+      ]),
+    );
+    expect(leaf.sources.map((source) => source.id)).not.toContain(
+      "nhs-pregnancy-medicines",
+    );
+    expect(leaf.sources.map((source) => source.id)).not.toContain(
+      "who-pregnancy-health-services",
+    );
+
+    const chLeaf = leafById("pregnancy-medicine-review", answers, adultCH);
+    expect(chLeaf.sources.map((source) => source.id)).toEqual([
+      "who-pregnancy-medicine-safety",
+      "who-medication-without-harm",
+    ]);
+  });
+
+  test("rejects stale adult pregnancy details without the exact pregnancy gate", () => {
+    const details = {
+      pregnancy_new_concern: true,
+      pregnancy_care_access: false,
+      pregnancy_medication_review: "no",
+      pregnancy_feeling_safe: false,
+    } as const;
+    const pregnancyLeafIds = [
+      "pregnancy-new-concern-review",
+      "pregnancy-care-safety-support",
+      "pregnancy-medicine-review",
+    ];
+
+    for (const gate of [undefined, false, "unsure", null] as const) {
+      const answers: Record<string, AnswerValue> = { ...details };
+      if (gate !== undefined) answers.pregnancy_relevant = gate;
+      const ids = leafIds(answers, adultGB);
+
+      for (const id of pregnancyLeafIds) expect(ids).not.toContain(id);
+    }
+  });
+
+  test("routes structured steroid omission symptoms while continuing to ignore free text", () => {
+    const structured = leafById("systemic-steroid-omission-review", {
+      uses_systemic_corticosteroids: true,
+      corticosteroid_detail_missed_or_stopped: true,
+      corticosteroid_detail_omission_symptoms: true,
+      corticosteroid_detail_stop_plan: "Stopped suddenly and fainted",
+    });
+
+    expect(structured.urgency).toBe("prompt-review");
+    expect(structured.evidenceTier).toBe("authoritative-safety");
+    expect(structured.sources.map((source) => source.id)).toEqual(
+      [
+        "fda-prednisone-label",
+        "ese-endocrine-society-glucocorticoid-adrenal-insufficiency",
+      ],
+    );
+    const gbStructured = leafById(
+      "systemic-steroid-omission-review",
+      {
+        uses_systemic_corticosteroids: true,
+        corticosteroid_detail_missed_or_stopped: true,
+        corticosteroid_detail_omission_symptoms: true,
+      },
+      adultGB,
+    );
+    expect(gbStructured.sources.map((source) => source.id)).toEqual([
+      "mhra-steroid-emergency-card",
+      "ese-endocrine-society-glucocorticoid-adrenal-insufficiency",
+    ]);
+    const chStructured = leafById(
+      "systemic-steroid-omission-review",
+      {
+        uses_systemic_corticosteroids: true,
+        corticosteroid_detail_missed_or_stopped: true,
+        corticosteroid_detail_omission_symptoms: true,
+      },
+      adultCH,
+    );
+    expect(chStructured.sources.map((source) => source.id)).toEqual([
+      "ese-endocrine-society-glucocorticoid-adrenal-insufficiency",
+    ]);
+    expect(structured.copy).not.toMatch(/you have|caused by/i);
+    expect(
+      leafIds({
+        uses_systemic_corticosteroids: true,
+        corticosteroid_detail_stop_plan: "Stopped suddenly and fainted",
+      }),
+    ).not.toContain("systemic-steroid-omission-review");
+
+    for (const answers of [
+      {
+        corticosteroid_detail_missed_or_stopped: true,
+        corticosteroid_detail_omission_symptoms: true,
+      },
+      {
+        uses_systemic_corticosteroids: false,
+        corticosteroid_detail_missed_or_stopped: true,
+        corticosteroid_detail_omission_symptoms: true,
+      },
+      {
+        uses_systemic_corticosteroids: true,
+        corticosteroid_detail_missed_or_stopped: false,
+        corticosteroid_detail_omission_symptoms: true,
+      },
+    ] as const) {
+      expect(leafIds(answers)).not.toContain("systemic-steroid-omission-review");
+    }
   });
 
   test.each([-1, Number.NaN, Number.POSITIVE_INFINITY, "6", null] as const)(
@@ -598,11 +1108,6 @@ describe("audited medication and substance class routes", () => {
       "opioid-mixing-safety-review",
     ],
     [
-      "persistent psychedelic after-effects",
-      { uses_psychedelics: true, psychedelic_detail_aftereffects: true },
-      "psychedelic-aftereffect-review",
-    ],
-    [
       "unexpected recreational-drug effects",
       {
         uses_other_recreational_drugs: true,
@@ -616,6 +1121,18 @@ describe("audited medication and substance class routes", () => {
     expect(leaf.urgency).toBe("prompt-review");
     expect(leaf.copy).not.toMatch(/call .*emergency|you have|caused by/i);
     expect(leaf.sources.length).toBeGreaterThan(0);
+  });
+
+  test("keeps the NIDA psychedelic route evidence-limited and supportive", () => {
+    const leaf = leafById("psychedelic-aftereffect-review", {
+      uses_psychedelics: true,
+      psychedelic_detail_aftereffects: true,
+    });
+
+    expect(leaf.evidenceTier).toBe("evidence-limited-association");
+    expect(leaf.urgency).toBe("support");
+    expect(leaf.copy).toMatch(/reported/i);
+    expect(leaf.copy).not.toMatch(/call .*emergency|you have|caused by/i);
   });
 
   test.each(["head_vision", "abdominal", "rash"] as const)(

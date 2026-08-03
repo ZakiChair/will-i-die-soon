@@ -196,6 +196,7 @@ export type RiskRule = {
 export type RiskLeaf = {
   id: string;
   ruleId: string;
+  rulesetVersion: string;
   group: RiskGroup;
   title: string;
   copy: string;

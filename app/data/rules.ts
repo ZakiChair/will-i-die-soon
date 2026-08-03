@@ -85,7 +85,7 @@ const immediateRedFlagRules: RiskRule[] = [
     "urgent_chest_discomfort_now",
     "Immediate chest-symptom action",
     "chest",
-    ["nhsChestPain"],
+    ["nhsChestPain", "whoBasicEmergencyCare"],
     "Confirmed new or severe chest discomfort now",
     "cardiopulmonary-emergency",
   ),
@@ -94,7 +94,7 @@ const immediateRedFlagRules: RiskRule[] = [
     "urgent_breathing_now",
     "Immediate breathing action",
     "breathing",
-    ["nhsShortnessOfBreath", "nhsChildFirstAid"],
+    ["nhsShortnessOfBreath", "nhsChildFirstAid", "whoBasicEmergencyCare"],
     "Confirmed severe breathing difficulty now",
     "cardiopulmonary-emergency",
   ),
@@ -103,7 +103,7 @@ const immediateRedFlagRules: RiskRule[] = [
     "urgent_stroke_signs_now",
     "Immediate stroke-sign action",
     "stroke",
-    ["nhsStroke"],
+    ["nhsStroke", "whoBasicEmergencyCare"],
     "Confirmed sudden stroke-like signs now or within 24 hours",
     "neurologic-emergency",
   ),
@@ -112,7 +112,7 @@ const immediateRedFlagRules: RiskRule[] = [
     "urgent_severe_allergy_now",
     "Immediate severe-allergy action",
     "severe-allergy",
-    ["nhsAnaphylaxis"],
+    ["nhsAnaphylaxis", "whoBasicEmergencyCare"],
     "Confirmed airway, breathing, or collapse signs of severe allergy now",
     "severe-allergy",
   ),
@@ -121,7 +121,7 @@ const immediateRedFlagRules: RiskRule[] = [
     "urgent_overdose_poisoning_now",
     "Immediate poisoning or overdose action",
     "overdose-poisoning",
-    ["nhsPoisoning", "fophUfiEmergency"],
+    ["nhsPoisoning", "fophUfiEmergency", "whoBasicEmergencyCare"],
     "Confirmed suspected overdose, poisoning, or unresponsiveness now",
     "poisoning-emergency",
   ),
@@ -130,7 +130,7 @@ const immediateRedFlagRules: RiskRule[] = [
     "urgent_severe_bleeding_now",
     "Immediate severe-bleeding action",
     "severe-bleeding",
-    ["nhsFirstAid"],
+    ["nhsFirstAid", "whoBasicEmergencyCare"],
     "Confirmed severe bleeding that is not stopping now",
     "bleeding-emergency",
   ),
@@ -139,7 +139,7 @@ const immediateRedFlagRules: RiskRule[] = [
     "urgent_self_harm_now",
     "Immediate personal-safety action",
     "self-harm",
-    ["niceSelfHarm", "samhsa988"],
+    ["niceSelfHarm", "samhsa988", "whoSuicide"],
     "Confirmed immediate danger of self-harm or inability to stay safe",
     "self-harm-emergency",
   ),
@@ -149,7 +149,7 @@ const immediateRedFlagRules: RiskRule[] = [
     title: "Immediate pregnancy or safeguarding action",
     copy: "Get urgent pregnancy or safeguarding help now.",
     inputs: ["pregnancy_relevant", "adolescent_pregnancy_urgent_safety"],
-    sourceIds: ["whoAdolescentPregnancy"],
+    sourceIds: ["whoAdolescentPregnancy", "whoPregnancyHealthServices"],
     evidenceTier: "guideline-action",
     urgency: "urgent",
     signal: "urgent",
@@ -294,7 +294,7 @@ const respiratoryRules: RiskRule[] = [
     copy:
       "Breathlessness with less activity than before is worth discussing promptly with a clinician, especially if it is worsening.",
     inputs: ["breathlessness_activity"],
-    sourceIds: ["nhsShortnessOfBreath"],
+    sourceIds: ["nhsShortnessOfBreath", "whoBasicEmergencyCare"],
     evidenceTier: "guideline-action",
     urgency: "prompt-review",
     signal: "high-signal",
@@ -319,7 +319,7 @@ const mentalWellbeingRules: RiskRule[] = [
     copy:
       "Frequent low mood or loss of interest is worth discussing with a health professional or trusted support person.",
     inputs: ["low_interest_frequency", "mood_low_frequency"],
-    sourceIds: ["niceDepression"],
+    sourceIds: ["niceDepression", "whoDepression"],
     evidenceTier: "guideline-action",
     urgency: "support",
     signal: "worth-attention",
@@ -467,7 +467,7 @@ const dependencyRules: RiskRule[] = [
       "adolescent_cannabis_support",
       "adolescent_other_drug_support",
     ],
-    sourceIds: ["cdcYrbs"],
+    sourceIds: ["whoAdolescentFriendlyServices", "samhsaYouthSubstanceSupport"],
     evidenceTier: "guideline-action",
     urgency: "support",
     signal: "worth-attention",
@@ -519,7 +519,11 @@ const dependencyRules: RiskRule[] = [
       "uses_other_recreational_drugs",
       "adolescent_substance_urgent_safety",
     ],
-    sourceIds: ["cdcYrbs", "cdcPolysubstanceOverdose"],
+    sourceIds: [
+      "whoAdolescentFriendlyServices",
+      "samhsaYouthSubstanceSupport",
+      "cdcPolysubstanceOverdose",
+    ],
     evidenceTier: "guideline-action",
     urgency: "support",
     signal: "high-signal",
@@ -1089,13 +1093,58 @@ const medicationReviewRules: RiskRule[] = [
     applicability: adults,
   },
   {
+    id: "systemic-steroid-omission-review",
+    group: "medication-substance-review",
+    title: "Systemic corticosteroid omission symptoms",
+    copy:
+      "Severe weakness, fainting, repeated vomiting, or acute illness reported after an omission in ongoing systemic corticosteroid treatment warrants prompt assessment by the prescriber or an urgent care service. This prototype cannot identify the cause or supply a dosing plan.",
+    inputs: [
+      "uses_systemic_corticosteroids",
+      "corticosteroid_detail_missed_or_stopped",
+      "corticosteroid_detail_omission_symptoms",
+    ],
+    sourceIds: [
+      "fdaPrednisone",
+      "mhraSteroidEmergencyCard",
+      "eseEndocrineSocietyGlucocorticoidAdrenalInsufficiency",
+    ],
+    evidenceTier: "authoritative-safety",
+    urgency: "prompt-review",
+    signal: "high-signal",
+    condition: {
+      all: [
+        equals("uses_systemic_corticosteroids", true),
+        equals("corticosteroid_detail_missed_or_stopped", true),
+        equals("corticosteroid_detail_omission_symptoms", true),
+      ],
+    },
+    factors: [
+      factor(
+        "uses_systemic_corticosteroids",
+        "Current or recently stopped systemic corticosteroid use",
+        equals("uses_systemic_corticosteroids", true),
+      ),
+      factor(
+        "corticosteroid_detail_missed_or_stopped",
+        "A missed dose or recent stop after ongoing use was reported",
+        equals("corticosteroid_detail_missed_or_stopped", true),
+      ),
+      factor(
+        "corticosteroid_detail_omission_symptoms",
+        "Severe weakness, fainting, repeated vomiting, or acute illness followed the omission",
+        equals("corticosteroid_detail_omission_symptoms", true),
+      ),
+    ],
+    applicability: adults,
+  },
+  {
     id: "research-product-source-review",
     group: "medication-substance-review",
     title: "Uncertain research-product source",
     copy:
       "A product from an online research seller or unknown source has uncertain identity and quality and is worth discussing with a pharmacist or clinician.",
     inputs: ["uses_research_peptides", "research_detail_source"],
-    sourceIds: ["fdaUnapprovedGlp1", "fdaCompoundedSemaglutide"],
+    sourceIds: ["fdaUnapprovedDrugs", "fdaCompoundedRisks"],
     evidenceTier: "evidence-limited-association",
     urgency: "prompt-review",
     signal: "worth-attention",
@@ -1136,7 +1185,7 @@ const medicationReviewRules: RiskRule[] = [
     copy:
       "A warm or damaged product, worsening injection-site symptoms, or unexpected whole-body symptoms is worth prompt pharmacist or clinical review; this does not establish product identity or cause.",
     inputs: ["uses_research_peptides", "research_detail_storage_symptoms"],
-    sourceIds: ["fdaUnapprovedGlp1", "fdaCompoundedSemaglutide"],
+    sourceIds: ["fdaCompoundedRisks", "cdcInjectionSafety"],
     evidenceTier: "authoritative-safety",
     urgency: "prompt-review",
     signal: "high-signal",
@@ -1342,11 +1391,11 @@ const medicationReviewRules: RiskRule[] = [
     group: "medication-substance-review",
     title: "Persistent psychedelic or dissociative after-effect review",
     copy:
-      "Persistent perceptual changes, panic, confusion, or difficulty functioning after psychedelic or dissociative use are worth prompt clinical or mental-health review.",
+      "Persistent perceptual changes, panic, confusion, or difficulty functioning have been reported after psychedelic or dissociative use; a qualified clinical or mental-health professional can help review them without assuming a cause.",
     inputs: ["uses_psychedelics", "psychedelic_detail_aftereffects"],
     sourceIds: ["nidaPsychedelicAfterEffects"],
-    evidenceTier: "guideline-action",
-    urgency: "prompt-review",
+    evidenceTier: "evidence-limited-association",
+    urgency: "support",
     signal: "worth-attention",
     condition: psychedelicAftereffectReview,
     factors: [
@@ -1452,6 +1501,138 @@ const skinHairRules: RiskRule[] = [
 ];
 
 const reproductiveRules: RiskRule[] = [
+  {
+    id: "sexual-safety-support",
+    group: "reproductive-health",
+    title: "Sexual consent and safety support",
+    copy:
+      "Worry about pressure, consent, or safety in a sexual situation deserves confidential, person-led support. A qualified health professional or specialist support service can help; use the immediate-safety route if there is current danger.",
+    inputs: ["sexual_contact_safety"],
+    sourceIds: [
+      "nhsSexualAssaultSupport",
+      "whoSexualViolenceSupport",
+      "whoChildAdolescentSexualAbuse",
+    ],
+    evidenceTier: "guideline-action",
+    urgency: "support",
+    signal: "worth-attention",
+    condition: equals("sexual_contact_safety", true),
+    factors: [
+      factor(
+        "sexual_contact_safety",
+        "Worry about pressure, consent, or safety in a sexual situation",
+        equals("sexual_contact_safety", true),
+      ),
+    ],
+    applicability: { minAge: 13, countries: "all" },
+  },
+  {
+    id: "pregnancy-new-concern-review",
+    group: "reproductive-health",
+    title: "New pregnancy or postpartum concern",
+    copy:
+      "A new or worsening concern during pregnancy or after birth is worth prompt assessment by a qualified pregnancy-care professional. This route does not identify a cause or severity.",
+    inputs: ["pregnancy_relevant", "pregnancy_new_concern"],
+    sourceIds: ["cdcPregnantPostpartum", "whoPregnancyHealthServices"],
+    evidenceTier: "guideline-action",
+    urgency: "prompt-review",
+    signal: "high-signal",
+    condition: {
+      all: [
+        equals("pregnancy_relevant", true),
+        equals("pregnancy_new_concern", true),
+      ],
+    },
+    factors: [
+      factor(
+        "pregnancy_relevant",
+        "Pregnancy, trying to conceive, breastfeeding, or a recent pregnancy may be relevant",
+        equals("pregnancy_relevant", true),
+      ),
+      factor(
+        "pregnancy_new_concern",
+        "New or worsening concern during pregnancy or after birth",
+        equals("pregnancy_new_concern", true),
+      ),
+    ],
+    applicability: adults,
+  },
+  {
+    id: "pregnancy-care-safety-support",
+    group: "reproductive-health",
+    title: "Pregnancy care and safety support",
+    copy:
+      "Limited access to pregnancy care or not feeling safe and supported is worth confidential, practical support from a qualified health professional or specialist service. Use the immediate-safety route if there is current danger.",
+    inputs: [
+      "pregnancy_relevant",
+      "pregnancy_care_access",
+      "pregnancy_feeling_safe",
+    ],
+    sourceIds: ["whoPregnancyHealthServices"],
+    evidenceTier: "guideline-action",
+    urgency: "support",
+    signal: "worth-attention",
+    condition: {
+      all: [
+        equals("pregnancy_relevant", true),
+        {
+          any: [
+            equals("pregnancy_care_access", false),
+            equals("pregnancy_feeling_safe", false),
+          ],
+        },
+      ],
+    },
+    factors: [
+      factor(
+        "pregnancy_care_access",
+        "No current access to a maternity or pregnancy-care professional",
+        equals("pregnancy_care_access", false),
+      ),
+      factor(
+        "pregnancy_feeling_safe",
+        "Does not currently feel safe and supported",
+        equals("pregnancy_feeling_safe", false),
+      ),
+    ],
+    applicability: adults,
+  },
+  {
+    id: "pregnancy-medicine-review",
+    group: "reproductive-health",
+    title: "Pregnancy-related medicine review",
+    copy:
+      "Medicines reported as not yet reviewed for a current pregnancy-related context are worth review with a qualified clinician, midwife, or pharmacist. This prototype does not determine medication suitability or supply dosing guidance.",
+    inputs: ["pregnancy_relevant", "pregnancy_medication_review"],
+    sourceIds: [
+      "nhsPregnancyMedicines",
+      "cdcMedicinePregnancy",
+      "whoPregnancyMedicineSafety",
+      "whoMedicationWithoutHarm",
+    ],
+    evidenceTier: "authoritative-safety",
+    urgency: "prompt-review",
+    signal: "high-signal",
+    condition: {
+      all: [
+        equals("pregnancy_relevant", true),
+        equalsAny("pregnancy_medication_review", ["planned", "no"]),
+      ],
+    },
+    factors: [
+      factor(
+        "pregnancy_relevant",
+        "Pregnancy, trying to conceive, breastfeeding, or a recent pregnancy may be relevant",
+        equals("pregnancy_relevant", true),
+      ),
+      factor(
+        "pregnancy_medication_review",
+        "Qualified medicine review is absent or only planned",
+        equalsAny("pregnancy_medication_review", ["planned", "no"]),
+      ),
+    ],
+    applicability: adults,
+  },
   {
     id: "minor-pregnancy-support",
     group: "reproductive-health",

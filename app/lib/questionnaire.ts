@@ -35,13 +35,49 @@ function valuesEqual(left: AnswerValue | undefined, right: AnswerValue): boolean
   return left === right;
 }
 
-function matchesCondition(condition: BranchCondition, answers: AnswerMap): boolean {
+function isValidBranchAnswer(
+  question: Question | undefined,
+  value: AnswerValue | undefined,
+): value is AnswerValue {
+  if (!question || value === null || value === undefined) return false;
+
+  if (question.answerType === "boolean") return typeof value === "boolean";
+  if (question.answerType === "number" || question.answerType === "scale") {
+    return typeof value === "number" && Number.isFinite(value);
+  }
+  if (question.answerType === "text") {
+    return typeof value === "string" && value.trim().length > 0;
+  }
+
+  const allowed = new Set(question.options?.map((option) => option.value) ?? []);
+  if (question.answerType === "single") {
+    return typeof value === "string" && allowed.has(value);
+  }
+
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item) => typeof item === "string" && allowed.has(item)) &&
+    new Set(value).size === value.length &&
+    !(value.includes("none") && value.length > 1)
+  );
+}
+
+function matchesCondition(
+  condition: BranchCondition,
+  answers: AnswerMap,
+  questionsById: ReadonlyMap<string, Question>,
+): boolean {
   if ("all" in condition) {
-    return condition.all.every((part) => matchesCondition(part, answers));
+    return condition.all.every((part) =>
+      matchesCondition(part, answers, questionsById),
+    );
   }
 
   if ("any" in condition) {
-    return condition.any.some((part) => matchesCondition(part, answers));
+    return condition.any.some((part) =>
+      matchesCondition(part, answers, questionsById),
+    );
   }
 
   if (!Object.prototype.hasOwnProperty.call(answers, condition.questionId)) {
@@ -49,7 +85,7 @@ function matchesCondition(condition: BranchCondition, answers: AnswerMap): boole
   }
 
   const answer = answers[condition.questionId];
-  if (answer === null || answer === undefined) {
+  if (!isValidBranchAnswer(questionsById.get(condition.questionId), answer)) {
     return false;
   }
 
@@ -69,6 +105,8 @@ export function getEligibleQuestions(
   context: ProfileContext,
   answers: AnswerMap,
 ): Question[] {
+  const questionsById = new Map(bank.map((question) => [question.id, question]));
+
   return bank.filter((question) => {
     if (question.minAge !== undefined && context.age < question.minAge) {
       return false;
@@ -78,7 +116,9 @@ export function getEligibleQuestions(
       return false;
     }
 
-    return question.condition ? matchesCondition(question.condition, answers) : true;
+    return question.condition
+      ? matchesCondition(question.condition, answers, questionsById)
+      : true;
   });
 }
 

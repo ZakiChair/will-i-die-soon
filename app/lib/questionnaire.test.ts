@@ -105,6 +105,25 @@ describe("question bank invariants", () => {
     );
   });
 
+  test("contains structured adult systemic-steroid omission and symptom questions", () => {
+    expect(questionBank).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "corticosteroid_detail_missed_or_stopped",
+          answerType: "boolean",
+          domain: "corticosteroids",
+          minAge: 18,
+        }),
+        expect.objectContaining({
+          id: "corticosteroid_detail_omission_symptoms",
+          answerType: "boolean",
+          domain: "corticosteroids",
+          minAge: 18,
+        }),
+      ]),
+    );
+  });
+
   test("uses observable, time-bounded emergency wording and age-gates self-harm at 13", () => {
     const byId = new Map(questionBank.map((question) => [question.id, question]));
 
@@ -233,6 +252,16 @@ describe("questionnaire selection", () => {
     },
   );
 
+  test("keeps the adolescent sexual-safety declaration reachable in Quick and Detailed", () => {
+    for (const depth of ["quick", "detailed"] as const) {
+      expect(
+        buildAssessmentQueue(depth, questionBank, adolescent, {}).map(
+          (question) => question.id,
+        ),
+      ).toContain("sexual_contact_safety");
+    }
+  });
+
   test("keeps broad substance gates reachable in the adult Detailed queue", () => {
     expect(
       buildAssessmentQueue("detailed", questionBank, adult, {}).map(
@@ -277,6 +306,8 @@ describe("questionnaire selection", () => {
     const base = Array.from({ length: 150 }, (_, index) => ({
       ...template,
       id: index === 0 ? "deep_gate" : `deep_base_${String(index).padStart(3, "0")}`,
+      answerType: index === 0 ? ("boolean" as const) : template.answerType,
+      options: index === 0 ? undefined : template.options,
       tiers: ["deep"] as const,
       priority: index,
       condition: undefined,
@@ -501,6 +532,86 @@ describe("adaptive branches", () => {
     expect(getEligibleQuestions([customDetail], adult, {})).toEqual([]);
   });
 
+  test("does not unlock adolescent alcohol probing from undeclared or malformed answers", () => {
+    const followUpIds = [
+      "adolescent_alcohol_support",
+      "adolescent_substance_urgent_safety",
+    ];
+
+    for (const value of [
+      "unsure",
+      "refused",
+      "unknown",
+      ["monthly_or_less"],
+      1,
+      true,
+    ] as const) {
+      const answers = { alcohol_frequency: value } as unknown as AnswerMap;
+      const eligibleIds = getEligibleQuestions(
+        questionBank,
+        adolescent,
+        answers,
+      ).map((question) => question.id);
+      const reconciledIds = questionnaireModule
+        .reconcileAssessmentState(
+          "detailed",
+          questionBank,
+          adolescent,
+          answers,
+        )
+        .queue.map((question) => question.id);
+
+      for (const id of followUpIds) {
+        expect(eligibleIds, String(value)).not.toContain(id);
+        expect(reconciledIds, String(value)).not.toContain(id);
+      }
+    }
+  });
+
+  test("validates option bags before evaluating includes branches", () => {
+    const template = questionBank[0];
+    const multiGate: Question = {
+      ...template,
+      id: "custom_multi_gate",
+      answerType: "multi",
+      options: [
+        { value: "positive", label: "Positive" },
+        { value: "none", label: "None" },
+      ],
+      condition: undefined,
+    };
+    const dependent: Question = {
+      ...template,
+      id: "custom_multi_detail",
+      condition: {
+        questionId: "custom_multi_gate",
+        operator: "includes",
+        value: "positive",
+      },
+    };
+    const bank = [multiGate, dependent];
+
+    expect(
+      getEligibleQuestions(bank, adult, {
+        custom_multi_gate: ["positive"],
+      }).map((question) => question.id),
+    ).toContain("custom_multi_detail");
+    for (const invalid of [
+      ["none", "positive"],
+      ["positive", "positive"],
+      ["unknown"],
+      [],
+      "positive",
+      true,
+    ] as const) {
+      expect(
+        getEligibleQuestions(bank, adult, {
+          custom_multi_gate: invalid as never,
+        }).map((question) => question.id),
+      ).not.toContain("custom_multi_detail");
+    }
+  });
+
   test("uses_glp1=false removes GLP-1 detail questions", () => {
     const eligible = getEligibleQuestions(questionBank, adult, { uses_glp1: false });
 
@@ -510,6 +621,75 @@ describe("adaptive branches", () => {
         question.id.startsWith("glp1_detail_"),
       ),
     ).toBe(true);
+  });
+
+  test("keeps the adult steroid gate and nested structured omission branch reachable", () => {
+    const initialDetailed = buildAssessmentQueue(
+      "detailed",
+      questionBank,
+      adult,
+      {},
+    );
+    const afterGate = questionnaireModule.reconcileAssessmentState(
+      "detailed",
+      questionBank,
+      adult,
+      { uses_systemic_corticosteroids: true },
+    );
+    const afterOmission = questionnaireModule.reconcileAssessmentState(
+      "detailed",
+      questionBank,
+      adult,
+      {
+        uses_systemic_corticosteroids: true,
+        corticosteroid_detail_missed_or_stopped: true,
+      },
+    );
+    const deepAfterOmission = questionnaireModule.reconcileAssessmentState(
+      "deep",
+      questionBank,
+      adult,
+      {
+        uses_systemic_corticosteroids: true,
+        corticosteroid_detail_missed_or_stopped: true,
+      },
+    );
+
+    expect(initialDetailed.map((question) => question.id)).toContain(
+      "uses_systemic_corticosteroids",
+    );
+    expect(afterGate.queue.map((question) => question.id)).toContain(
+      "corticosteroid_detail_missed_or_stopped",
+    );
+    expect(afterGate.queue.map((question) => question.id)).not.toContain(
+      "corticosteroid_detail_omission_symptoms",
+    );
+    expect(afterOmission.queue.map((question) => question.id)).toEqual(
+      expect.arrayContaining([
+        "uses_systemic_corticosteroids",
+        "corticosteroid_detail_missed_or_stopped",
+        "corticosteroid_detail_omission_symptoms",
+      ]),
+    );
+    expect(deepAfterOmission.queue.map((question) => question.id)).toEqual(
+      expect.arrayContaining([
+        "uses_systemic_corticosteroids",
+        "corticosteroid_detail_missed_or_stopped",
+        "corticosteroid_detail_omission_symptoms",
+      ]),
+    );
+    expect(
+      getEligibleQuestions(questionBank, adolescent, {
+        uses_systemic_corticosteroids: true,
+        corticosteroid_detail_missed_or_stopped: true,
+      }).map((question) => question.id),
+    ).not.toEqual(
+      expect.arrayContaining([
+        "uses_systemic_corticosteroids",
+        "corticosteroid_detail_missed_or_stopped",
+        "corticosteroid_detail_omission_symptoms",
+      ]),
+    );
   });
 
   test("has_recent_labs=false removes lab-value questions", () => {
