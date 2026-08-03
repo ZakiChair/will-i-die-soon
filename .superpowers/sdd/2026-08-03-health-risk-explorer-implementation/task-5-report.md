@@ -2,145 +2,177 @@
 
 ## Status
 
-Implemented the audited evidence registry, release-policy gates, transparent qualitative
-risk engine, immediate safety routing, questionnaire safety additions, and accessible
-same-answer interruption. The private prototype emits no probability, does not parse free
-text or printed laboratory strings, and does not diagnose a condition.
+Implemented and correction-audited. The private prototype emits transparent qualitative
+leaves without probability, never parses free text or printed laboratory strings, and does
+not diagnose conditions or create medicine dosing plans. The correction round closes the
+source-currency, evidence-fit, jurisdiction, structured-safety, defensive-branching, and
+semantic de-duplication findings raised by independent review.
 
-## Changed files
+## Current inventory and changed surfaces
 
-- `app/data/evidence.ts` — 43 reviewed authoritative source records, including the exact
-  Swiss FOPH addiction-help and UFI emergency URLs and age-applicable child/adolescent
-  sources.
-- `app/data/rules.ts` — 14 explicit rule groups with structured gates, sources, factors,
-  evidence tiers, urgency, applicability, de-duplication keys, and audited omission notes.
-- `app/lib/release-policy.ts` — private-prototype, public-wellness, and regulated release
-  gates, including a separate gate for prompt clinical-review conclusions.
-- `app/lib/risk-engine.ts` — strict answer validation, condition evaluation, policy and
-  applicability gates, localized emergency copy, leaf construction, evidence-contract
-  enforcement, context-preserving de-duplication, minor boundaries, and display sorting.
-- `app/lib/types.ts` — `EvidenceSource`, `RiskRule`, `RiskLeaf`, `ReleasePolicy`, and their
-  supporting unions and contracts.
-- `app/data/questions/core.ts` — current overdose/poisoning/unresponsiveness and severe-
-  bleeding questions, revised stroke/allergy/breathing wording, and the self-harm age gate.
-- `app/data/questions/substances.ts` — the five broad substance gates moved into the
-  Detailed priority band so adult and adolescent safety/support branches are reachable.
-- `app/lib/questionnaire.ts` — shared build/reconciliation selection, a deterministic
-  150-question Deep base, active-branch growth, and a hard 200-question cap.
-- `app/components/assessment.tsx` — same-answer urgent interruption, focused alert heading,
-  and correction route.
-- `app/components/question-control.tsx` — exclusive `none` multi-select behavior.
-- `app/globals.css` — project-native immediate-safety presentation.
-- `app/lib/risk-engine.test.ts`, `app/lib/questionnaire.test.ts`, and
-  `app/components/assessment.test.tsx` — contract, route, boundary, queue, and reachable UI
-  regression coverage.
+- `app/data/evidence.ts` — 60 reviewed source records. The correction updates the Zepbound
+  label to FDA 2026, Rayos to FDA 2024, and the retired NHS melanoma URL to the current NHS
+  `Moles` page. It adds global emergency, mental-health, adolescent-service, sexual-safety,
+  pregnancy-care/medicine, broad unapproved/compounded-product, injection-safety, steroid-card,
+  and international glucocorticoid-adrenal-insufficiency sources.
+- `app/data/rules.ts` — 45 explicit rules across 14 groups. The correction consumes the
+  sexual-safety, adult-pregnancy, and structured steroid-omission declarations; replaces
+  surveillance or overly narrow citations; adds globally applicable urgent evidence; and
+  downgrades the NIDA psychedelic association to evidence-limited support.
+- `app/data/questions/medications.ts` — adds exact boolean systemic-steroid omission and
+  post-omission symptom questions, retains free text only for a documented clinician-led
+  plan, and makes the adult steroid gate reachable in Detailed.
+- `app/data/questions/clinical.ts` — makes the age-13+ sexual consent/safety declaration an
+  all-depth safety question at priority 18.3, placing it at index 18 in both Quick and
+  Detailed rather than leaving it unreachable for adolescents.
+- `app/lib/questionnaire.ts` — validates a branch answer against its declared question type
+  and options before evaluating `equals`, `not-equals`, or `includes`.
+- `app/lib/release-policy.ts`, `app/lib/types.ts`, and `app/lib/risk-engine.ts` — add the
+  supported ruleset identifier, regulated country/version enforcement, per-profile source
+  applicability, ruleset provenance on every leaf, and semantic de-duplication.
+- `app/lib/risk-engine.test.ts` and `app/lib/questionnaire.test.ts` — cover source records,
+  source jurisdiction, regulated mismatch, all newly consumed routes and gates, malformed
+  branch answers, Detailed/Deep reachability, no text parsing, and same-key semantic
+  collisions.
+- The original Task 5 implementation also changed the core/substance question banks,
+  assessment interruption UI, multi-select `none` handling, styles, and assessment tests.
+  Those surfaces remain covered and were not loosened by this correction.
+
+The combined question bank now contains 239 declarations. Counts above were taken from the
+current source registry/rule bank/question bank, not copied from the pre-correction report.
 
 ## TDD evidence
 
-The first risk-engine run failed because the evidence, rules, policy, and engine modules did
-not exist. The initial questionnaire/UI RED run then exposed eight expected gaps: the two
-current-safety questions, revised emergency wording/age metadata, adult Deep availability,
-immediate interruption, exclusive `none`, and stable queue reconciliation.
+The original Task 5 implementation recorded these test-first cycles:
 
-Further test-first cycles recorded before implementation:
+- initial missing-module failures for the evidence registry, rule bank, policies, and engine;
+- eight questionnaire/UI failures for current-safety questions, emergency metadata, Deep
+  availability, interruption, exclusive `none`, and queue reconciliation;
+- 32 route failures plus one pass, followed by 33/33 green for audited medicine/substance
+  classes;
+- independent-review regressions progressing through 110/110, 112/112, and 122/122 focused
+  green states for Deep sizing, adolescent pregnancy safety, factor gating, and substance
+  reachability.
 
-- five failures for required leaf metadata and the 200-question defensive cap;
-- 32 failures and one pass for medication/substance class routes, followed by 33/33 green;
-- one failure for adolescent past-year severe-event support routing;
-- 18 failures with 92 passes for independent-review regressions, followed by 110/110 green;
-- nine failures with 35 passes for the clarified Deep invariant, followed by 44/44 green;
-- two failures with 110 passes for the uncovered adolescent pregnancy/safeguarding safety
-  route, followed by 112/112 green;
-- six failures with 116 passes for pregnancy de-duplication, gate-aware adolescent factors,
-  and substance-route queue reachability, followed by 122/122 green.
+The first correction pass added four explicit RED/GREEN cycles:
+
+- source records, unconsumed declarations, steroid structure/reachability, and invalid
+  questionnaire branches: seven expected failures across the two focused suites, then
+  130/130 green;
+- regulated jurisdiction/version, source applicability, and evidence-quality contracts:
+  five expected failures with 131 passing, then 137/137 green;
+- same-key semantic collisions: two expected failures with 105 passing in the engine suite,
+  then 140/140 green across engine and questionnaire suites;
+- pregnancy medicine review outside GB: one expected failure with 107 skipped, then one pass
+  with 107 skipped after adding globally applicable evidence.
+
+Fresh independent correction review then drove four further RED/GREEN slices:
+
+- the steroid omission leaf disappeared in CH/DE: one failure with 107 skipped, then one pass
+  after adding the 2024 joint ESE/Endocrine Society guideline and exact CH assertion;
+- pregnancy context suppressed adolescent sexual-safety support: one failure with 108 skipped,
+  then one pass after preserving that distinct safety leaf alongside pregnancy support;
+- the sexual-safety declaration was unreachable in adolescent queues: one failure with 33
+  skipped, then one pass after adding its all-depth safety priority;
+- adolescent sexual-safety and non-GB pregnancy-medicine evidence fit: two failures with 107
+  skipped, then two passes after adding the WHO child/adolescent guideline and replacing the
+  generic medicine fallback with CDC/NHS and medicine-specific global WHO sources.
 
 ## Engine and evidence boundaries
 
-- Every condition reads a declared question ID and validates the runtime value against that
-  question's answer type and options.
-- Boolean signals require exact `true`. Missing, `null`, `"unsure"`, invalid types,
-  non-finite or rule-out-of-range numbers, duplicated or unknown options, and `none` plus a
-  positive option cannot trigger a rule or reassuring conclusion.
+- Every rule condition reads a declared question ID and validates its runtime value against
+  the question's type/options. Boolean signals require exact `true`; missing, null,
+  undeclared unknown/refusal strings, wrong types, non-finite or out-of-range numbers,
+  duplicate/unknown multi options, and `none` plus a positive option do not activate rules.
+- Questionnaire branches independently enforce the same declared-answer boundary before a
+  condition can unlock a follow-up. For example, adolescent
+  `alcohol_frequency: "unsure"` cannot open alcohol or urgent substance follow-ups.
 - Text answers and printed laboratory values have no rule conditions and are never parsed.
-  Metabolic and kidney groups are present but deliberately empty because Task 5 has no safe
-  structured inputs for classifying the available printed lab strings.
-- Closely related routes share de-duplication keys. The highest-urgency leaf wins while
-  retaining unique matched factors, missing-input IDs, and sources from suppressed routes.
-- Every emitted leaf has non-empty factors, a missing-input list, reviewed source records,
-  applicability, evidence tier, urgency, signal, and non-diagnostic copy.
-- `assertEvidenceContract` rejects incomplete metadata or sources, diagnostic claims,
-  percentages, and probability outside the validated-estimate tier.
-- The prototype permits qualitative and urgent rules but no probability. Public wellness
-  suppresses urgent and prompt-review triage while retaining non-triage wellness/support
-  information. Regulated evaluation fails closed without jurisdiction and model version.
+  The systemic-steroid route depends only on the new exact booleans and supplies no taper or
+  dosing instruction.
+- A matched rule resolves every source, filters records to `jurisdictions: "all"` or the
+  normalized confirmed profile country, and is suppressed if no applicable source remains.
+  Thus a US leaf cannot display a GB-only NHS record. Global WHO evidence preserves urgent
+  routes outside GB/US-specific source jurisdictions.
+- Every emitted leaf carries the exact supported `risk-rules-v1` provenance. A regulated
+  evaluation fails closed unless policy jurisdiction equals the normalized confirmed profile
+  country and `enabledModelVersion` equals that supported ruleset. Private/public policies
+  do not inherit this regulated-only constraint.
+- Semantically distinct leaves that share a de-duplication key and urgency remain separate,
+  preserving their own title, group, copy, factors, tier, and sources. A true urgent leaf
+  suppresses lower-urgency duplicates only; it retains their unique factors/missing inputs/
+  sources and adds explicit copy stating that related context neither identifies cause nor
+  changes the emergency action.
+- Evaluation enforces source applicability before materialization. `assertEvidenceContract`
+  separately requires rule/ruleset provenance, complete source metadata, non-diagnostic copy,
+  no unvalidated percentages, and no probability outside the validated-estimate tier.
 
-## Audited route coverage
+## Corrected route and source coverage
 
-- Direct current safety: chest symptoms, severe breathing difficulty, stroke signs, severe
-  allergy, suspected overdose/poisoning/unresponsiveness, uncontrolled bleeding, and
-  immediate self-harm danger, plus gated adolescent pregnancy/safeguarding danger.
-- Adult qualitative context: sleep, sleep breathing, changed breathlessness, blood pressure
-  with salt, mood, nicotine/alcohol support, movement, eating distress, and changing skin
-  marks.
-- Structured medicine/substance review: GLP-1, isotretinoin, oral/topical minoxidil,
-  systemic corticosteroids, research/compounded injectables, anabolic/SARM products,
-  cannabis, stimulants, opioid/sedative mixing, psychedelics, and unknown recreational
-  drugs. Every class route requires its exact upstream gate; temporal ambiguity stays in
-  prompt-review rather than call-now routing.
-- Adolescent substance selections and the past-year severe-event question require an active
-  upstream substance gate and produce support-only output. Every displayed factor repeats
-  its own exact gate, so a stale downstream answer cannot leak into a valid grouped leaf.
+- Current safety remains direct and country-localized for chest symptoms, severe breathing
+  difficulty, stroke signs, severe allergy, overdose/poisoning/unresponsiveness, uncontrolled
+  bleeding, immediate self-harm danger, and gated adolescent pregnancy/safeguarding danger.
+- `sexual_contact_safety: true` at age 13+ now produces confidential support with exact gate,
+  age/country applicability, and a directly fitted WHO child/adolescent clinical guideline.
+  It remains visible when adolescent pregnancy support is also active.
+- Adult pregnancy declarations now independently route a new concern, lack of care access or
+  safety/support, and absent/planned medicine review. Medicine review uses the direct CDC page
+  in the US, the operational NHS page in GB, and WHO pregnancy pharmacovigilance plus
+  Medication Without Harm globally; the generic pregnancy service-access page is not used for
+  the authoritative medicine claim.
+- Ongoing/recent systemic-steroid use plus an exact missed/stopped answer and exact severe
+  symptom answer now produces prompt professional review. Stale details and matching words in
+  free text do not trigger it. US and GB add only their applicable FDA/MHRA record to the
+  global 2024 joint endocrine guideline, while CH and other countries retain the global route.
+- Adolescent substance routes use WHO adolescent-friendly service guidance and US SAMHSA
+  youth support rather than CDC YRBSS surveillance. The urgent pregnancy route includes a
+  global pregnancy-care source. The psychedelic route is evidence-limited support, and broad
+  research/compounded routes cite broad FDA/CDC product and injection-safety sources rather
+  than GLP-1/semaglutide-only pages.
+- A default-agent `curl` sweep returned 2xx/3xx for 56 of 60 records, 403 for the two SAMHSA
+  pages, and 404 for the two current FDA label PDFs. The FDA PDFs both return 200 with a
+  browser user-agent and were opened as the 02/2026 Zepbound and 03/2024 Rayos labels. The
+  current official SAMHSA titles/paths were revalidated through the official search index;
+  their direct 403 responses are treated as bot protection, not as HTTP-200 checks.
 
-## Immediate and age-specific behavior
+## Queue and age behavior
 
-- Confirmed country alone selects emergency copy: US `911` (plus `988` for self-harm), GB
-  `999`, CH `144` (plus poison information `145` only for poisoning), and generic local-
-  emergency wording elsewhere. Severe-bleeding copy qualifies direct pressure when no object
-  is embedded and says not to remove an embedded object.
-- A legacy self-harm answer still routes below the question's current `minAge: 13`.
-- Minors receive only urgent or support leaves. Confirmed minor pregnancy context suppresses
-  ordinary support in favor of immediate safety plus the sourced pregnancy-support leaf.
-- An adolescent's exact current pregnancy/safeguarding safety answer requires the pregnancy
-  gate, interrupts immediately, and uses confirmed-country urgent copy without diagnosis.
-- The assessment stores the answer, interrupts before normal advance, focuses a dedicated
-  `role="alert"` safety screen, states that the prototype cannot contact help, and offers
-  “Change my answer.” No score or result tree appears during the interruption.
-
-## Queue and control behavior
-
-- Quick remains exactly 20 and Detailed exactly 50.
-- Detailed includes all five broad cannabis/nonmedical-drug gates at ages 13, 15, and 17
-  and for adults; affirmative adolescent gates make the opt-in support and shared safety
-  follow-ups reachable while adult quantity/detail screens remain age-gated.
-- Deep is available for adults aged 18, 24, and 34 with the same deterministic 150-question
-  base. A non-branching answer preserves that exact base.
-- Active conditional questions are added to the base, so five medicine details produce 155
-  questions. Branch growth is deterministic and capped at 200.
-- Selecting `none` clears positive options, and selecting a positive option clears `none`.
-  The engine independently rejects contradictory bags received outside the UI.
+- Quick remains exactly 20 and Detailed exactly 50. Detailed exposes all five adolescent
+  substance gates and the adult systemic-steroid gate; affirmative gates make their nested
+  follow-ups reachable. Deep retains its deterministic 150-question base and grows active
+  branches under the hard 200-question cap.
+- The sexual route starts at age 13 and its question is index 18 in both Quick and Detailed;
+  adult pregnancy and systemic-steroid routes start at 18. Stale downstream values cannot
+  bypass the exact upstream gate.
+- Minors continue to receive only urgent or support leaves. No correction introduced an adult
+  probability or adult-only medicine route for a minor; pregnancy support no longer erases a
+  distinct sexual-safety support leaf.
 
 ## Verification
 
-- Focused Task 5 suites: `npm test -- --run app/lib/risk-engine.test.ts
-  app/lib/questionnaire.test.ts app/components/assessment.test.tsx` — 3 files, 142 tests
-  passed.
-- Repository suite: `npm test -- --run` — 6 files, 204 tests passed.
+- Correction focused suites: `npx vitest run app/lib/risk-engine.test.ts
+  app/lib/questionnaire.test.ts` — 2 files, 143/143 passed.
+- Repository suite: `npm test` — 6 files, 225/225 passed.
 - `npm run lint` — exit 0 with no findings.
-- `npm run build` — exit 0; all five vinext environments built and `/` was emitted.
+- `npm run build` — exit 0; all five vinext environments built. Vinext retained only its
+  informational unknown-route classification.
 - `git diff --check` — exit 0.
+- Correction code commit: `1592713a18c9fff6ae855c120c6e05d594153bca`
+  (`fix: preserve evidence semantics in risk routing`).
 
-## Review and concerns
+## Review disposition and deferred work
 
-Independent review identified public-policy triage leakage, context loss during
-de-duplication, overlapping route keys, the combined minoxidil route, age-inapplicable
-sources, an incomplete bleeding caveat, numeric missing-data reporting, adolescent gate
-enforcement, urgent-screen focus, and ambiguous Deep sizing. Each item received a focused
-regression and implementation fix. Re-review then found the previously unconsumed adolescent
-pregnancy/safeguarding current-safety input; it now has a gated, sourced urgent route and
-reachable interruption regression. A final route audit then caught stale factor leakage and
-unreachable adolescent substance gates; per-factor gates and Detailed priority tests now
-cover ages 13, 15, and 17. Evidence review dates are a snapshot (`2026-08-03`) and
-should be refreshed before a later release. Node still emits its dependency deprecation
-warning, and vinext prints its informational unknown-route classification; neither fails
-verification. Final independent re-review approved the implementation with no remaining
-blockers.
+The source-currency, regulated-gate, source-jurisdiction, steroid omission, unconsumed
+sexual/pregnancy answers, evidence-tier/source fit, defensive questionnaire branching, and
+semantic de-duplication findings all have focused regressions. Final independent re-review
+reproduced the corrected CH steroid, pregnancy-plus-sexual, and queue-reachability scenarios,
+ran 143/143 focused and 225/225 repository tests, and returned `APPROVED` with no remaining
+Critical, High, or Medium finding in scope.
+
+Three non-blocking follow-ups remain explicitly deferred to Task 8/tooling work: broaden the
+copy linter beyond its current diagnostic/dose phrases, add explicit temporal follow-ups where
+a past-year exposure and current symptoms could otherwise be ambiguous, and repair the global
+standalone TypeScript check configuration (Vitest types and the worker `Fetcher` type). The
+official production build remains the release compilation gate. Node's dependency deprecation
+warning and vinext's informational unknown-route classification are also unchanged and
+non-failing.
