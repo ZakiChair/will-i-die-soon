@@ -1,8 +1,12 @@
 /** Cloudflare Worker entry point for the local-only health explorer. */
 import handler from "vinext/server/app-router-entry";
 
+interface AssetFetcher {
+  fetch(request: Request): Response | Promise<Response>;
+}
+
 interface Env {
-  ASSETS: Fetcher;
+  readonly ASSETS: AssetFetcher;
 }
 
 interface ExecutionContext {

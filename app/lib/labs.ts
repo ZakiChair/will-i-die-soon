@@ -369,7 +369,10 @@ export function normalizeLabValue(candidate: LabCandidate): NormalizedLabValue {
 }
 
 async function extractPdfText(file: File): Promise<string> {
-  const pdfjs = await import("pdfjs-dist");
+  const pdfjs =
+    typeof Worker === "undefined"
+      ? await import("pdfjs-dist/legacy/build/pdf.mjs")
+      : await import("pdfjs-dist");
   if (typeof Worker !== "undefined") {
     pdfjs.GlobalWorkerOptions.workerSrc = "/lab-assets/pdf.worker.min.mjs";
   }

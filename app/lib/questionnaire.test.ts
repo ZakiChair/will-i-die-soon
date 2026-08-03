@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, expectTypeOf, test } from "vitest";
 
 import { questionBank } from "../data/questions";
 import * as questionnaireModule from "./questionnaire";
@@ -847,7 +847,7 @@ describe("adaptive branches", () => {
 
     expect(eligible.some((question) => question.id.startsWith("med_detail_"))).toBe(false);
     expect(eligible.map((question) => question.id)).not.toEqual(
-      expect.arrayContaining(medicationBehaviorIds),
+      expect.arrayContaining([...medicationBehaviorIds]),
     );
     expect(
       getEligibleQuestions(questionBank, adult, { current_medications: true }).some((question) =>
@@ -858,7 +858,7 @@ describe("adaptive branches", () => {
       getEligibleQuestions(questionBank, adult, { current_medications: true }).map(
         (question) => question.id,
       ),
-    ).toEqual(expect.arrayContaining(medicationBehaviorIds));
+    ).toEqual(expect.arrayContaining([...medicationBehaviorIds]));
   });
 
   test.each(["detailed", "deep"] as const)(
@@ -871,7 +871,7 @@ describe("adaptive branches", () => {
         interaction_shared_list: true,
       });
       expect(withMedicines.queue.map((question) => question.id)).toEqual(
-        expect.arrayContaining(medicationBehaviorIds),
+        expect.arrayContaining([...medicationBehaviorIds]),
       );
 
       const withoutMedicines = reconcileAssessmentState(depth, questionBank, adult, {
@@ -879,7 +879,7 @@ describe("adaptive branches", () => {
         current_medications: false,
       });
       expect(withoutMedicines.queue.map((question) => question.id)).not.toEqual(
-        expect.arrayContaining(medicationBehaviorIds),
+        expect.arrayContaining([...medicationBehaviorIds]),
       );
       for (const questionId of medicationBehaviorIds) {
         expect(withoutMedicines.answers).not.toHaveProperty(questionId);
@@ -890,7 +890,7 @@ describe("adaptive branches", () => {
         current_medications: true,
       });
       expect(reopened.queue.map((question) => question.id)).toEqual(
-        expect.arrayContaining(medicationBehaviorIds),
+        expect.arrayContaining([...medicationBehaviorIds]),
       );
     },
   );

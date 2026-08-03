@@ -1,7 +1,7 @@
 import { render as testingRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { vi } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { I18nProvider } from "../i18n/context";
 import * as labsModule from "../lib/labs";

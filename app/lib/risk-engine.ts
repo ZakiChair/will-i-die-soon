@@ -517,12 +517,13 @@ export function assertEvidenceContract(leaf: RiskLeaf): void {
     ) {
       throw new Error("Every evidence source requires identity, URL, and review date.");
     }
+    const jurisdictions = source.jurisdictions;
     const validOrigin =
-      source.jurisdictions === "all" ||
-      (Array.isArray(source.jurisdictions) &&
-        source.jurisdictions.length > 0 &&
-        new Set(source.jurisdictions).size === source.jurisdictions.length &&
-        source.jurisdictions.every((country) => /^[A-Z]{2}$/.test(country)));
+      jurisdictions === "all" ||
+      (Array.isArray(jurisdictions) &&
+        jurisdictions.length > 0 &&
+        new Set(jurisdictions).size === jurisdictions.length &&
+        jurisdictions.every((country) => /^[A-Z]{2}$/.test(country)));
     const sourceCountries = source.applicability?.countries;
     const validContentCountries =
       sourceCountries === "all" ||
@@ -541,13 +542,13 @@ export function assertEvidenceContract(leaf: RiskLeaf): void {
       (source.applicability.minAge === undefined ||
         source.applicability.maxAge === undefined ||
         source.applicability.minAge <= source.applicability.maxAge);
+    const operationalCountries = source.operationalCountries;
     const validOperationalCountries =
-      source.operationalCountries === undefined ||
-      (Array.isArray(source.operationalCountries) &&
-        source.operationalCountries.length > 0 &&
-        new Set(source.operationalCountries).size ===
-          source.operationalCountries.length &&
-        source.operationalCountries.every((country) => /^[A-Z]{2}$/.test(country)));
+      operationalCountries === undefined ||
+      (Array.isArray(operationalCountries) &&
+        operationalCountries.length > 0 &&
+        new Set(operationalCountries).size === operationalCountries.length &&
+        operationalCountries.every((country) => /^[A-Z]{2}$/.test(country)));
     if (
       !validOrigin ||
       !validContentCountries ||

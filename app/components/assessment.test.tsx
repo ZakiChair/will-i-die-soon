@@ -1,7 +1,7 @@
 import { render as testingRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { vi } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { questionBank } from "../data/questions";
 import { I18nProvider } from "../i18n/context";

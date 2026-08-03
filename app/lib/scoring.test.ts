@@ -13,7 +13,7 @@ import {
   buildActionPlan,
   calculatePurityScore,
 } from "./scoring";
-import type { AnalysisDepth, AnswerMap } from "./types";
+import type { AnalysisDepth, AnswerMap, QuestionnaireState } from "./types";
 
 const adultRouting = {
   ageYears: 24,
@@ -85,7 +85,7 @@ function completeReachableAssessment(
   desiredAnswers: AnswerMap,
 ): AnswerMap {
   const profile = { age: 35, countryCode: "CH" };
-  let state = {
+  let state: QuestionnaireState = {
     queue: buildAssessmentQueue(depth, questionBank, profile, {}),
     answers: {} as AnswerMap,
   };
@@ -693,7 +693,9 @@ describe("question-bank contract and reachable coverage", () => {
 
     expect(result.kind).toBe(kind);
     if (depth === "quick") expect(result).not.toHaveProperty("score");
-    else if (depth === "detailed") {
+    else if (result.kind !== "adult-score") {
+      throw new Error(`Expected an adult score for ${depth}`);
+    } else if (depth === "detailed") {
       expect(result.coverage).toBeGreaterThanOrEqual(70);
     } else {
       expect(result).toMatchObject({ score: 100, coverage: 100 });

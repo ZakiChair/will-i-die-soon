@@ -1248,12 +1248,7 @@ function habitActions(score: AdultPurityScoreResult): ActionItem[] {
         plannedStepRank: isAlreadyPlanned ? 0 : 1,
       };
     })
-    .filter(
-      (
-        candidate,
-      ): candidate is { readonly action: ActionItem; readonly plannedStepRank: number } =>
-        candidate !== null,
-    )
+    .filter((candidate) => candidate !== null)
     .sort(
       (left, right) =>
         right.action.opportunity - left.action.opportunity ||
