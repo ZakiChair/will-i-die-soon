@@ -8,9 +8,10 @@ lab context, and local export as visibly separate systems. It does not produce a
 disease probability, diagnosis, lab interpretation, medicine change, or adult score for a
 minor.
 
-The production feature commit is
+The original production feature commit is
 `abf8412fedbf5edb3bd39c9824b8d5c5413fcb61` (`feat: deliver explainable risk tree and purity
-score`).
+score`). Controller correction round 1 is implemented in
+`3f33557c43de247365518982fe5d53e31be81643` (`fix: harden task 6 privacy and provenance`).
 
 ## Delivered surfaces
 
@@ -19,9 +20,11 @@ score`).
   exclusions, raw `D / T` coverage gate, and discriminated adult/coverage/not-available
   results. Non-score variants contain no hidden score, numerator, denominator, or full ledger.
 - `app/lib/scoring.ts` also produces at most three category-de-duplicated actions. Access and
-  safety support is first, simultaneous barriers are preserved in one support action, an
-  already-planned step wins an equal-deficit tie, and remaining ties use the documented v1
-  evidence-direction order rather than category spelling or protected/context data.
+  safety support is first, simultaneous barriers and every distinct applicable source are
+  preserved in one support action, an already-planned step wins an equal-deficit tie, and
+  remaining ties use the documented v1 evidence-direction order rather than category spelling
+  or protected/context data. Actions use deterministic, de-duplicated `sources[]` throughout
+  scoring, rendering, and export.
 - `app/components/risk-tree.tsx` provides the complete semantic canopy: “You today” branches
   into urgent signals, medical review, longer-term domains, and protective roots. Nested lists
   and buttons work independently of color and pointer precision; selection opens an adjacent
@@ -29,16 +32,22 @@ score`).
   official sources.
 - `app/components/results.tsx` renders urgent signals before habits content, the exact adult
   label `Purity Score — wellness habits, not a health verdict.`, inspectable component caps,
-  non-ranked adolescent cards, confirmed-but-uninterpreted labs, actions, print, JSON export,
-  and restart.
-- `app/lib/export.ts` emits interpreted output by default. It removes raw answers, free text,
-  file/source metadata, birth-date-like fields, and exact-location-like fields. An adult-only
-  explicit toggle can add validated structured answers while continuing to exclude text and
-  private file metadata.
+  non-ranked adolescent cards, confirmed-but-uninterpreted labs, actions with every source link,
+  print, JSON export, and restart.
+- `app/lib/export.ts` emits `health-risk-explorer-report-v2` interpreted output by default. It
+  removes raw answers, free text, file/source metadata, birth-date-like fields, and
+  exact-location-like fields. Explicit raw opt-in is honored only when the report carries a
+  separate finite integer age guard of at least 18; the guard itself is never serialized.
 - `app/page.tsx` carries assessment depth and locally confirmed labs into Results. Restart
   replaces the whole in-memory result/assessment state with the landing state.
 - The core, substance, medication, and lifestyle banks contain the required adult nicotine,
-  preventive-follow-up, medication-access, and exact score/exclusion consumers.
+  preventive-follow-up, medication-access, and exact score/exclusion consumers. Medicine-use
+  behavior questions now require an affirmative current-prescription gate, and preventive due
+  status is independent of access barriers.
+- `app/globals.css` uses a two-color focus-visible indicator: amber is visible against
+  deep-water and deep-water is visible against paper. Selected risk-tree buttons preserve both
+  focus bands, reduced-motion behavior remains intact, and citation rows cannot inherit action
+  card layout or numbering.
 
 ## Age and privacy routing
 
@@ -53,6 +62,10 @@ score`).
 - Under 13, urgent content may appear, followed only by general information, guardian/trusted
   adult routing, and **Restart and clear**. Canopy, map, labs, print, JSON, raw answers, and all
   adult scoring are suppressed.
+- Raw export authorization is independent of score shape. Tests deny explicit opt-in for child
+  and adolescent ages, null/missing/invalid age guards, including an adult-shaped score supplied
+  with a minor guard. Verified adults may opt in with Quick, insufficient-coverage, or published
+  adult-score results. The age guard and all other private metadata remain absent from JSON.
 
 ## Exact scoring and action evidence
 
@@ -63,7 +76,8 @@ The normative mutation fixtures pass as specified:
   nutrition, then alcohol. Movement is fourth by deficit and does not displace alcohol.
 - F3: tobacco/alcohol-only answers expose coverage `35%` and no raw or public numeric score.
 - F4: medicine access/use barriers remove the affected component from numerator and denominator,
-  can retain score `100`, and produce practical support rather than a penalty.
+  can retain score `100`, and produce practical support rather than a penalty. A merged
+  preventive-and-medicine support action retains both reasons and both official source links.
 - F5: positive values beyond caps equal the caps; negative/non-finite values and fractional
   day/portion counts are missing. Protected/context-only mutations leave arithmetic, ledger,
   and actions identical.
@@ -78,13 +92,29 @@ action slots. Confirmed lab values remain copied context and never enter either 
 
 - Registry size after Task 6: 243 questions.
 - Quick and Detailed remain exactly 20 and 50 questions. Deep retains its 150-question base;
-  audited active adult routes were nicotine 155, alcohol 153, medicines 155, preventive 151,
-  and all four together 164, below the hard 200 cap.
-- Detailed score reachability was measured from actual queued answers: no-current-medicines
-  `63 / 90 = 70%`; no-prescriber-access `65 / 92 = 70.65%`; and medicine access barrier
-  `64 / 91 = 70.33%`. Deep remains the reliable full-coverage route.
+  audited active adult routes are nicotine 155, alcohol 153, medicines 158, preventive 151,
+  and all four together 167, below the hard 200 cap. The medicine route is the 150-item base
+  plus five detail prompts and the three now-gated behavior prompts.
+- Ages 18, 24, and 34 retain a 150-item Deep base through the existing
+  `preventive_fall_review` functional question at its established priority 139. Its adult-age
+  wording covers falls, balance concerns, fear of falling, and activity limitation; no filler
+  item was introduced.
+- Realistic Detailed no-current-medicine, no-prescriber-access, and medicine-barrier routes all
+  remain adult-score eligible at the raw `D / T >= 70%` gate. Deep remains the reliable
+  full-coverage route.
 - All Task 5 age, branch, urgent-interruption, evidence, and queue gates remain covered by the
   full repository suite.
+
+## Recovery-source research note
+
+The recovery source was checked on 3 August 2026 against the official WHO publication page,
+[Doing What Matters in Times of Stress: An Illustrated Guide](https://www.who.int/publications/i/item/9789240003927).
+WHO published the 132-page guide on 29 April 2020 under ISBN `9789240003927`. It supports brief
+self-help stress-management practice for a few minutes each day and names grounding, unhooking,
+acting on values, being kind, and making room. “Making room” means allowing difficult thoughts
+and feelings; the guide does not support the previous generic “recovery or enjoyable activity”
+copy. The question, ledger, adult action, protective root, and adolescent card were narrowed to
+the practices the guide actually names.
 
 ## TDD and correction evidence
 
@@ -108,21 +138,50 @@ counterexamples were recorded RED before production changes:
 - Reveal focus transfer: 1 failed / 9 skipped with focus falling to `body`, then 1 passed / 9
   skipped after focusing the revealed heading.
 
-Independent final review returned **APPROVED — no remaining Critical, Important, or Minor
-findings** after checking scoring/actions, minor privacy, semantic navigation, focus, print,
-and export redaction.
+Controller correction round 1 also recorded every new counterexample RED before production
+changes:
+
+- Trusted export guard: 5 denied-age cases failed while leaking raw answers, then the export
+  suite passed 11/11 across minor, missing, invalid, Quick, insufficient, and adult-score shapes.
+- Medicine-only behavior routing: 6 failures exposed the three unconditional questions in
+  eligibility, Detailed/Deep reconciliation, No, Skip, and Back paths. The Back path passed
+  independently after one loaded-run timeout. Deep then failed at 149 base items for ages 18,
+  24, and 34 before the existing falls/balance item restored the 150-item contract; the focused
+  queue slice passed 7/7 and Detailed coverage routes passed 3/3.
+- Preventive due/access separation: bank/UI/scoring cases failed 3/4 before the status prompt,
+  not-due label, and explanations were corrected; bank, realistic UI route, scoring, and export
+  then passed 4/4.
+- WHO recovery source and scope: three question/source/adolescent-copy cases failed, then passed
+  3/3 with the exact publication and named brief practices.
+- Merged provenance: six scoring/render/export cases failed because only one `source` survived,
+  then passed 6/6 with deterministic `sources[]` and every distinct reason/link.
+- Focus contrast: the old blue outline failed on deep-water. The initial two-color assertions
+  passed 2/2, then independent review exposed two CSS cascade counterexamples. Selected-button
+  focus and nested citation layout failed 2/2 before the composed shadow/direct-child fix made
+  the global style suite pass 4/4. The test computes deep-water/paper contrast at `10.80:1` and
+  amber/deep-water at `7.41:1` from the production variables.
+- Final independent review found the plural-source export still mislabeled as schema v1 and one
+  stale “due and accessible” explanation. Those three checks failed, then passed 3/3 after the
+  v2 discriminator and access-neutral copy were applied.
+
+Independent correction re-review first found four Important gaps: risk-tree focus cascade,
+nested source-list cascade, the export schema discriminator, and a stale preventive-access
+inference. After each was reproduced and fixed, final re-review returned **APPROVED — no
+remaining Critical, Important, or Minor findings**. The reviewer made no edits.
 
 ## Final verification
 
-- `npx vitest run app/lib/scoring.test.ts app/lib/export.test.ts app/components/results.test.tsx
-  --reporter=dot` — 3 files, 49/49 tests passed.
+- `npx vitest run app/globals.test.ts app/lib/scoring.test.ts app/lib/export.test.ts
+  app/components/results.test.tsx app/lib/questionnaire.test.ts
+  app/components/assessment.test.tsx --reporter=dot` — 6 files, 129/129 tests passed.
 - `npx vitest run app/lib/questionnaire.test.ts app/components/assessment.test.tsx
-  --reporter=dot` — 2 files, 58/58 tests passed.
-- `npm test -- --reporter=dot` — 9 files, 4,377/4,377 tests passed.
+  --reporter=dot` — 2 files, 64/64 tests passed.
+- `npm test -- --reporter=dot` — 10 files, 4,399/4,399 tests passed.
 - `npm run lint` — passed, exit 0.
 - `npm run build` — passed, exit 0; all five vinext environments built.
 - `git diff --check` and staged diff check — passed, exit 0.
-- Fresh production artifact smoke request to `http://127.0.0.1:4173/` — HTTP 200.
+- Fresh production artifact smoke request to `http://127.0.0.1:4187/` — HTTP 200 with the
+  expected **Will I Die / Health Risk Explorer** page markers.
 
 The full test run retains two pre-existing, non-failing PDF.js Node warnings about the legacy
 build and `standardFontDataUrl`; neither changes Task 6 behavior or test status.
