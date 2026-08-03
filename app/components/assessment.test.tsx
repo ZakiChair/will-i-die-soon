@@ -147,12 +147,96 @@ test("offers Detailed instead of silently downgrading an unavailable child Deep 
   expect(screen.getByText("Question 1 of 50")).toBeVisible();
 });
 
-test("starts the full Deep queue when 150 questions are eligible", async () => {
+test("starts the full Deep queue when at least 150 questions are eligible", async () => {
   const user = await chooseDepth("deep");
   await fillProfile(user, 35);
   await user.click(screen.getByRole("button", { name: /start deep/i }));
 
   expect(screen.getByText("Question 1 of 150")).toBeVisible();
+});
+
+test("interrupts immediately for a confirmed red flag and lets the user correct it", async () => {
+  const user = userEvent.setup();
+  const onComplete = vi.fn();
+  render(<Assessment depth="quick" profile={adultProfile} onComplete={onComplete} />);
+
+  await skipUntilQuestion(user, /chest pressure, tightness, or pain/i);
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+
+  expect(screen.getByRole("alert")).toHaveTextContent(/emergency care/i);
+  const urgentHeading = screen.getByRole("heading", { name: /immediate action/i });
+  expect(urgentHeading).toBeVisible();
+  expect(urgentHeading).toHaveFocus();
+  expect(screen.getByText(/144/)).toBeVisible();
+  expect(screen.getByText(/cannot contact emergency services/i)).toBeVisible();
+  expect(screen.queryByText(/purity score|risk tree/i)).not.toBeInTheDocument();
+  expect(onComplete).not.toHaveBeenCalled();
+
+  await user.click(screen.getByRole("button", { name: /change my answer/i }));
+  expect(
+    screen.getByRole("heading", { name: /chest pressure, tightness, or pain/i }),
+  ).toBeVisible();
+  expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
+
+  await user.click(screen.getByRole("radio", { name: "No" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.queryByRole("heading", { name: /immediate action/i })).not.toBeInTheDocument();
+  expect(screen.getByText(/Question 7 of 20/)).toBeVisible();
+});
+
+test("interrupts for an adolescent current pregnancy or safeguarding concern", async () => {
+  const user = userEvent.setup();
+  render(
+    <Assessment
+      depth="quick"
+      profile={{ age: 15, countryCode: "GB" }}
+      onComplete={vi.fn()}
+    />,
+  );
+
+  await skipUntilQuestion(user, /could pregnancy, trying to conceive/i);
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await skipUntilQuestion(user, /severe pregnancy-related symptom/i);
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+
+  const heading = screen.getByRole("heading", { name: /immediate action/i });
+  expect(heading).toHaveFocus();
+  expect(screen.getByRole("alert")).toHaveTextContent(/urgent.*pregnancy|safeguarding/i);
+  expect(screen.getByRole("alert")).toHaveTextContent(/999/);
+});
+
+test("makes None exclusive in every multi-select control", async () => {
+  const user = userEvent.setup();
+  const question = questionBank.find(
+    (candidate) => candidate.id === "anabolic_detail_symptoms",
+  );
+  expect(question).toBeDefined();
+  if (!question) return;
+
+  render(
+    <QuestionControl
+      question={question}
+      onAnswer={vi.fn()}
+      onBack={vi.fn()}
+      canGoBack={false}
+    />,
+  );
+
+  const none = screen.getByRole("checkbox", { name: "None of these" });
+  const chest = screen.getByRole("checkbox", { name: /chest pain or breathlessness/i });
+
+  await user.click(none);
+  expect(none).toBeChecked();
+  await user.click(chest);
+  expect(chest).toBeChecked();
+  expect(none).not.toBeChecked();
+
+  await user.click(none);
+  expect(none).toBeChecked();
+  expect(chest).not.toBeChecked();
 });
 
 test("Enter advances only after a valid answer and Back restores that answer", async () => {

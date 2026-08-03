@@ -93,3 +93,128 @@ export type QuestionnaireState = {
   queue: ReadonlyArray<Question>;
   answers: AnswerMap;
 };
+
+export type EvidenceTier =
+  | "validated-estimate"
+  | "authoritative-safety"
+  | "guideline-action"
+  | "evidence-limited-association";
+
+export type RiskUrgency = "urgent" | "prompt-review" | "long-term" | "support";
+
+export type RiskSignal =
+  | "urgent"
+  | "high-signal"
+  | "worth-attention"
+  | "low-signal";
+
+export type RiskGroup =
+  | "immediate-red-flags"
+  | "cardiovascular"
+  | "metabolic"
+  | "sleep"
+  | "respiratory"
+  | "liver"
+  | "kidney"
+  | "mental-wellbeing"
+  | "dependency"
+  | "medication-substance-review"
+  | "preventive-follow-up"
+  | "skin-hair"
+  | "reproductive-health"
+  | "musculoskeletal";
+
+export type EvidenceSource = {
+  id: string;
+  title: string;
+  publisher: string;
+  url: string;
+  reviewedAt: string;
+  jurisdictions: "all" | ReadonlyArray<string>;
+};
+
+export type RiskApplicability = {
+  minAge?: number;
+  maxAge?: number;
+  countries: "all" | ReadonlyArray<string>;
+};
+
+export type RiskCondition =
+  | {
+      questionId: string;
+      operator: "equals";
+      value: string | number | boolean;
+    }
+  | {
+      questionId: string;
+      operator: "includes";
+      value: string;
+    }
+  | {
+      questionId: string;
+      operator: "less-than" | "greater-than-or-equal";
+      value: number;
+      validMin?: number;
+      validMax?: number;
+    }
+  | { all: ReadonlyArray<RiskCondition> }
+  | { any: ReadonlyArray<RiskCondition> };
+
+export type RiskFactorDefinition = {
+  questionId: string;
+  label: string;
+  condition: RiskCondition;
+};
+
+export type EmergencyKind =
+  | "chest"
+  | "breathing"
+  | "stroke"
+  | "severe-allergy"
+  | "overdose-poisoning"
+  | "severe-bleeding"
+  | "self-harm"
+  | "pregnancy-safety";
+
+export type RiskRule = {
+  id: string;
+  group: RiskGroup;
+  title: string;
+  copy: string;
+  inputs: ReadonlyArray<string>;
+  sourceIds: ReadonlyArray<string>;
+  evidenceTier: EvidenceTier;
+  urgency: RiskUrgency;
+  signal: RiskSignal;
+  condition: RiskCondition;
+  factors: ReadonlyArray<RiskFactorDefinition>;
+  applicability: RiskApplicability;
+  dedupeKey?: string;
+  emergencyKind?: EmergencyKind;
+};
+
+export type RiskLeaf = {
+  id: string;
+  ruleId: string;
+  group: RiskGroup;
+  title: string;
+  copy: string;
+  evidenceTier: EvidenceTier;
+  urgency: RiskUrgency;
+  signal: RiskSignal;
+  probability?: number;
+  factors: ReadonlyArray<string>;
+  missingInputs: ReadonlyArray<string>;
+  sources: ReadonlyArray<EvidenceSource>;
+  applicability: RiskApplicability;
+};
+
+export type ReleasePolicy = {
+  audience: "private-research" | "public-wellness" | "regulated";
+  allowQualitativeRules: boolean;
+  allowPromptReviewSignals: boolean;
+  allowValidatedProbabilities: boolean;
+  allowUrgentSignals: boolean;
+  jurisdiction?: string;
+  enabledModelVersion?: string;
+};

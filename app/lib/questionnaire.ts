@@ -128,9 +128,14 @@ export function getAvailableDepths(
   const eligible = getEligibleQuestions(bank, context, answers);
 
   return DEPTH_ORDER.filter(
-    (depth) =>
-      eligible.filter((question) => question.tiers.includes(depth)).length >=
-      DEPTH_MINIMUMS[depth],
+    (depth) => {
+      const depthEligible = eligible.filter((question) => question.tiers.includes(depth));
+      const availableCount =
+        depth === "deep"
+          ? depthEligible.filter((question) => question.condition === undefined).length
+          : depthEligible.length;
+      return availableCount >= DEPTH_MINIMUMS[depth];
+    },
   );
 }
 
@@ -140,16 +145,62 @@ export function buildAssessmentQueue(
   context: ProfileContext,
   answers: AnswerMap,
 ): Question[] {
-  const eligible = getEligibleQuestions(bank, context, answers).filter((question) =>
-    question.tiers.includes(depth),
+  const stableAnswers = pruneIneligibleAnswers(bank, context, answers);
+  const eligible = orderQuestions(
+    getEligibleQuestions(bank, context, stableAnswers).filter((question) =>
+      question.tiers.includes(depth),
+    ),
   );
-  if (depth === "deep" && eligible.length < DEPTH_MINIMUMS.deep) {
+  const deepBaseCount = eligible.filter(
+    (question) => question.condition === undefined,
+  ).length;
+  if (depth === "deep" && deepBaseCount < DEPTH_MINIMUMS.deep) {
     throw new RangeError(
-      `Deep assessment is unavailable: ${eligible.length} eligible questions; at least 150 eligible questions are required.`,
+      `Deep assessment is unavailable: ${deepBaseCount} eligible base questions; at least 150 eligible questions are required.`,
     );
   }
 
-  return orderQuestions(eligible).slice(0, DEPTH_LIMITS[depth]);
+  return selectAssessmentQuestions(depth, eligible, stableAnswers);
+}
+
+function selectAssessmentQuestions(
+  depth: AnalysisDepth,
+  eligible: ReadonlyArray<Question>,
+  answers: AnswerMap,
+): Question[] {
+  if (depth === "deep") {
+    const base = eligible
+      .filter((question) => question.condition === undefined)
+      .slice(0, DEPTH_MINIMUMS.deep);
+    const activeBranches = eligible
+      .filter((question) => question.condition !== undefined)
+      .slice(0, DEPTH_LIMITS.deep - base.length);
+    const selectedIds = new Set(
+      [...base, ...activeBranches].map((question) => question.id),
+    );
+    return eligible.filter((question) => selectedIds.has(question.id));
+  }
+
+  const targetSize = Math.min(eligible.length, DEPTH_LIMITS[depth]);
+  const selectedIds = new Set<string>();
+
+  for (const question of eligible) {
+    if (selectedIds.size >= targetSize) break;
+    if (Object.prototype.hasOwnProperty.call(answers, question.id)) {
+      selectedIds.add(question.id);
+    }
+  }
+
+  for (const question of eligible) {
+    if (selectedIds.size >= targetSize) break;
+    if (question.condition !== undefined) selectedIds.add(question.id);
+  }
+  for (const question of eligible) {
+    if (selectedIds.size >= targetSize) break;
+    selectedIds.add(question.id);
+  }
+
+  return eligible.filter((question) => selectedIds.has(question.id));
 }
 
 export function reconcileAssessmentState(
@@ -164,38 +215,17 @@ export function reconcileAssessmentState(
       question.tiers.includes(depth),
     ),
   );
-  if (depth === "deep" && eligible.length < DEPTH_MINIMUMS.deep) {
+  const deepBaseCount = eligible.filter(
+    (question) => question.condition === undefined,
+  ).length;
+  if (depth === "deep" && deepBaseCount < DEPTH_MINIMUMS.deep) {
     throw new RangeError(
-      `Deep assessment is unavailable: ${eligible.length} eligible questions; at least 150 eligible questions are required.`,
+      `Deep assessment is unavailable: ${deepBaseCount} eligible base questions; at least 150 eligible questions are required.`,
     );
   }
 
-  const activeConditionalCount = eligible.filter(
-    (question) => question.condition !== undefined,
-  ).length;
-  const targetSize = Math.min(
-    eligible.length,
-    depth === "deep"
-      ? Math.min(DEPTH_LIMITS.deep, DEPTH_MINIMUMS.deep + activeConditionalCount)
-      : DEPTH_LIMITS[depth],
-  );
-  const selectedIds = new Set(
-    eligible
-      .filter((question) => Object.prototype.hasOwnProperty.call(stableAnswers, question.id))
-      .map((question) => question.id),
-  );
-
-  for (const question of eligible) {
-    if (selectedIds.size >= targetSize) break;
-    if (question.condition !== undefined) selectedIds.add(question.id);
-  }
-  for (const question of eligible) {
-    if (selectedIds.size >= targetSize) break;
-    selectedIds.add(question.id);
-  }
-
   return {
-    queue: eligible.filter((question) => selectedIds.has(question.id)),
+    queue: selectAssessmentQuestions(depth, eligible, stableAnswers),
     answers: stableAnswers,
   };
 }

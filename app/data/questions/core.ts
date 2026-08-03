@@ -78,7 +78,7 @@ export const coreQuestions = defineQuestions([
   {
     id: "urgent_breathing_now",
     domain: "emergency-symptoms",
-    prompt: "Are you struggling to breathe, unable to speak normally, or turning blue or grey right now?",
+    prompt: "Are you struggling to breathe, unable to speak normally, or turning blue or grey right now, or is a child grunting, sucking in under the ribs, limp, or not responding normally?",
     why: "Severe breathing difficulty is an emergency signal independent of longer-term risk.",
     answerType: "boolean",
     priority: 7,
@@ -362,9 +362,30 @@ export const coreQuestions = defineQuestions([
     priority: 33,
   },
   {
+    id: "urgent_overdose_poisoning_now",
+    domain: "emergency-symptoms",
+    prompt:
+      "Is there a suspected overdose or poisoning right now, or is someone unresponsive or difficult to wake?",
+    why:
+      "Suspected poisoning, overdose, or unresponsiveness needs immediate specialist or emergency help.",
+    answerType: "boolean",
+    priority: 33.1,
+    consumers: ["urgent-signals"],
+  },
+  {
+    id: "urgent_severe_bleeding_now",
+    domain: "emergency-symptoms",
+    prompt:
+      "Is there severe bleeding right now that is spurting or will not stop with firm direct pressure?",
+    why: "Severe uncontrolled bleeding needs immediate emergency assessment and first aid.",
+    answerType: "boolean",
+    priority: 33.2,
+    consumers: ["urgent-signals"],
+  },
+  {
     id: "urgent_stroke_signs_now",
     domain: "emergency-symptoms",
-    prompt: "Do you have sudden facial droop, one-sided weakness, or new trouble speaking right now?",
+    prompt: "Have you had sudden facial droop, one-sided weakness, or new trouble speaking within the last 24 hours, even if the signs have stopped?",
     why: "Sudden stroke-like symptoms require immediate emergency assessment.",
     answerType: "boolean",
     priority: 34,
@@ -373,7 +394,7 @@ export const coreQuestions = defineQuestions([
   {
     id: "urgent_severe_allergy_now",
     domain: "emergency-symptoms",
-    prompt: "Do you have sudden swelling of the face or throat, widespread hives, or breathing trouble right now?",
+    prompt: "Do you have sudden swelling of the lips, mouth, tongue, or throat, trouble breathing or swallowing, or collapse right now?",
     why: "Severe allergic symptoms can progress quickly and require emergency care.",
     answerType: "boolean",
     priority: 35,
@@ -386,7 +407,7 @@ export const coreQuestions = defineQuestions([
     why: "Immediate safety concerns should bypass routine assessment and connect to urgent help.",
     answerType: "boolean",
     sensitive: true,
-    minAge: 12,
+    minAge: 13,
     priority: 36,
     consumers: ["urgent-signals"],
   },

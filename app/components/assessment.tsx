@@ -7,6 +7,8 @@ import {
   getNextQuestion,
   reconcileAssessmentState,
 } from "../lib/questionnaire";
+import { prototypePolicy } from "../lib/release-policy";
+import { evaluateRisks } from "../lib/risk-engine";
 import type {
   AnalysisDepth,
   AnswerMap,
@@ -14,6 +16,7 @@ import type {
   ProfileContext,
   Question,
   QuestionnaireState,
+  RiskLeaf,
 } from "../lib/types";
 import { Intermission } from "./intermission";
 import { LabImport } from "./lab-import";
@@ -91,6 +94,7 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   const [reducedMotion, setReducedMotion] = useState(false);
   const [awaitingLabImport, setAwaitingLabImport] = useState(false);
   const [confirmedLabs, setConfirmedLabs] = useState<ConfirmedLabValue[]>([]);
+  const [urgentLeaf, setUrgentLeaf] = useState<RiskLeaf | null>(null);
   const [intermission, setIntermission] = useState<{
     completedDomain: HealthDomain;
     completed: number;
@@ -99,12 +103,17 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   const importedAnswerIds = useRef(new Set<string>());
   const intermissionCount = useRef(0);
   const questionHeading = useRef<HTMLHeadingElement>(null);
+  const urgentHeading = useRef<HTMLHeadingElement>(null);
   const { answers, queue } = questionnaire;
   const question = queue[currentIndex] ?? getNextQuestion(questionnaire);
 
   useEffect(() => {
-    if (!intermission) questionHeading.current?.focus();
-  }, [currentIndex, intermission]);
+    if (!intermission && !urgentLeaf) questionHeading.current?.focus();
+  }, [currentIndex, intermission, urgentLeaf]);
+
+  useEffect(() => {
+    if (urgentLeaf) urgentHeading.current?.focus();
+  }, [urgentLeaf]);
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
@@ -149,6 +158,17 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
       [question.id]: value,
     });
     setQuestionnaire(nextState);
+    const immediateSignal = evaluateRisks(
+      nextState.answers,
+      profile,
+      prototypePolicy,
+    ).find((leaf) => leaf.urgency === "urgent");
+    if (immediateSignal) {
+      setAwaitingLabImport(false);
+      setIntermission(null);
+      setUrgentLeaf(immediateSignal);
+      return;
+    }
     if (question.id === "has_recent_labs") {
       if (value === true) {
         setAwaitingLabImport(true);
@@ -195,6 +215,36 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
     if (!question || question.id !== "has_recent_labs") return;
     setAwaitingLabImport(false);
     advanceAfterAnswer(question, questionnaire);
+  }
+
+  if (urgentLeaf) {
+    return (
+      <section
+        className="journey assessment assessment--urgent"
+        aria-labelledby="urgent-action-title"
+      >
+        <header className="journey__header">
+          <div className="wordmark">
+            Will I Die <strong>Soon?</strong>
+          </div>
+          <p className="prototype-label data-label">Immediate safety / {depth}</p>
+        </header>
+        <article className="question-sheet safety-screen" role="alert">
+          <p className="question-sheet__domain data-label">Immediate safety signal</p>
+          <h1 id="urgent-action-title" ref={urgentHeading} tabIndex={-1}>
+            Immediate action
+          </h1>
+          <p className="safety-screen__action">{urgentLeaf.copy}</p>
+          <p>
+            This prototype cannot contact emergency services, crisis support, or anyone
+            nearby for you.
+          </p>
+          <button type="button" onClick={() => setUrgentLeaf(null)}>
+            Change my answer
+          </button>
+        </article>
+      </section>
+    );
   }
 
   if (awaitingLabImport) {

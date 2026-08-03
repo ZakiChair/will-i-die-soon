@@ -88,7 +88,15 @@ export function QuestionControl({
 
   function toggleMulti(value: string, checked: boolean) {
     const current = Array.isArray(draft) ? draft : [];
-    setDraft(checked ? [...current, value] : current.filter((item) => item !== value));
+    if (!checked) {
+      setDraft(current.filter((item) => item !== value));
+      return;
+    }
+    if (value === "none") {
+      setDraft(["none"]);
+      return;
+    }
+    setDraft([...current.filter((item) => item !== "none" && item !== value), value]);
   }
 
   const unit = numericUnit(question.id);

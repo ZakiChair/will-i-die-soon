@@ -86,6 +86,38 @@ describe("question bank invariants", () => {
     );
   });
 
+  test("contains structured current overdose and severe-bleeding safety questions", () => {
+    expect(questionBank).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "urgent_overdose_poisoning_now",
+          answerType: "boolean",
+          domain: "emergency-symptoms",
+          tiers: ["detailed", "deep"],
+        }),
+        expect.objectContaining({
+          id: "urgent_severe_bleeding_now",
+          answerType: "boolean",
+          domain: "emergency-symptoms",
+          tiers: ["detailed", "deep"],
+        }),
+      ]),
+    );
+  });
+
+  test("uses observable, time-bounded emergency wording and age-gates self-harm at 13", () => {
+    const byId = new Map(questionBank.map((question) => [question.id, question]));
+
+    expect(byId.get("urgent_stroke_signs_now")?.prompt).toMatch(/last 24 hours.*stopped/i);
+    expect(byId.get("urgent_severe_allergy_now")?.prompt).not.toMatch(/hives/i);
+    expect(byId.get("urgent_severe_allergy_now")?.prompt).toMatch(
+      /swelling|breathing|swallowing/i,
+    );
+    expect(byId.get("urgent_breathing_now")?.prompt).toMatch(/grunting|under the ribs/i);
+    expect(byId.get("urgent_breathing_now")?.prompt).toMatch(/limp|not responding/i);
+    expect(byId.get("urgent_self_harm_now")?.minAge).toBe(13);
+  });
+
   test("gives every question useful selection and explanation metadata", () => {
     expect(
       questionBank.every(
@@ -135,15 +167,138 @@ describe("questionnaire selection", () => {
   test("builds the promised deterministic queue size for each depth", () => {
     expect(buildAssessmentQueue("quick", questionBank, adult, {})).toHaveLength(20);
     expect(buildAssessmentQueue("detailed", questionBank, adult, {})).toHaveLength(50);
-    expect(buildAssessmentQueue("deep", questionBank, adult, {}).length).toBeGreaterThanOrEqual(
-      150,
-    );
-    expect(buildAssessmentQueue("deep", questionBank, adult, {}).length).toBeLessThanOrEqual(
-      200,
-    );
+    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(150);
     expect(buildAssessmentQueue("deep", questionBank, adult, {})).toEqual(
       buildAssessmentQueue("deep", questionBank, adult, {}),
     );
+  });
+
+  test.each([18, 24, 34])(
+    "keeps Quick and Detailed fixed while making Deep available at age %i",
+    (age) => {
+      const profile = { age, countryCode: "CH" };
+
+      expect(buildAssessmentQueue("quick", questionBank, profile, {})).toHaveLength(20);
+      expect(buildAssessmentQueue("detailed", questionBank, profile, {})).toHaveLength(50);
+      expect(buildAssessmentQueue("deep", questionBank, profile, {})).toHaveLength(150);
+    },
+  );
+
+  test.each([13, 15, 17])(
+    "keeps broad substance gates and adolescent follow-ups reachable at age %i",
+    (age) => {
+      const profile = { age, countryCode: "CH" };
+      const gateIds = [
+        "uses_cannabis",
+        "uses_nonmedical_stimulants",
+        "uses_nonmedical_opioids",
+        "uses_psychedelics",
+        "uses_other_recreational_drugs",
+      ];
+      const initial = buildAssessmentQueue("detailed", questionBank, profile, {});
+      const answers = {
+        current_tobacco_nicotine: true,
+        alcohol_frequency: "monthly_or_less",
+        uses_cannabis: true,
+        uses_nonmedical_stimulants: true,
+        uses_nonmedical_opioids: true,
+        uses_psychedelics: true,
+        uses_other_recreational_drugs: true,
+      } as const;
+      const active = questionnaireModule.reconcileAssessmentState(
+        "detailed",
+        questionBank,
+        profile,
+        answers,
+      );
+
+      expect(initial).toHaveLength(50);
+      expect(initial.map((question) => question.id)).toEqual(
+        expect.arrayContaining(gateIds),
+      );
+      expect(active.queue).toHaveLength(50);
+      expect(active.queue.map((question) => question.id)).toEqual(
+        expect.arrayContaining([
+          "adolescent_nicotine_support",
+          "adolescent_alcohol_support",
+          "adolescent_cannabis_support",
+          "adolescent_other_drug_support",
+          "adolescent_substance_urgent_safety",
+        ]),
+      );
+      expect(buildAssessmentQueue("quick", questionBank, profile, {})).toHaveLength(20);
+      expect(() => buildAssessmentQueue("deep", questionBank, profile, {})).toThrow(
+        /Deep.+at least 150 eligible questions/,
+      );
+    },
+  );
+
+  test("keeps broad substance gates reachable in the adult Detailed queue", () => {
+    expect(
+      buildAssessmentQueue("detailed", questionBank, adult, {}).map(
+        (question) => question.id,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        "uses_cannabis",
+        "uses_nonmedical_stimulants",
+        "uses_nonmedical_opioids",
+        "uses_psychedelics",
+        "uses_other_recreational_drugs",
+      ]),
+    );
+  });
+
+  test("does not shrink a Deep queue after a non-branching answer", () => {
+    const template = questionBank[0];
+    const bank = Array.from({ length: 151 }, (_, index) => ({
+      ...template,
+      id: `deep_base_${String(index).padStart(3, "0")}`,
+      tiers: ["deep"] as const,
+      priority: index,
+      condition: undefined,
+    }));
+    const initial = buildAssessmentQueue("deep", bank, adult, {});
+    const reconciled = questionnaireModule.reconcileAssessmentState(
+      "deep",
+      bank,
+      adult,
+      { deep_base_000: null },
+    );
+
+    expect(initial).toHaveLength(150);
+    expect(reconciled.queue.map((question) => question.id)).toEqual(
+      initial.map((question) => question.id),
+    );
+  });
+
+  test("keeps Deep within its 200-question cap when many branches become active", () => {
+    const template = questionBank[0];
+    const base = Array.from({ length: 150 }, (_, index) => ({
+      ...template,
+      id: index === 0 ? "deep_gate" : `deep_base_${String(index).padStart(3, "0")}`,
+      tiers: ["deep"] as const,
+      priority: index,
+      condition: undefined,
+    }));
+    const branches = Array.from({ length: 60 }, (_, index) => ({
+      ...template,
+      id: `deep_branch_${String(index).padStart(3, "0")}`,
+      tiers: ["deep"] as const,
+      priority: index + 200,
+      condition: {
+        questionId: "deep_gate",
+        operator: "equals" as const,
+        value: true,
+      },
+    }));
+    const bank = [...base, ...branches];
+    const answers = { deep_gate: true };
+
+    expect(buildAssessmentQueue("deep", bank, adult, answers)).toHaveLength(200);
+    expect(
+      questionnaireModule.reconcileAssessmentState("deep", bank, adult, answers).queue,
+    ).toHaveLength(200);
   });
 
   test("reserves quick core items before sorting remaining items by priority then ID", () => {
@@ -255,6 +410,7 @@ describe("adaptive branches", () => {
     const deepMedicationsYes = reconcileAssessmentState("deep", questionBank, adult, {
       current_medications: true,
     });
+    const deepInitial = reconcileAssessmentState("deep", questionBank, adult, {});
 
     expect(initial.queue).toHaveLength(50);
     expect(medicationsYes.queue).toHaveLength(50);
@@ -268,7 +424,15 @@ describe("adaptive branches", () => {
     expect(
       medicationsSkipped.queue.some((question) => question.id.startsWith("med_detail_")),
     ).toBe(false);
-    expect(deepMedicationsYes.queue).toHaveLength(155);
+    expect(deepMedicationsYes.queue).toHaveLength(
+      155,
+    );
+    expect(deepInitial.queue).toHaveLength(150);
+    expect(
+      deepInitial.queue.every((question) =>
+        deepMedicationsYes.queue.some((candidate) => candidate.id === question.id),
+      ),
+    ).toBe(true);
 
     const template = questionBank[0];
     const nestedBank: Question[] = [
