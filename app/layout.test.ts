@@ -74,10 +74,10 @@ test("lets a valid configured origin override request headers", async () => {
 });
 
 test("falls back locally when configured and request values are hostile", async () => {
-  const metadata = await loadMetadata("https://user:secret@configured.example", {
-    "x-forwarded-host": "attacker.example/path, safe.example",
+  const metadata = await loadMetadata("https://configured.example?", {
+    "x-forwarded-host": "safe.example, attacker.example",
     "x-forwarded-proto": "javascript, https",
-    host: "bad host",
+    host: "attacker.example,safe.example",
   });
 
   expect(metadata.metadataBase).toEqual(new URL("http://localhost:3000/"));

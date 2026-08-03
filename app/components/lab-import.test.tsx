@@ -1,7 +1,7 @@
 import { render as testingRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 
 import { I18nProvider } from "../i18n/context";
 import * as labsModule from "../lib/labs";
@@ -13,8 +13,38 @@ function render(ui: ReactElement) {
   return testingRender(<I18nProvider>{ui}</I18nProvider>);
 }
 
-function localTextFile(contents: string) {
-  const file = new File([contents], "report.txt", { type: "text/plain" });
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, reject, resolve };
+}
+
+function abortable<T>(promise: Promise<T>, signal: AbortSignal | undefined) {
+  if (!signal) return promise;
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException("The operation was aborted", "AbortError"));
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => {
+      signal.removeEventListener("abort", onAbort);
+    });
+  });
+}
+
+function localTextFile(contents: string, name = "report.txt") {
+  const file = new File([contents], name, { type: "text/plain" });
   Object.defineProperty(file, "text", {
     value: vi.fn().mockResolvedValue(contents),
   });
@@ -269,6 +299,92 @@ test("cancel remains available after parsing", async () => {
   await user.click(screen.getByRole("button", { name: /continue without import/i }));
 
   await waitFor(() => expect(onCancel).toHaveBeenCalledOnce());
+});
+
+test("cancel aborts active extraction without opening the generic manual-error fallback", async () => {
+  const user = userEvent.setup();
+  const pendingText = deferred<string>();
+  const onCancel = vi.fn();
+  let observedSignal: AbortSignal | undefined;
+  vi.spyOn(labsModule, "extractLabText").mockImplementation(
+    ((_: File, signal?: AbortSignal) => {
+      observedSignal = signal;
+      return abortable(pendingText.promise, signal);
+    }) as typeof labsModule.extractLabText,
+  );
+  render(<LabImport onConfirm={vi.fn()} onCancel={onCancel} />);
+
+  await user.upload(
+    screen.getByLabelText(/choose a lab report/i),
+    localTextFile("pending"),
+  );
+  expect(await screen.findByRole("status")).toHaveTextContent(/reading the report/i);
+  await user.click(screen.getByRole("button", { name: /continue without import/i }));
+
+  expect(observedSignal?.aborted).toBe(true);
+  await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
+  expect(onCancel).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: /reported result 1/i }))
+    .not.toBeInTheDocument();
+  pendingText.resolve("AST 48 U/L");
+});
+
+test("unmount aborts active extraction and ignores late completion", async () => {
+  const user = userEvent.setup();
+  const pendingText = deferred<string>();
+  let observedSignal: AbortSignal | undefined;
+  vi.spyOn(labsModule, "extractLabText").mockImplementation(
+    ((_: File, signal?: AbortSignal) => {
+      observedSignal = signal;
+      return pendingText.promise;
+    }) as typeof labsModule.extractLabText,
+  );
+  const view = render(<LabImport onConfirm={vi.fn()} onCancel={vi.fn()} />);
+
+  await user.upload(
+    screen.getByLabelText(/choose a lab report/i),
+    localTextFile("pending"),
+  );
+  expect(await screen.findByRole("status")).toBeVisible();
+  view.unmount();
+
+  expect(observedSignal?.aborted).toBe(true);
+  pendingText.resolve("AST 48 U/L");
+  await Promise.resolve();
+});
+
+test("a new selection aborts the previous extraction and only the active one controls UI state", async () => {
+  const user = userEvent.setup();
+  const firstText = deferred<string>();
+  const secondText = deferred<string>();
+  const observedSignals: Array<AbortSignal | undefined> = [];
+  vi.spyOn(labsModule, "extractLabText").mockImplementation(
+    ((file: File, signal?: AbortSignal) => {
+      observedSignals.push(signal);
+      return file.name === "first.txt" ? firstText.promise : secondText.promise;
+    }) as typeof labsModule.extractLabText,
+  );
+  render(<LabImport onConfirm={vi.fn()} onCancel={vi.fn()} />);
+  const input = screen.getByLabelText(/choose a lab report/i);
+
+  await user.upload(input, localTextFile("first", "first.txt"));
+  expect(await screen.findByRole("status")).toBeVisible();
+  await user.upload(input, localTextFile("second", "second.txt"));
+
+  expect(observedSignals).toHaveLength(2);
+  expect(observedSignals.at(0)?.aborted).toBe(true);
+  expect(observedSignals.at(1)?.aborted).toBe(false);
+
+  firstText.resolve("AST 48 U/L (0 - 40)");
+  await Promise.resolve();
+  expect(screen.getByRole("status")).toBeVisible();
+  expect(screen.queryByDisplayValue("48")).not.toBeInTheDocument();
+
+  secondText.resolve("HbA1c 5.7 % (4.0 - 5.6)");
+  expect(await screen.findByDisplayValue("5.7")).toBeVisible();
+  expect(screen.queryByDisplayValue("48")).not.toBeInTheDocument();
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
 });
 
 async function moveToRecentLabs(user: ReturnType<typeof userEvent.setup>) {

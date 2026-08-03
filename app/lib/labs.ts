@@ -26,6 +26,70 @@ export class LabProcessingLimitError extends Error {
   }
 }
 
+function abortError(): DOMException {
+  return new DOMException("The operation was aborted", "AbortError");
+}
+
+export function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "AbortError"
+  );
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) throw abortError();
+}
+
+function abortable<T>(
+  operation: PromiseLike<T>,
+  signal: AbortSignal | undefined,
+  onAbort?: () => void,
+): Promise<T> {
+  if (!signal) return Promise.resolve(operation);
+  if (signal.aborted) {
+    onAbort?.();
+    return Promise.reject(abortError());
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", handleAbort);
+      callback();
+    };
+    const handleAbort = () =>
+      finish(() => {
+        onAbort?.();
+        reject(abortError());
+      });
+
+    signal.addEventListener("abort", handleAbort, { once: true });
+    Promise.resolve(operation).then(
+      (value) => finish(() => resolve(value)),
+      (error: unknown) => finish(() => reject(error)),
+    );
+  });
+}
+
+function onceAsync(action: () => unknown): () => Promise<void> {
+  let result: Promise<void> | undefined;
+  return () => {
+    if (!result) {
+      try {
+        result = Promise.resolve(action()).then(() => undefined);
+      } catch (error) {
+        result = Promise.reject(error);
+      }
+    }
+    return result;
+  };
+}
+
 export const LAB_MARKERS = [
   "glucose",
   "total_cholesterol",
@@ -401,90 +465,174 @@ function boundedExtractedText(text: string): string {
   return text;
 }
 
-async function extractPdfText(file: File): Promise<string> {
-  const pdfjs =
+async function extractPdfText(
+  file: File,
+  signal: AbortSignal | undefined,
+): Promise<string> {
+  const pdfjs = await abortable(
     typeof Worker === "undefined"
-      ? await import("pdfjs-dist/legacy/build/pdf.mjs")
-      : await import("pdfjs-dist");
+      ? import("pdfjs-dist/legacy/build/pdf.mjs")
+      : import("pdfjs-dist"),
+    signal,
+  );
   if (typeof Worker !== "undefined") {
     pdfjs.GlobalWorkerOptions.workerSrc = "/lab-assets/pdf.worker.min.mjs";
   }
-  const loadingTask = pdfjs.getDocument({ data: await file.arrayBuffer() });
+  const data = await abortable(file.arrayBuffer(), signal);
+  throwIfAborted(signal);
+  const loadingTask = pdfjs.getDocument({ data });
+  const destroyLoadingTask = onceAsync(() => loadingTask.destroy());
+  const destroyOnAbort = () => {
+    void destroyLoadingTask().catch(() => undefined);
+  };
   try {
-    const document = await loadingTask.promise;
+    const document = await abortable(
+      loadingTask.promise,
+      signal,
+      destroyOnAbort,
+    );
     if (document.numPages > LAB_PROCESSING_LIMITS.maximumPdfPages) {
       throw new LabProcessingLimitError("pdf-too-many-pages");
     }
     const pages: string[] = [];
+    let extractedCharacterEstimate = 0;
+    const reserveCharacters = (count: number) => {
+      extractedCharacterEstimate += count;
+      if (
+        extractedCharacterEstimate >
+        LAB_PROCESSING_LIMITS.maximumExtractedTextCharacters
+      ) {
+        throw new LabProcessingLimitError("text-too-long");
+      }
+    };
+
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
-      const content = await page.getTextContent();
+      throwIfAborted(signal);
+      if (pageNumber > 1) reserveCharacters(1);
+      const page = await abortable(
+        document.getPage(pageNumber),
+        signal,
+        destroyOnAbort,
+      );
+      const reader = page.streamTextContent().getReader();
       const lines: string[] = [];
       let line: string[] = [];
-      let pageCharacterEstimate = 0;
+      let pageHasText = false;
       let previousY: number | undefined;
+      let streamComplete = false;
+      let streamFailure: unknown;
       const flushLine = () => {
         const text = line.join(" ").replace(/\s+/g, " ").trim();
         if (text) lines.push(text);
         line = [];
       };
-      for (const item of content.items) {
-        if (!("str" in item) || item.str === "") continue;
-        pageCharacterEstimate += item.str.length + (line.length === 0 ? 0 : 1);
-        if (
-          pageCharacterEstimate >
-          LAB_PROCESSING_LIMITS.maximumExtractedTextCharacters
-        ) {
-          throw new LabProcessingLimitError("text-too-long");
+
+      try {
+        while (true) {
+          const chunk = await abortable(
+            reader.read(),
+            signal,
+            destroyOnAbort,
+          );
+          if (chunk.done) {
+            streamComplete = true;
+            break;
+          }
+          for (const item of chunk.value.items) {
+            if (!("str" in item) || item.str === "") continue;
+            reserveCharacters(item.str.length + (pageHasText ? 1 : 0));
+            const y = item.transform[5];
+            if (previousY !== undefined && Math.abs(y - previousY) > 1) {
+              flushLine();
+            }
+            line.push(item.str);
+            pageHasText = true;
+            previousY = y;
+            if (item.hasEOL) {
+              flushLine();
+              previousY = undefined;
+            }
+          }
         }
-        const y = item.transform[5];
-        if (previousY !== undefined && Math.abs(y - previousY) > 1) flushLine();
-        line.push(item.str);
-        previousY = y;
-        if (item.hasEOL) {
-          flushLine();
-          previousY = undefined;
+      } catch (error) {
+        streamFailure = error;
+        throw error;
+      } finally {
+        if (!streamComplete) {
+          try {
+            await reader.cancel(streamFailure);
+          } catch {
+            // Preserve the extraction/abort error that required cancellation.
+          }
         }
+        reader.releaseLock();
       }
       flushLine();
       pages.push(lines.join("\n"));
-      boundedExtractedText(pages.join("\n"));
     }
     return boundedExtractedText(pages.join("\n"));
   } finally {
-    await loadingTask.destroy();
+    await destroyLoadingTask();
   }
 }
 
-async function extractImageText(file: File): Promise<string> {
-  const { createWorker, OEM } = await import("tesseract.js");
-  const worker = await createWorker("eng", OEM.LSTM_ONLY, {
+async function extractImageText(
+  file: File,
+  signal: AbortSignal | undefined,
+): Promise<string> {
+  const { createWorker, OEM } = await abortable(import("tesseract.js"), signal);
+  const workerPromise = createWorker("eng", OEM.LSTM_ONLY, {
     workerPath: "/lab-assets/tesseract-worker.min.js",
     corePath: "/lab-assets/tesseract-core",
     langPath: "/lab-assets/tessdata",
     cacheMethod: "none",
   });
+  let worker: Awaited<typeof workerPromise>;
   try {
-    const result = await worker.recognize(file);
+    worker = await abortable(workerPromise, signal);
+  } catch (error) {
+    if (isAbortError(error)) {
+      void workerPromise
+        .then((lateWorker) => lateWorker.terminate())
+        .catch(() => undefined);
+    }
+    throw error;
+  }
+
+  const terminateWorker = onceAsync(() => worker.terminate());
+  const terminateOnAbort = () => {
+    void terminateWorker().catch(() => undefined);
+  };
+  try {
+    throwIfAborted(signal);
+    const result = await abortable(
+      worker.recognize(file),
+      signal,
+      terminateOnAbort,
+    );
     return boundedExtractedText(result.data.text);
   } finally {
-    await worker.terminate();
+    await terminateWorker();
   }
 }
 
-export async function extractLabText(file: File): Promise<string> {
+export async function extractLabText(
+  file: File,
+  signal?: AbortSignal,
+): Promise<string> {
+  throwIfAborted(signal);
   if (file.size > LAB_PROCESSING_LIMITS.maximumFileBytes) {
     throw new LabProcessingLimitError("file-too-large");
   }
   const fileName = file.name.toLowerCase();
-  if (file.type.startsWith("text/plain") || /\.(?:txt|text)$/.test(fileName)) {
-    return boundedExtractedText(await file.text());
+  if (/\.(?:txt|text)$/.test(fileName)) {
+    return boundedExtractedText(await abortable(file.text(), signal));
   }
   if (file.type === "application/pdf" || fileName.endsWith(".pdf")) {
-    return extractPdfText(file);
+    return extractPdfText(file, signal);
   }
   if (file.type.startsWith("image/")) {
-    return extractImageText(file);
+    return extractImageText(file, signal);
   }
   throw new Error("Unsupported lab report file type");
 }

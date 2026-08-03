@@ -2,6 +2,8 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   extractLabText,
+  isAbortError,
+  LAB_PROCESSING_LIMITS,
   normalizeLabValue,
   parseLabCandidates,
 } from "./labs";
@@ -33,11 +35,72 @@ vi.mock("pdfjs-dist/legacy/build/pdf.mjs", async (importOriginal) => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  ocr.createWorker.mockReset();
+  ocr.recognize.mockReset();
+  ocr.terminate.mockReset();
   pdf.getDocument.mockReset();
   if (pdf.actualGetDocument) {
     pdf.getDocument.mockImplementation(pdf.actualGetDocument);
   }
 });
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, reject, resolve };
+}
+
+type PdfTextChunk = {
+  readonly items: ReadonlyArray<{
+    readonly str: string;
+    readonly transform: [number, number, number, number, number, number];
+    readonly hasEOL: boolean;
+  }>;
+  readonly styles: Readonly<Record<string, never>>;
+  readonly lang: null;
+};
+
+function pdfTextChunk(
+  ...items: Array<{ str: string; y?: number; hasEOL?: boolean }>
+): PdfTextChunk {
+  return {
+    items: items.map(({ str, y = 100, hasEOL = false }) => ({
+      str,
+      transform: [1, 0, 0, 1, 0, y],
+      hasEOL,
+    })),
+    styles: {},
+    lang: null,
+  };
+}
+
+function mockPdfTextStream(chunks: ReadonlyArray<PdfTextChunk>) {
+  let index = 0;
+  const cancel = vi.fn().mockResolvedValue(undefined);
+  const releaseLock = vi.fn();
+  const read = vi.fn().mockImplementation(async () => {
+    const value = chunks[index];
+    index += 1;
+    return value === undefined
+      ? ({ done: true, value: undefined } as const)
+      : ({ done: false, value } as const);
+  });
+  const getReader = vi.fn(() => ({ cancel, read, releaseLock }));
+  return { cancel, getReader, read, releaseLock };
+}
+
+function localPdfFile(name = "labs.pdf") {
+  const file = new File(["%PDF"], name, { type: "application/pdf" });
+  Object.defineProperty(file, "arrayBuffer", {
+    value: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+  });
+  return file;
+}
 
 function multiRowPdfFixture(): Uint8Array {
   const stream = [
@@ -250,6 +313,14 @@ describe("extractLabText", () => {
     await expect(extractLabText(file)).rejects.toThrow(/unsupported/i);
   });
 
+  test("rejects CSV even when the browser labels it as plain text", async () => {
+    const file = new File(["marker,value"], "labs.csv", {
+      type: "text/plain",
+    });
+
+    await expect(extractLabText(file)).rejects.toThrow(/unsupported/i);
+  });
+
   test("rejects a report over 20 MiB before reading bytes or loading a parser", async () => {
     const file = new File(["small fixture"], "labs.pdf", {
       type: "application/pdf",
@@ -267,6 +338,20 @@ describe("extractLabText", () => {
     expect(arrayBuffer).not.toHaveBeenCalled();
   });
 
+  test("accepts a report exactly at the 20 MiB input boundary", async () => {
+    const file = new File(["small fixture"], "labs.txt", {
+      type: "text/plain",
+    });
+    const text = vi.fn().mockResolvedValue("AST 48 U/L");
+    Object.defineProperties(file, {
+      size: { value: LAB_PROCESSING_LIMITS.maximumFileBytes },
+      text: { value: text },
+    });
+
+    await expect(extractLabText(file)).resolves.toBe("AST 48 U/L");
+    expect(text).toHaveBeenCalledOnce();
+  });
+
   test("rejects plain-text extraction over 500,000 characters", async () => {
     const file = new File(["small fixture"], "labs.txt", {
       type: "text/plain",
@@ -281,13 +366,42 @@ describe("extractLabText", () => {
     });
   });
 
+  test("accepts plain-text extraction exactly at 500,000 characters", async () => {
+    const boundaryText = "x".repeat(
+      LAB_PROCESSING_LIMITS.maximumExtractedTextCharacters,
+    );
+    const file = new File(["small fixture"], "labs.text", {
+      type: "text/plain",
+    });
+    Object.defineProperty(file, "text", {
+      value: vi.fn().mockResolvedValue(boundaryText),
+    });
+
+    await expect(extractLabText(file)).resolves.toBe(boundaryText);
+  });
+
+  test("rejects promptly with a standard AbortError while File.text is pending", async () => {
+    const pendingText = deferred<string>();
+    const file = new File(["small fixture"], "labs.txt", {
+      type: "text/plain",
+    });
+    Object.defineProperty(file, "text", { value: vi.fn(() => pendingText.promise) });
+    const controller = new AbortController();
+
+    const extraction = extractLabText(file, controller.signal);
+    controller.abort();
+    const error = await caughtError(extraction);
+
+    expect(isAbortError(error)).toBe(true);
+    expect(error).toMatchObject({ name: "AbortError" });
+    pendingText.resolve("late text");
+  });
+
   test("reconstructs genuine PDF rows before parsing separate markers", async () => {
     const canvas = await import("@napi-rs/canvas");
-    Object.defineProperties(globalThis, {
-      DOMMatrix: { configurable: true, value: canvas.DOMMatrix },
-      ImageData: { configurable: true, value: canvas.ImageData },
-      Path2D: { configurable: true, value: canvas.Path2D },
-    });
+    vi.stubGlobal("DOMMatrix", canvas.DOMMatrix);
+    vi.stubGlobal("ImageData", canvas.ImageData);
+    vi.stubGlobal("Path2D", canvas.Path2D);
     const bytes = multiRowPdfFixture();
     const file = new File([bytes.buffer as ArrayBuffer], "multi-row-labs.pdf", {
       type: "application/pdf",
@@ -328,36 +442,160 @@ describe("extractLabText", () => {
     expect(destroy).toHaveBeenCalledOnce();
   });
 
-  test("bounds accumulated PDF text and destroys its loading task", async () => {
+  test("accepts exactly 50 PDF pages and releases every completed text stream", async () => {
+    const streams = Array.from({ length: LAB_PROCESSING_LIMITS.maximumPdfPages }, () =>
+      mockPdfTextStream([pdfTextChunk({ str: "AST 48 U/L", hasEOL: true })]),
+    );
+    const destroy = vi.fn().mockResolvedValue(undefined);
+    const getPage = vi.fn().mockImplementation(async (pageNumber: number) => ({
+      streamTextContent: () => streams[pageNumber - 1],
+    }));
+    pdf.getDocument.mockReturnValue({
+      promise: Promise.resolve({
+        numPages: LAB_PROCESSING_LIMITS.maximumPdfPages,
+        getPage,
+      }),
+      destroy,
+    } as unknown as ReturnType<PdfModule["getDocument"]>);
+
+    const result = await extractLabText(localPdfFile("fifty-pages.pdf"));
+
+    expect(result.split("\n")).toHaveLength(LAB_PROCESSING_LIMITS.maximumPdfPages);
+    expect(getPage).toHaveBeenCalledTimes(LAB_PROCESSING_LIMITS.maximumPdfPages);
+    for (const stream of streams) {
+      expect(stream.releaseLock).toHaveBeenCalledOnce();
+      expect(stream.cancel).not.toHaveBeenCalled();
+    }
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  test("bounds cumulative chunked PDF text before materializing it and cleans the stream", async () => {
+    const stream = mockPdfTextStream([
+      pdfTextChunk({ str: "x".repeat(300_000) }),
+      pdfTextChunk({ str: "y".repeat(200_000), hasEOL: true }),
+    ]);
     const destroy = vi.fn().mockResolvedValue(undefined);
     pdf.getDocument.mockReturnValue({
       promise: Promise.resolve({
         numPages: 1,
         getPage: vi.fn().mockResolvedValue({
-          getTextContent: vi.fn().mockResolvedValue({
-            items: [
-              {
-                str: "x".repeat(500_001),
-                transform: [1, 0, 0, 1, 0, 100],
-                hasEOL: true,
-              },
-            ],
-          }),
+          streamTextContent: vi.fn(() => stream),
         }),
       }),
       destroy,
     } as unknown as ReturnType<PdfModule["getDocument"]>);
-    const file = new File(["%PDF"], "too-much-text.pdf", {
-      type: "application/pdf",
-    });
-    Object.defineProperty(file, "arrayBuffer", {
-      value: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
-    });
 
-    expect(await caughtError(extractLabText(file))).toMatchObject({
+    expect(await caughtError(extractLabText(localPdfFile("too-much-text.pdf"))))
+      .toMatchObject({
       name: "LabProcessingLimitError",
       code: "text-too-long",
     });
+    expect(stream.cancel).toHaveBeenCalledOnce();
+    expect(stream.releaseLock).toHaveBeenCalledOnce();
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  test("streams chunked PDF text successfully at the exact 500,000-character boundary", async () => {
+    const stream = mockPdfTextStream([
+      pdfTextChunk({ str: "x".repeat(250_000) }),
+      pdfTextChunk({ str: "y".repeat(249_999), hasEOL: true }),
+    ]);
+    const destroy = vi.fn().mockResolvedValue(undefined);
+    pdf.getDocument.mockReturnValue({
+      promise: Promise.resolve({
+        numPages: 1,
+        getPage: vi.fn().mockResolvedValue({
+          streamTextContent: vi.fn(() => stream),
+        }),
+      }),
+      destroy,
+    } as unknown as ReturnType<PdfModule["getDocument"]>);
+
+    const result = await extractLabText(localPdfFile("boundary-text.pdf"));
+
+    expect(result).toHaveLength(LAB_PROCESSING_LIMITS.maximumExtractedTextCharacters);
+    expect(stream.releaseLock).toHaveBeenCalledOnce();
+    expect(stream.cancel).not.toHaveBeenCalled();
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  test("aborts a pending PDF stream, cancels/releases its reader, and destroys once", async () => {
+    const pendingRead = deferred<ReadableStreamReadResult<PdfTextChunk>>();
+    const cancel = vi.fn().mockResolvedValue(undefined);
+    const releaseLock = vi.fn();
+    const stream = {
+      getReader: vi.fn(() => ({
+        cancel,
+        read: vi.fn(() => pendingRead.promise),
+        releaseLock,
+      })),
+    };
+    const destroy = vi.fn().mockResolvedValue(undefined);
+    pdf.getDocument.mockReturnValue({
+      promise: Promise.resolve({
+        numPages: 1,
+        getPage: vi.fn().mockResolvedValue({
+          streamTextContent: vi.fn(() => stream),
+        }),
+      }),
+      destroy,
+    } as unknown as ReturnType<PdfModule["getDocument"]>);
+    const controller = new AbortController();
+
+    const extraction = extractLabText(localPdfFile("abort.pdf"), controller.signal);
+    await vi.waitFor(() => expect(stream.getReader).toHaveBeenCalledOnce());
+    controller.abort();
+    const error = await caughtError(extraction);
+
+    expect(isAbortError(error)).toBe(true);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(releaseLock).toHaveBeenCalledOnce();
+    expect(destroy).toHaveBeenCalledOnce();
+    pendingRead.resolve({ done: true, value: undefined });
+  });
+
+  test("destroys the loading task when a PDF page rejects", async () => {
+    const destroy = vi.fn().mockResolvedValue(undefined);
+    pdf.getDocument.mockReturnValue({
+      promise: Promise.resolve({
+        numPages: 1,
+        getPage: vi.fn().mockRejectedValue(new Error("page failed")),
+      }),
+      destroy,
+    } as unknown as ReturnType<PdfModule["getDocument"]>);
+
+    await expect(extractLabText(localPdfFile("page-error.pdf"))).rejects.toThrow(
+      "page failed",
+    );
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  test("cancels and releases a PDF text stream when reading rejects", async () => {
+    const cancel = vi.fn().mockResolvedValue(undefined);
+    const releaseLock = vi.fn();
+    const stream = {
+      getReader: vi.fn(() => ({
+        cancel,
+        read: vi.fn().mockRejectedValue(new Error("stream failed")),
+        releaseLock,
+      })),
+    };
+    const destroy = vi.fn().mockResolvedValue(undefined);
+    pdf.getDocument.mockReturnValue({
+      promise: Promise.resolve({
+        numPages: 1,
+        getPage: vi.fn().mockResolvedValue({
+          streamTextContent: vi.fn(() => stream),
+        }),
+      }),
+      destroy,
+    } as unknown as ReturnType<PdfModule["getDocument"]>);
+
+    await expect(extractLabText(localPdfFile("stream-error.pdf"))).rejects.toThrow(
+      "stream failed",
+    );
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(releaseLock).toHaveBeenCalledOnce();
     expect(destroy).toHaveBeenCalledOnce();
   });
 
@@ -401,6 +639,79 @@ describe("extractLabText", () => {
       code: "text-too-long",
     });
     expect(ocr.terminate).toHaveBeenCalledOnce();
+  });
+
+  test("accepts OCR output exactly at 500,000 characters and terminates the worker", async () => {
+    const boundaryText = "x".repeat(
+      LAB_PROCESSING_LIMITS.maximumExtractedTextCharacters,
+    );
+    const file = new File(["image bytes"], "labs.png", { type: "image/png" });
+    ocr.recognize.mockResolvedValue({ data: { text: boundaryText } });
+    ocr.terminate.mockResolvedValue(undefined);
+    ocr.createWorker.mockResolvedValue({
+      recognize: ocr.recognize,
+      terminate: ocr.terminate,
+    });
+
+    await expect(extractLabText(file)).resolves.toBe(boundaryText);
+    expect(ocr.terminate).toHaveBeenCalledOnce();
+  });
+
+  test("terminates an initialized OCR worker when recognition rejects", async () => {
+    const file = new File(["image bytes"], "labs.png", { type: "image/png" });
+    ocr.recognize.mockRejectedValue(new Error("recognition failed"));
+    ocr.terminate.mockResolvedValue(undefined);
+    ocr.createWorker.mockResolvedValue({
+      recognize: ocr.recognize,
+      terminate: ocr.terminate,
+    });
+
+    await expect(extractLabText(file)).rejects.toThrow("recognition failed");
+    expect(ocr.terminate).toHaveBeenCalledOnce();
+  });
+
+  test("aborts pending OCR recognition promptly and terminates the initialized worker", async () => {
+    const pendingRecognition = deferred<{ data: { text: string } }>();
+    const file = new File(["image bytes"], "labs.png", { type: "image/png" });
+    ocr.recognize.mockReturnValue(pendingRecognition.promise);
+    ocr.terminate.mockResolvedValue(undefined);
+    ocr.createWorker.mockResolvedValue({
+      recognize: ocr.recognize,
+      terminate: ocr.terminate,
+    });
+    const controller = new AbortController();
+
+    const extraction = extractLabText(file, controller.signal);
+    await vi.waitFor(() => expect(ocr.recognize).toHaveBeenCalledOnce());
+    controller.abort();
+    const error = await caughtError(extraction);
+
+    expect(isAbortError(error)).toBe(true);
+    expect(ocr.terminate).toHaveBeenCalledOnce();
+    pendingRecognition.resolve({ data: { text: "late OCR" } });
+  });
+
+  test("aborts while OCR initialization is pending and terminates a late worker", async () => {
+    const pendingWorker = deferred<{
+      recognize: typeof ocr.recognize;
+      terminate: typeof ocr.terminate;
+    }>();
+    const file = new File(["image bytes"], "labs.png", { type: "image/png" });
+    ocr.terminate.mockResolvedValue(undefined);
+    ocr.createWorker.mockReturnValue(pendingWorker.promise);
+    const controller = new AbortController();
+
+    const extraction = extractLabText(file, controller.signal);
+    await vi.waitFor(() => expect(ocr.createWorker).toHaveBeenCalledOnce());
+    controller.abort();
+    const error = await caughtError(extraction);
+
+    expect(isAbortError(error)).toBe(true);
+    expect(ocr.terminate).not.toHaveBeenCalled();
+
+    pendingWorker.resolve({ recognize: ocr.recognize, terminate: ocr.terminate });
+    await vi.waitFor(() => expect(ocr.terminate).toHaveBeenCalledOnce());
+    expect(ocr.recognize).not.toHaveBeenCalled();
   });
 
   test("destroys a PDF loading task when document loading fails", async () => {

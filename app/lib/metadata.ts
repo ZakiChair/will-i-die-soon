@@ -6,6 +6,10 @@ export type MetadataOriginInput = {
 };
 
 const LOCAL_METADATA_ORIGIN = "http://localhost:3000";
+const EDGE_WHITESPACE_OR_CONTROL =
+  /^[\s\u0000-\u001f\u007f-\u009f]|[\s\u0000-\u001f\u007f-\u009f]$/u;
+const FORBIDDEN_HOST_SYNTAX =
+  /[\s\u0000-\u001f\u007f-\u009f/@\\?#,%]/u;
 
 function firstHeaderToken(value: string | null | undefined): string | null {
   const token = value?.split(",", 1)[0]?.trim();
@@ -23,11 +27,7 @@ function isIpv4(hostname: string): boolean {
   );
 }
 
-function isValidHostname(hostname: string): boolean {
-  if (hostname === "localhost" || hostname.endsWith(".localhost")) return true;
-  if (hostname.startsWith("[") && hostname.endsWith("]")) return true;
-  if (isIpv4(hostname)) return true;
-
+function isValidDnsHostname(hostname: string): boolean {
   const withoutFinalDot = hostname.endsWith(".")
     ? hostname.slice(0, -1)
     : hostname;
@@ -40,32 +40,118 @@ function isValidHostname(hostname: string): boolean {
   );
 }
 
-function normalizedRequestHost(value: string | null | undefined): string | null {
-  const token = firstHeaderToken(value);
-  if (!token || /[\s/@\\?#]/u.test(token)) return null;
+function hasEdgeWhitespaceOrControl(value: string): boolean {
+  return EDGE_WHITESPACE_OR_CONTROL.test(value);
+}
+
+function rawHostParts(
+  value: string,
+): { readonly hostname: string; readonly port: string | null } | null {
+  if (!value || FORBIDDEN_HOST_SYNTAX.test(value)) return null;
+
+  if (value.startsWith("[")) {
+    const closingBracket = value.indexOf("]");
+    if (closingBracket <= 1) return null;
+
+    const remainder = value.slice(closingBracket + 1);
+    if (remainder && !/^:\d+$/u.test(remainder)) return null;
+    return {
+      hostname: value.slice(0, closingBracket + 1),
+      port: remainder ? remainder.slice(1) : null,
+    };
+  }
+
+  const firstColon = value.indexOf(":");
+  const lastColon = value.lastIndexOf(":");
+  if (firstColon !== lastColon) return null;
+
+  const hostname = firstColon === -1 ? value : value.slice(0, firstColon);
+  const port = firstColon === -1 ? null : value.slice(firstColon + 1);
+  if (!hostname || (port !== null && !/^\d+$/u.test(port))) return null;
+  return { hostname, port };
+}
+
+function normalizedHost(value: string): string | null {
+  const rawHost = rawHostParts(value);
+  if (!rawHost) return null;
 
   try {
-    const parsed = new URL(`https://${token}`);
+    const parsed = new URL(`https://${value}`);
     if (
       parsed.username ||
       parsed.password ||
       parsed.pathname !== "/" ||
       parsed.search ||
-      parsed.hash ||
-      !isValidHostname(parsed.hostname)
+      parsed.hash
     ) {
       return null;
     }
-    return parsed.host;
+
+    if (rawHost.hostname.startsWith("[")) {
+      if (!parsed.hostname.startsWith("[") || !parsed.hostname.endsWith("]")) {
+        return null;
+      }
+    } else if (isIpv4(rawHost.hostname)) {
+      if (parsed.hostname !== rawHost.hostname) return null;
+    } else if (
+      !isValidDnsHostname(rawHost.hostname) ||
+      parsed.hostname !== rawHost.hostname.toLowerCase()
+    ) {
+      return null;
+    }
+
+    const normalizedPort =
+      rawHost.port === null ? "" : `:${Number(rawHost.port)}`;
+    return `${parsed.hostname}${normalizedPort}`;
   } catch {
     return null;
   }
 }
 
+function normalizedRoutedHost(
+  value: string | null | undefined,
+): string | null {
+  if (!value || value.includes(",") || hasEdgeWhitespaceOrControl(value)) {
+    return null;
+  }
+  return normalizedHost(value);
+}
+
+function normalizedForwardedHost(
+  value: string | null | undefined,
+): string | null {
+  const token = firstHeaderToken(value);
+  return token ? normalizedHost(token) : null;
+}
+
 function configuredOrigin(value: string | undefined): URL | null {
-  if (!value) return null;
+  if (
+    !value ||
+    hasEdgeWhitespaceOrControl(value) ||
+    value.includes("@") ||
+    value.includes("\\") ||
+    value.includes("?") ||
+    value.includes("#")
+  ) {
+    return null;
+  }
+
+  const schemeMatch = /^https?:\/\//iu.exec(value);
+  if (!schemeMatch) return null;
+
+  const authorityStart = schemeMatch[0].length;
+  const pathStart = value.indexOf("/", authorityStart);
+  if (pathStart !== -1 && pathStart !== value.length - 1) return null;
+
+  const rawAuthority = value.slice(
+    authorityStart,
+    pathStart === -1 ? value.length : pathStart,
+  );
+  const host = normalizedHost(rawAuthority);
+  if (!host) return null;
+
   try {
-    const parsed = new URL(value.trim());
+    const parsed = new URL(value);
     if (
       (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
       parsed.username ||
@@ -73,7 +159,7 @@ function configuredOrigin(value: string | undefined): URL | null {
       parsed.pathname !== "/" ||
       parsed.search ||
       parsed.hash ||
-      !isValidHostname(parsed.hostname)
+      new URL(`${parsed.protocol}//${host}`).origin !== parsed.origin
     ) {
       return null;
     }
@@ -85,11 +171,14 @@ function configuredOrigin(value: string | undefined): URL | null {
 
 function isLocalHost(host: string): boolean {
   const parsed = new URL(`https://${host}`);
+  const hostname = parsed.hostname.endsWith(".")
+    ? parsed.hostname.slice(0, -1)
+    : parsed.hostname;
   return (
-    parsed.hostname === "localhost" ||
-    parsed.hostname.endsWith(".localhost") ||
-    (isIpv4(parsed.hostname) && parsed.hostname.startsWith("127.")) ||
-    parsed.hostname === "[::1]"
+    hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
+    (isIpv4(hostname) && hostname.startsWith("127.")) ||
+    hostname === "[::1]"
   );
 }
 
@@ -105,8 +194,8 @@ export function resolveMetadataOrigin(input: MetadataOriginInput): URL {
   const configured = configuredOrigin(input.configuredUrl);
   if (configured) return configured;
 
-  const routedHost = normalizedRequestHost(input.host);
-  const forwardedHost = normalizedRequestHost(input.forwardedHost);
+  const routedHost = normalizedRoutedHost(input.host);
+  const forwardedHost = normalizedForwardedHost(input.forwardedHost);
   const corroboratedForwardedHost =
     routedHost !== null && forwardedHost === routedHost ? forwardedHost : null;
   const requestHost = corroboratedForwardedHost ?? routedHost;

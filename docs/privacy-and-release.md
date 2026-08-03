@@ -14,22 +14,27 @@ Ordinary evidence links are external HTTPS navigation initiated by the user. The
 
 - Restart replaces the route-level journey state with the landing state, unmounting and clearing profile, answers, labs, and results from application memory.
 - Reloading, closing the tab/window, navigating away, or closing the browser session discards the in-memory journey. Closing or leaving a results screen intentionally clears those results; there is no recovery store.
+- Cancelling the laboratory-import screen, unmounting it, or selecting a replacement file aborts the active parser operation. Aborted work cannot update the laboratory draft; a PDF loading task is destroyed, and any OCR worker whose handle becomes available is terminated, including one whose initialization resolves after the abort.
 - A `beforeunload` confirmation is installed only while an assessment is in progress to protect unfinished work. Results do not install that prompt. This is intentional clearing behavior, not a privacy gap: neither screen persists data, and leaving either screen releases the in-memory state.
 - The app cannot clear browser history, operating-system swap, screenshots, print files, JSON files a user explicitly saved, or what another person can see on the display. Those are outside the application state boundary.
 
 ## Local laboratory import
 
-Plain text uses the browser's local `File.text()`. PDF.js and Tesseract load lazily only after a PDF or image is selected. Their worker, WebAssembly, and English language-data URLs are fixed same-origin `/lab-assets/...` paths; OCR caching is disabled. The selected file and extracted text are passed in memory and are not placed in an asset URL or request body.
+Accepted plain-text files have a `.txt` or `.text` extension and use the browser's local `File.text()`. CSV and other unsupported file types are not parsed and open the editable manual-entry fallback. PDF.js and Tesseract load lazily only after a PDF or image is selected. Their worker, WebAssembly, and English language-data URLs are fixed same-origin `/lab-assets/...` paths; OCR caching is disabled. The selected file and extracted text are passed in memory and are not placed in an asset URL or request body.
 
 Processing is bounded to protect the local browser:
 
-- maximum file size: **20 MiB**;
+- maximum source-file size: **20 MiB**;
 - maximum PDF length: **50 pages**, checked before the page extraction loop;
-- maximum extracted text: **500,000 characters** for text, PDF, and OCR output.
+- maximum extracted text: **500,000 characters** for plain text, PDF, and OCR output.
 
-The PDF loading task and OCR worker are destroyed/terminated on success or failure. A distinct English/French limit message opens the same editable manual-entry fallback. Unsupported input, extraction failure, or no unambiguous marker also preserves manual entry. Parsed rows are drafts: no value enters assessment state until the user explicitly selects it and reviews marker, value, unit, reference range, collection date, and fasting status.
+PDF text is streamed through the application parser page by page, with the 500,000-character bound enforced incrementally and the loading task destroyed on success, failure, limit, or abort. Once Tesseract exposes an OCR worker handle, the worker is terminated on those paths too. Cancellation, component unmount, and replacement-file selection abort the active operation; if OCR initialization later succeeds, that late worker is terminated before its result can be used.
 
-The vendored minified Tesseract worker contains upstream default CDN strings, but application configuration supplies the local worker/core/language paths. Those immutable third-party bundles are excluded from first-party source scans and must remain allowlisted only as vendored code. A production-like browser network check of PDF and image import remains a deployment prerequisite to confirm no upstream fallback request occurs.
+The OCR public API necessarily materializes the decoded image and recognition output before the application can enforce the output bound. The 20 MiB source-file limit and 500,000-character OCR-output limit therefore reduce exposure but are not hard peak-memory bounds. Tesseract 7.0.0 also exposes no worker handle when `createWorker()` rejects during initialization, so the application cannot terminate that internal worker through the public API; this possible initialization-rejection worker leak is a residual accepted for the private prototype. Decoded-image/OCR peak memory and this initialization-rejection case must be reassessed as a parser/toolchain gate before a broader release or parser upgrade.
+
+A distinct English/French limit message opens the same editable manual-entry fallback. Unsupported input, extraction failure, or no unambiguous marker also preserves manual entry. Parsed rows are drafts: no value enters assessment state until the user explicitly selects it and reviews marker, value, unit, reference range, collection date, and fasting status.
+
+The vendored minified Tesseract worker contains upstream default CDN strings, but application configuration supplies the local worker/core/language paths. Those immutable third-party bundles are excluded from first-party source scans and must remain allowlisted only as vendored code. A production-like browser network check of PDF and an ordinary successful image import remains a deployment prerequisite to confirm no upstream fallback request occurs.
 
 ## Export boundary
 

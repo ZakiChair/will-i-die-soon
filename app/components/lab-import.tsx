@@ -6,6 +6,7 @@ import { uiCopyKeys, type UiCopyKey } from "../i18n/ui-copy";
 import type { MessageVariables } from "../i18n/types";
 import {
   extractLabText,
+  isAbortError,
   LAB_MARKERS,
   LabProcessingLimitError,
   normalizeLabValue,
@@ -103,13 +104,22 @@ function isReady(row: EditableLabRow): boolean {
 export function LabImport({ onConfirm, onCancel }: LabImportProps) {
   const { t } = useI18n();
   const heading = useRef<HTMLHeadingElement>(null);
+  const activeExtraction = useRef<AbortController | null>(null);
+  const mounted = useRef(false);
   const [rows, setRows] = useState<EditableLabRow[]>([]);
   const [manualMode, setManualMode] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<LabError | null>(null);
 
   useEffect(() => {
+    mounted.current = true;
     heading.current?.focus();
+    return () => {
+      mounted.current = false;
+      const controller = activeExtraction.current;
+      activeExtraction.current = null;
+      controller?.abort();
+    };
   }, []);
 
   function updateRow(id: string, patch: Partial<EditableLabRow>) {
@@ -126,11 +136,28 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
 
   async function selectFile(file: File | undefined) {
     if (!file) return;
+    activeExtraction.current?.abort();
+    const controller = new AbortController();
+    activeExtraction.current = controller;
     setBusy(true);
     setError(null);
     try {
-      const text = await extractLabText(file);
+      const text = await extractLabText(file, controller.signal);
+      if (
+        !mounted.current ||
+        controller.signal.aborted ||
+        activeExtraction.current !== controller
+      ) {
+        return;
+      }
       const parsed = parseLabCandidates(text);
+      if (
+        !mounted.current ||
+        controller.signal.aborted ||
+        activeExtraction.current !== controller
+      ) {
+        return;
+      }
       if (parsed.length === 0) {
         openManual({
           key: "lab.error.noMarkers",
@@ -141,6 +168,14 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
         setRows(parsed.map(candidateRow));
       }
     } catch (extractionError) {
+      if (
+        !mounted.current ||
+        controller.signal.aborted ||
+        activeExtraction.current !== controller ||
+        isAbortError(extractionError)
+      ) {
+        return;
+      }
       openManual({
         key:
           extractionError instanceof LabProcessingLimitError
@@ -149,8 +184,19 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
         variables: { filename: file.name },
       });
     } finally {
-      setBusy(false);
+      if (mounted.current && activeExtraction.current === controller) {
+        activeExtraction.current = null;
+        setBusy(false);
+      }
     }
+  }
+
+  function cancelImport() {
+    const controller = activeExtraction.current;
+    activeExtraction.current = null;
+    controller?.abort();
+    if (mounted.current) setBusy(false);
+    onCancel();
   }
 
   function confirmRows() {
@@ -211,7 +257,6 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
           id="lab-report-file"
           type="file"
           accept=".txt,.text,.pdf,image/*"
-          disabled={busy}
           onChange={(event) => void selectFile(event.target.files?.[0])}
         />
         <button type="button" onClick={() => openManual()} disabled={busy}>
@@ -356,7 +401,7 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
         </form>
       ) : null}
 
-      <button type="button" onClick={onCancel}>
+      <button type="button" onClick={cancelImport}>
         {t("lab.cancel")}
       </button>
     </section>
