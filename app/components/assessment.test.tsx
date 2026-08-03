@@ -29,6 +29,59 @@ async function fillProfile(
   );
 }
 
+async function continuePastIntermission(user: ReturnType<typeof userEvent.setup>) {
+  const continueButton = screen.queryByRole("button", {
+    name: /continue assessment/i,
+  });
+  if (!continueButton) return false;
+  await user.click(continueButton);
+  expect(screen.getByRole("heading", { level: 1 })).toHaveFocus();
+  return true;
+}
+
+async function skipUntilQuestion(
+  user: ReturnType<typeof userEvent.setup>,
+  prompt: RegExp,
+  limit = 200,
+) {
+  for (let step = 0; step < limit; step += 1) {
+    if (await continuePastIntermission(user)) continue;
+    const heading = screen.getByRole("heading", { level: 1 });
+    if (prompt.test(heading.textContent ?? "")) return;
+    await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+  }
+  throw new Error(`Question ${prompt} was not reached within ${limit} steps.`);
+}
+
+async function completeAssessment(
+  user: ReturnType<typeof userEvent.setup>,
+  onComplete: ReturnType<typeof vi.fn>,
+  answerMedicationGate: "yes" | "no" | "skip" = "skip",
+) {
+  let intermissions = 0;
+  for (let step = 0; step < 220 && onComplete.mock.calls.length === 0; step += 1) {
+    if (await continuePastIntermission(user)) {
+      intermissions += 1;
+      continue;
+    }
+    const heading = screen.getByRole("heading", { level: 1 }).textContent ?? "";
+    if (
+      /currently taking or using any prescription medicine/i.test(heading) &&
+      answerMedicationGate !== "skip"
+    ) {
+      await user.click(
+        screen.getByRole("radio", {
+          name: answerMedicationGate === "yes" ? "Yes" : "No",
+        }),
+      );
+      await user.click(screen.getByRole("button", { name: "Continue" }));
+    } else {
+      await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+    }
+  }
+  return intermissions;
+}
+
 test("requires consent and a profile before showing health questions", async () => {
   await chooseDepth("quick");
 
@@ -186,34 +239,100 @@ test("Quick completes after exactly 20 deliberate skips stored only as null", as
 });
 
 test.each([
-  ["quick", 20, 2],
-  ["detailed", 50, 4],
-  ["deep", 150, 6],
+  ["quick", 20, 2, 0],
+  ["detailed", 50, 4, 5],
+  ["deep", 155, 6, 5],
 ] as const)(
-  "%s pacing shows %i questions with %i milestone intermissions",
-  async (depth, questionCount, expectedIntermissions) => {
+  "%s adaptation completes %i questions with %i intermissions and %i medication follow-ups",
+  async (depth, questionCount, expectedIntermissions, expectedFollowUps) => {
     const user = userEvent.setup();
     const onComplete = vi.fn();
     render(<Assessment depth={depth} profile={adultProfile} onComplete={onComplete} />);
-    let intermissions = 0;
-
-    for (let answered = 0; answered < questionCount; answered += 1) {
-      const continueButton = screen.queryByRole("button", {
-        name: /continue assessment/i,
-      });
-      if (continueButton) {
-        intermissions += 1;
-        await user.click(continueButton);
-        expect(screen.getByRole("heading", { name: /.+/i })).toHaveFocus();
-      }
-      await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
-    }
+    const intermissions = await completeAssessment(user, onComplete, "yes");
 
     expect(intermissions).toBe(expectedIntermissions);
     expect(onComplete).toHaveBeenCalledOnce();
-    expect(Object.keys(onComplete.mock.calls[0][0])).toHaveLength(questionCount);
+    const completedAnswers = onComplete.mock.calls[0][0];
+    expect(Object.keys(completedAnswers)).toHaveLength(questionCount);
+    expect(completedAnswers.current_medications).toBe(true);
+    expect(
+      Object.keys(completedAnswers).filter((id) => id.startsWith("med_detail_")),
+    ).toHaveLength(expectedFollowUps);
   },
 );
+
+test("an affirmative medication gate inserts a real follow-up into the Detailed UI", async () => {
+  const user = userEvent.setup();
+  const onComplete = vi.fn();
+  render(<Assessment depth="detailed" profile={adultProfile} onComplete={onComplete} />);
+
+  await skipUntilQuestion(user, /currently taking or using any prescription medicine/i);
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await skipUntilQuestion(user, /exact medicine or ingredient names/i);
+
+  expect(screen.getByText(/Question \d+ of 50/)).toBeVisible();
+  await user.type(screen.getByRole("textbox"), "Metformin");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await completeAssessment(user, onComplete);
+
+  expect(onComplete.mock.calls[0][0].med_detail_names).toBe("Metformin");
+  expect(Object.keys(onComplete.mock.calls[0][0])).toHaveLength(50);
+});
+
+test.each([
+  ["No", "no"],
+  ["Prefer not to say", "skip"],
+] as const)("%s at the medication gate unlocks no follow-up", async (_, gateAnswer) => {
+  const user = userEvent.setup();
+  const onComplete = vi.fn();
+  render(<Assessment depth="detailed" profile={adultProfile} onComplete={onComplete} />);
+
+  await completeAssessment(user, onComplete, gateAnswer);
+
+  const completedAnswers = onComplete.mock.calls[0][0];
+  expect(Object.keys(completedAnswers)).toHaveLength(50);
+  expect(Object.keys(completedAnswers).some((id) => id.startsWith("med_detail_"))).toBe(
+    false,
+  );
+  expect(completedAnswers.current_medications).toBe(gateAnswer === "no" ? false : null);
+});
+
+test("changing an earlier gate with Back closes its branch and removes stale answers", async () => {
+  const user = userEvent.setup();
+  const onComplete = vi.fn();
+  render(<Assessment depth="detailed" profile={adultProfile} onComplete={onComplete} />);
+
+  await skipUntilQuestion(user, /currently taking or using any prescription medicine/i);
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await skipUntilQuestion(user, /exact medicine or ingredient names/i);
+  await user.type(screen.getByRole("textbox"), "Metformin");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+
+  for (let step = 0; step < 50; step += 1) {
+    const heading = screen.getByRole("heading", { level: 1 }).textContent ?? "";
+    if (/currently taking or using any prescription medicine/i.test(heading)) break;
+    await user.click(screen.getByRole("button", { name: /back/i }));
+  }
+  expect(
+    screen.getByRole("heading", {
+      name: /currently taking or using any prescription medicine/i,
+    }),
+  ).toBeVisible();
+
+  await user.click(screen.getByRole("radio", { name: "No" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await completeAssessment(user, onComplete);
+
+  const completedAnswers = onComplete.mock.calls[0][0];
+  expect(completedAnswers.current_medications).toBe(false);
+  expect(Object.keys(completedAnswers).some((id) => id.startsWith("med_detail_"))).toBe(
+    false,
+  );
+  expect(Object.values(completedAnswers)).not.toContain(undefined);
+  expect(Object.keys(completedAnswers)).toHaveLength(50);
+});
 
 test("adds a navigation warning only while an assessment is active", async () => {
   const user = userEvent.setup();

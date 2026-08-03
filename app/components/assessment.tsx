@@ -2,13 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { questionBank } from "../data/questions";
-import { buildAssessmentQueue, getNextQuestion } from "../lib/questionnaire";
+import {
+  buildAssessmentQueue,
+  getNextQuestion,
+  reconcileAssessmentState,
+} from "../lib/questionnaire";
 import type {
   AnalysisDepth,
   AnswerMap,
   HealthDomain,
   ProfileContext,
   Question,
+  QuestionnaireState,
 } from "../lib/types";
 import { Intermission } from "./intermission";
 import { LivingCanopy } from "./living-canopy";
@@ -48,21 +53,25 @@ function milestoneIndices(queue: ReadonlyArray<Question>, depth: AnalysisDepth) 
 }
 
 export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
-  const queue = useMemo(
+  const initialQueue = useMemo(
     () => buildAssessmentQueue(depth, questionBank, profile, {}),
     [depth, profile],
   );
-  const [answers, setAnswers] = useState<AnswerMap>({});
+  const [questionnaire, setQuestionnaire] = useState<QuestionnaireState>(() => ({
+    queue: initialQueue,
+    answers: {},
+  }));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [intermission, setIntermission] = useState<{
     completedDomain: HealthDomain;
     completed: number;
   } | null>(null);
-  const shownMilestones = useRef(new Set<number>());
+  const shownMilestones = useRef(new Set<string>());
+  const intermissionCount = useRef(0);
   const questionHeading = useRef<HTMLHeadingElement>(null);
-  const milestones = useMemo(() => milestoneIndices(queue, depth), [depth, queue]);
-  const question = queue[currentIndex] ?? getNextQuestion({ queue, answers });
+  const { answers, queue } = questionnaire;
+  const question = queue[currentIndex] ?? getNextQuestion(questionnaire);
 
   useEffect(() => {
     if (!intermission) questionHeading.current?.focus();
@@ -79,17 +88,28 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
 
   function recordAnswer(value: NonNullable<AnswerMap[string]> | null) {
     if (!question) return;
-    const nextAnswers: AnswerMap = { ...answers, [question.id]: value };
-    setAnswers(nextAnswers);
-    const nextQuestion = getNextQuestion({ queue, answers: nextAnswers });
+    const nextState = reconcileAssessmentState(depth, questionBank, profile, {
+      ...answers,
+      [question.id]: value,
+    });
+    setQuestionnaire(nextState);
+    const nextQuestion = getNextQuestion(nextState);
     if (!nextQuestion) {
-      onComplete(nextAnswers);
+      onComplete(nextState.answers);
       return;
     }
-    const completed = currentIndex + 1;
-    setCurrentIndex(queue.indexOf(nextQuestion));
-    if (milestones.has(completed) && !shownMilestones.current.has(completed)) {
-      shownMilestones.current.add(completed);
+    const completed = nextState.queue.findIndex(
+      (candidate) => candidate.id === question.id,
+    ) + 1;
+    const milestoneKey = question.id;
+    setCurrentIndex(nextState.queue.indexOf(nextQuestion));
+    if (
+      milestoneIndices(nextState.queue, depth).has(completed) &&
+      intermissionCount.current < INTERMISSION_LIMITS[depth] &&
+      !shownMilestones.current.has(milestoneKey)
+    ) {
+      shownMilestones.current.add(milestoneKey);
+      intermissionCount.current += 1;
       setIntermission({ completedDomain: question.domain, completed });
     }
   }

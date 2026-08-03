@@ -1,13 +1,22 @@
 import { describe, expect, test } from "vitest";
 
 import { questionBank } from "../data/questions";
+import * as questionnaireModule from "./questionnaire";
 import {
   buildAssessmentQueue,
   getAvailableDepths,
   getEligibleQuestions,
   getNextQuestion,
 } from "./questionnaire";
-import type { AnswerMap, AnswerValue, HealthDomain, Question } from "./types";
+import type {
+  AnalysisDepth,
+  AnswerMap,
+  AnswerValue,
+  HealthDomain,
+  ProfileContext,
+  Question,
+  QuestionnaireState,
+} from "./types";
 
 const adult = { age: 35, countryCode: "CH" };
 const child = { age: 12, countryCode: "CH", assistedMinor: true };
@@ -218,6 +227,90 @@ describe("questionnaire selection", () => {
 });
 
 describe("adaptive branches", () => {
+  test("reconciles active branches, fixed depth limits, and stale dependent answers", () => {
+    type ReconcileAssessmentState = (
+      depth: AnalysisDepth,
+      bank: ReadonlyArray<Question>,
+      context: ProfileContext,
+      answers: AnswerMap,
+    ) => QuestionnaireState;
+    const reconcileAssessmentState = Reflect.get(
+      questionnaireModule,
+      "reconcileAssessmentState",
+    ) as ReconcileAssessmentState | undefined;
+
+    expect(reconcileAssessmentState).toBeTypeOf("function");
+    if (!reconcileAssessmentState) return;
+
+    const initial = reconcileAssessmentState("detailed", questionBank, adult, {});
+    const medicationsYes = reconcileAssessmentState("detailed", questionBank, adult, {
+      current_medications: true,
+    });
+    const medicationsNo = reconcileAssessmentState("detailed", questionBank, adult, {
+      current_medications: false,
+    });
+    const medicationsSkipped = reconcileAssessmentState("detailed", questionBank, adult, {
+      current_medications: null,
+    });
+    const deepMedicationsYes = reconcileAssessmentState("deep", questionBank, adult, {
+      current_medications: true,
+    });
+
+    expect(initial.queue).toHaveLength(50);
+    expect(medicationsYes.queue).toHaveLength(50);
+    expect(
+      medicationsYes.queue.filter((question) => question.id.startsWith("med_detail_")),
+    ).toHaveLength(5);
+    expect(medicationsYes.queue).not.toContainEqual(initial.queue.at(-1));
+    expect(
+      medicationsNo.queue.some((question) => question.id.startsWith("med_detail_")),
+    ).toBe(false);
+    expect(
+      medicationsSkipped.queue.some((question) => question.id.startsWith("med_detail_")),
+    ).toBe(false);
+    expect(deepMedicationsYes.queue).toHaveLength(155);
+
+    const template = questionBank[0];
+    const nestedBank: Question[] = [
+      { ...template, id: "gate", tiers: ["detailed"], condition: undefined },
+      {
+        ...template,
+        id: "dependent_gate",
+        tiers: ["detailed"],
+        condition: { questionId: "gate", operator: "equals", value: true },
+      },
+      {
+        ...template,
+        id: "nested_detail",
+        tiers: ["detailed"],
+        condition: {
+          questionId: "dependent_gate",
+          operator: "equals",
+          value: true,
+        },
+      },
+      ...Array.from({ length: 50 }, (_, index) => ({
+        ...template,
+        id: `filler_${String(index).padStart(2, "0")}`,
+        tiers: ["detailed"] as const,
+        priority: index + 10,
+        condition: undefined,
+      })),
+    ];
+    const reconciledNested = reconcileAssessmentState(
+      "detailed",
+      nestedBank,
+      adult,
+      { gate: false, dependent_gate: true, nested_detail: "stale" },
+    );
+
+    expect(reconciledNested.answers).toEqual({ gate: false });
+    expect(reconciledNested.queue).toHaveLength(50);
+    expect(reconciledNested.queue.map((question) => question.id)).not.toEqual(
+      expect.arrayContaining(["dependent_gate", "nested_detail"]),
+    );
+  });
+
   test("treats null and missing gates as unresolved for not-equals branches", () => {
     const alcoholAfterSkip = getEligibleQuestions(questionBank, adult, {
       alcohol_frequency: null,

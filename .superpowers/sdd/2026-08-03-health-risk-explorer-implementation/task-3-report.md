@@ -82,5 +82,52 @@ The test/build output includes Node's existing `DEP0205` warning about `module.r
 ## Concerns / follow-up
 
 - The typed completion handoff intentionally holds answers without presenting results; the results/scoring task must replace that screen.
-- The existing Task 2 engine builds a deterministic queue from eligibility at assessment start. This task does not invent a second branching engine or inject newly eligible conditional questions mid-run.
+- The frozen start-of-assessment queue noted in the original implementation was resolved in review round 1 by adding answer-driven reconciliation to the shared questionnaire engine.
 - vinext currently emits an informational “Unknown” route classification during build, and Node emits the upstream `DEP0205` deprecation warning noted above.
+
+## Review round 1/5 — answer-driven queue reconciliation
+
+### Findings addressed
+
+- Replaced Assessment's frozen `{}`-built runtime queue with answer-driven reconciliation after every answer and edited answer.
+- Added `reconcileAssessmentState` to the shared questionnaire engine. It recursively removes answers for questions that are no longer eligible until the answer set is stable.
+- Reconciliation always retains still-eligible answered questions, admits active conditional questions, and fills remaining capacity in the existing core/priority order. This evicts lower-priority unanswered fillers without dropping answered history.
+- Quick and Detailed remain exactly 20 and 50 questions. Deep starts at 150 and grows by active eligible conditional questions up to the existing 200-question cap.
+- `null` remains a completed skip, is retained on its eligible gate, and unlocks no conditional question.
+- Back navigation now edits the live answer set. Changing `current_medications` from Yes to No removes all `med_detail_*` questions and previously entered dependent answers before navigation continues.
+- Intermission identity/count tracking is stable across queue changes and remains capped at 2/4/6.
+
+### Round 1 RED evidence
+
+- Command: `npm test -- assessment.test.tsx`
+  - Outcome: RED, 4 failed / 17 total.
+  - Exact observable failures: Detailed completed with 0 medication follow-ups instead of 5; Deep completed at 150 instead of 155; affirmative-gate and Back/edit tests could not reach the real `med_detail_names` UI.
+- Command: `npm test -- questionnaire.test.ts`
+  - Outcome: RED, 1 failed / 18 total.
+  - Exact failure: `reconcileAssessmentState` was `undefined` instead of a function.
+
+### Round 1 GREEN and regression coverage
+
+- Real-bank component behavior uses `current_medications → med_detail_*` without mocking the bank or engine.
+- Yes inserts all five medication follow-ups; the UI accepts a non-null `"Metformin"` answer.
+- No and `Prefer not to say`/`null` insert no follow-up.
+- Back to the answered gate, changing Yes to No, and completing proves the stale `med_detail_names: "Metformin"` answer is absent from final `onComplete` answers.
+- The pure engine test additionally proves recursive pruning with a dependent gate and nested dependent answer, fixed Detailed capacity, filler eviction, and Deep growth to 155.
+- Adaptive end-to-end runs prove Quick=20 / Detailed=50 / Deep=155 and intermission caps 2/4/6 with next-question focus restoration.
+
+### Round 1 exact verification commands and outcomes
+
+- `npm test -- assessment.test.tsx` — exit 0; 1 file passed, 17/17 tests passed.
+- `npm test -- questionnaire.test.ts` — exit 0; 1 file passed, 18/18 tests passed.
+- `npm test` — exit 0; 3 files passed, 36/36 tests passed.
+- `npm run lint` — exit 0; no ESLint findings.
+- `npx tsc --noEmit --pretty false` — exit 2 because the repository-wide TypeScript configuration does not load Vitest globals for test files and does not provide the Cloudflare `Fetcher` global for `worker/index.ts`; no changed production-file diagnostic was reported before those configuration errors.
+- `npx tsc --noEmit --pretty false --target ES2017 --lib dom,dom.iterable,esnext --skipLibCheck --strict --esModuleInterop --module esnext --moduleResolution bundler --jsx react-jsx app/lib/questionnaire.ts app/components/assessment.tsx` — exit 0; targeted changed-production-file typecheck passed.
+- `npm run build` — exit 0; all five vinext build environments completed.
+- `if rg -n 'localStorage|sessionStorage|indexedDB|document\\.cookie|fetch\\(|XMLHttpRequest|\\[[^]]+\\]: undefined' app/components/assessment.tsx app/components/consent-screen.tsx app/components/question-control.tsx app/components/intermission.tsx app/page.tsx app/lib/questionnaire.ts; then exit 1; else echo 'Privacy audit clean: no persistence, network calls, cookies, or explicit undefined AnswerMap writes found.'; fi` — exit 0; privacy audit clean.
+- `git diff --check` — exit 0; no whitespace errors.
+
+### Round 1 concerns
+
+- Repository-wide plain `tsc --noEmit` remains blocked by pre-existing test/worker global-type configuration; the scoped production typecheck and production build both pass.
+- Node's upstream `DEP0205` warning and vinext's informational unknown-route classification warning remain unchanged.
