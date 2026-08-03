@@ -124,12 +124,12 @@ describe("question bank invariants", () => {
     );
   });
 
-  test("captures GLP-1 active ingredient as structured identity without parsing free text", () => {
-    const ingredient = questionBank.find(
-      (question) => question.id === "glp1_detail_active_ingredient",
+  test("captures exact GLP-1 product and ingredient identity without parsing free text", () => {
+    const productIdentity = questionBank.find(
+      (question) => question.id === "glp1_detail_product_identity",
     );
 
-    expect(ingredient).toEqual(
+    expect(productIdentity).toEqual(
       expect.objectContaining({
         domain: "glp1",
         answerType: "single",
@@ -141,13 +141,52 @@ describe("question bank invariants", () => {
         },
       }),
     );
-    expect(ingredient?.options?.map((option) => option.value)).toEqual([
-      "tirzepatide",
-      "semaglutide",
-      "liraglutide",
-      "dulaglutide",
+    expect(productIdentity?.options?.map((option) => option.value)).toEqual([
+      "zepbound_tirzepatide",
+      "wegovy_semaglutide",
+      "saxenda_liraglutide",
+      "trulicity_dulaglutide",
       "other_or_unsure",
     ]);
+  });
+
+  test("separates a current adolescent substance emergency from past-year history", () => {
+    const timing = questionBank.find(
+      (question) => question.id === "adolescent_substance_severe_timing",
+    );
+
+    expect(timing).toEqual(
+      expect.objectContaining({
+        answerType: "single",
+        minAge: 13,
+        maxAge: 17,
+        consumers: expect.arrayContaining(["urgent-signals"]),
+      }),
+    );
+    expect(timing?.options?.map((option) => option.value)).toEqual([
+      "happening_now",
+      "past_year_not_now",
+      "none",
+    ]);
+  });
+
+  test("distinguishes unauthorized and research-use sellers from other online sources", () => {
+    const sourceQuestion = questionBank.find(
+      (question) => question.id === "research_detail_source",
+    );
+
+    expect(sourceQuestion?.options?.map((option) => option.value)).toEqual([
+      "licensed_pharmacy",
+      "registered_compounder",
+      "clinic",
+      "authorized_online",
+      "unauthorized_online",
+      "research_use_only",
+      "unknown",
+    ]);
+    expect(sourceQuestion?.options?.map((option) => option.value)).not.toContain(
+      "online",
+    );
   });
 
   test("uses observable, time-bounded emergency wording and age-gates self-harm at 13", () => {
@@ -268,7 +307,7 @@ describe("questionnaire selection", () => {
           "adolescent_alcohol_support",
           "adolescent_cannabis_support",
           "adolescent_other_drug_support",
-          "adolescent_substance_urgent_safety",
+          "adolescent_substance_severe_timing",
         ]),
       );
       expect(buildAssessmentQueue("quick", questionBank, profile, {})).toHaveLength(20);
@@ -561,7 +600,7 @@ describe("adaptive branches", () => {
   test("does not unlock adolescent alcohol probing from undeclared or malformed answers", () => {
     const followUpIds = [
       "adolescent_alcohol_support",
-      "adolescent_substance_urgent_safety",
+      "adolescent_substance_severe_timing",
     ];
 
     for (const value of [
@@ -756,7 +795,7 @@ describe("adaptive branches", () => {
       "adolescent_alcohol_support",
       "adolescent_cannabis_support",
       "adolescent_other_drug_support",
-      "adolescent_substance_urgent_safety",
+      "adolescent_substance_severe_timing",
       "adolescent_pregnancy_support",
       "adolescent_pregnancy_urgent_safety",
     ];

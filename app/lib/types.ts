@@ -179,7 +179,8 @@ export type EmergencyKind =
   | "overdose-poisoning"
   | "severe-bleeding"
   | "self-harm"
-  | "pregnancy-safety";
+  | "pregnancy-safety"
+  | "substance-safety";
 
 export type RiskRule = {
   id: string;

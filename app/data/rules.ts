@@ -353,7 +353,10 @@ const mentalWellbeingRules: RiskRule[] = [
     copy:
       "Ask a trusted adult or health professional for help talking about how things have been feeling.",
     inputs: ["child_feeling_support"],
-    sourceIds: ["nhsChildMentalHealthSupport", "whoAdolescentFriendlyServices"],
+    sourceIds: [
+      "nhsChildMentalHealthSupport",
+      "whoChildYoungPeopleMentalHealthServices",
+    ],
     evidenceTier: "guideline-action",
     urgency: "support",
     signal: "worth-attention",
@@ -419,6 +422,49 @@ const adolescentCannabisSupportRoute: RiskCondition = {
 const adolescentOtherDrugSupportRoute: RiskCondition = {
   all: [adolescentOtherDrugGate, adolescentOtherDrugSupport],
 };
+const adolescentImmediateRedFlagRules: RiskRule[] = [
+  {
+    id: "urgent-adolescent-substance-safety",
+    group: "immediate-red-flags",
+    title: "Immediate substance-related safety action",
+    copy: "Seek emergency care now.",
+    inputs: [
+      "current_tobacco_nicotine",
+      "alcohol_frequency",
+      "uses_cannabis",
+      "uses_nonmedical_stimulants",
+      "uses_nonmedical_opioids",
+      "uses_psychedelics",
+      "uses_other_recreational_drugs",
+      "adolescent_substance_severe_timing",
+    ],
+    sourceIds: [
+      "whoBasicEmergencyCare",
+      "us911EmergencyAssistance",
+      "nhsWhenToCall999",
+      "swissEmergencyNumbers",
+    ],
+    evidenceTier: "guideline-action",
+    urgency: "urgent",
+    signal: "urgent",
+    condition: {
+      all: [
+        adolescentSubstanceGate,
+        equals("adolescent_substance_severe_timing", "happening_now"),
+      ],
+    },
+    factors: [
+      factor(
+        "adolescent_substance_severe_timing",
+        "Current severe substance-related symptom or immediate safety concern reported",
+        equals("adolescent_substance_severe_timing", "happening_now"),
+      ),
+    ],
+    applicability: { minAge: 13, maxAge: 17, countries: "all" },
+    dedupeKey: "substance-emergency",
+    emergencyKind: "substance-safety",
+  },
+];
 
 const dependencyRules: RiskRule[] = [
   {
@@ -523,7 +569,7 @@ const dependencyRules: RiskRule[] = [
     group: "dependency",
     title: "Adolescent substance-safety follow-up",
     copy:
-      "A past-year collapse, seizure, severe breathing problem, chest symptom, or safety concern related to substance use is worth sharing promptly with a trusted adult and qualified health professional. If one of these is happening now, use the immediate emergency route.",
+      "A collapse, seizure, severe breathing problem, chest symptom, or safety concern related to substance use during the past year, but not happening now, is worth sharing promptly with a trusted adult and qualified health professional.",
     inputs: [
       "current_tobacco_nicotine",
       "alcohol_frequency",
@@ -532,13 +578,12 @@ const dependencyRules: RiskRule[] = [
       "uses_nonmedical_opioids",
       "uses_psychedelics",
       "uses_other_recreational_drugs",
-      "adolescent_substance_urgent_safety",
+      "adolescent_substance_severe_timing",
     ],
     sourceIds: [
       "whoAdolescentFriendlyServices",
       "samhsaYouthSubstanceSupport",
       "cdcPolysubstanceOverdose",
-      "whoBasicEmergencyCare",
     ],
     evidenceTier: "guideline-action",
     urgency: "support",
@@ -546,59 +591,59 @@ const dependencyRules: RiskRule[] = [
     condition: {
       all: [
         adolescentSubstanceGate,
-        equals("adolescent_substance_urgent_safety", true),
+        equals("adolescent_substance_severe_timing", "past_year_not_now"),
       ],
     },
     factors: [
       factor(
-        "adolescent_substance_urgent_safety",
-        "Past-year severe or immediate substance-related safety event reported",
-        equals("adolescent_substance_urgent_safety", true),
+        "adolescent_substance_severe_timing",
+        "Resolved past-year severe substance-related safety event reported",
+        equals("adolescent_substance_severe_timing", "past_year_not_now"),
       ),
     ],
     applicability: { minAge: 13, maxAge: 17, countries: "all" },
   },
 ];
 
-const glpRecognizedIngredient = equalsAny("glp1_detail_active_ingredient", [
-  "tirzepatide",
-  "semaglutide",
-  "liraglutide",
-  "dulaglutide",
+const glpRecognizedProduct = equalsAny("glp1_detail_product_identity", [
+  "zepbound_tirzepatide",
+  "wegovy_semaglutide",
+  "saxenda_liraglutide",
+  "trulicity_dulaglutide",
 ]);
-const glpRetinopathyLabelIngredient = equalsAny(
-  "glp1_detail_active_ingredient",
-  ["tirzepatide", "semaglutide", "dulaglutide"],
+const glpRetinopathyLabelProduct = equalsAny(
+  "glp1_detail_product_identity",
+  ["zepbound_tirzepatide", "wegovy_semaglutide", "trulicity_dulaglutide"],
 );
 const glpLabelSources: NonNullable<RiskRule["conditionalSources"]> = [
   {
     sourceId: "dailymedZepboundTirzepatide",
-    condition: equals("glp1_detail_active_ingredient", "tirzepatide"),
+    condition: equals("glp1_detail_product_identity", "zepbound_tirzepatide"),
   },
   {
     sourceId: "dailymedWegovySemaglutide",
-    condition: equals("glp1_detail_active_ingredient", "semaglutide"),
+    condition: equals("glp1_detail_product_identity", "wegovy_semaglutide"),
   },
   {
     sourceId: "dailymedSaxendaLiraglutide",
-    condition: equals("glp1_detail_active_ingredient", "liraglutide"),
+    condition: equals("glp1_detail_product_identity", "saxenda_liraglutide"),
   },
   {
     sourceId: "dailymedTrulicityDulaglutide",
-    condition: equals("glp1_detail_active_ingredient", "dulaglutide"),
+    condition: equals("glp1_detail_product_identity", "trulicity_dulaglutide"),
   },
 ];
 const glpAllergy: RiskCondition = {
   all: [
     equals("uses_glp1", true),
-    glpRecognizedIngredient,
+    glpRecognizedProduct,
     includes("glp1_detail_current_symptoms", "allergy"),
   ],
 };
 const glpGastrointestinal: RiskCondition = {
   all: [
     equals("uses_glp1", true),
-    glpRecognizedIngredient,
+    glpRecognizedProduct,
     {
       any: [
         includes("glp1_detail_current_symptoms", "abdominal"),
@@ -610,7 +655,7 @@ const glpGastrointestinal: RiskCondition = {
 const glpGlucoseSymptoms: RiskCondition = {
   all: [
     equals("uses_glp1", true),
-    glpRecognizedIngredient,
+    glpRecognizedProduct,
     equals("glp1_detail_glucose_medicines", true),
     includes("glp1_detail_current_symptoms", "fainting"),
   ],
@@ -618,7 +663,7 @@ const glpGlucoseSymptoms: RiskCondition = {
 const glpDiabetesVision: RiskCondition = {
   all: [
     equals("uses_glp1", true),
-    glpRetinopathyLabelIngredient,
+    glpRetinopathyLabelProduct,
     equals("glp1_detail_indication", "diabetes"),
     includes("glp1_detail_current_symptoms", "vision"),
   ],
@@ -634,7 +679,7 @@ const glpRelevantHistory = includesAny("glp1_detail_relevant_history", [
 const glpHistoryReview: RiskCondition = {
   all: [
     equals("uses_glp1", true),
-    glpRecognizedIngredient,
+    glpRecognizedProduct,
     {
       any: [
         includesAny("glp1_detail_relevant_history", [
@@ -646,7 +691,7 @@ const glpHistoryReview: RiskCondition = {
         ]),
         {
           all: [
-            glpRetinopathyLabelIngredient,
+            glpRetinopathyLabelProduct,
             includes("glp1_detail_relevant_history", "eye"),
           ],
         },
@@ -663,7 +708,7 @@ const glpPregnancyProcedure = includesAny("glp1_detail_procedure_pregnancy", [
 const glpPregnancyProcedureReview: RiskCondition = {
   all: [
     equals("uses_glp1", true),
-    glpRecognizedIngredient,
+    glpRecognizedProduct,
     glpPregnancyProcedure,
   ],
 };
@@ -800,7 +845,7 @@ const medicationReviewRules: RiskRule[] = [
       "Severe allergic symptoms reported while using a GLP-1 medicine are worth prompt clinical review; use the current severe-allergy question for call-now routing.",
     inputs: [
       "uses_glp1",
-      "glp1_detail_active_ingredient",
+      "glp1_detail_product_identity",
       "glp1_detail_current_symptoms",
     ],
     sourceIds: ["nhsAnaphylaxis"],
@@ -828,7 +873,7 @@ const medicationReviewRules: RiskRule[] = [
       "Severe abdominal symptoms or persistent vomiting or diarrhoea while using a GLP-1 medicine are worth prompt clinical review.",
     inputs: [
       "uses_glp1",
-      "glp1_detail_active_ingredient",
+      "glp1_detail_product_identity",
       "glp1_detail_current_symptoms",
     ],
     sourceIds: [],
@@ -860,7 +905,7 @@ const medicationReviewRules: RiskRule[] = [
       "Fainting, confusion, sweating, or shaking reported alongside insulin or a sulfonylurea is worth prompt clinical review; these answers do not establish low blood glucose.",
     inputs: [
       "uses_glp1",
-      "glp1_detail_active_ingredient",
+      "glp1_detail_product_identity",
       "glp1_detail_glucose_medicines",
       "glp1_detail_current_symptoms",
     ],
@@ -893,7 +938,7 @@ const medicationReviewRules: RiskRule[] = [
       "Vision change reported during GLP-1 use for diabetes is worth prompt review with a qualified clinician or eye-care professional.",
     inputs: [
       "uses_glp1",
-      "glp1_detail_active_ingredient",
+      "glp1_detail_product_identity",
       "glp1_detail_indication",
       "glp1_detail_current_symptoms",
     ],
@@ -926,7 +971,7 @@ const medicationReviewRules: RiskRule[] = [
       "The reported medical history is worth discussing with the prescriber; this route does not decide whether the medicine is suitable.",
     inputs: [
       "uses_glp1",
-      "glp1_detail_active_ingredient",
+      "glp1_detail_product_identity",
       "glp1_detail_relevant_history",
     ],
     sourceIds: [],
@@ -953,7 +998,7 @@ const medicationReviewRules: RiskRule[] = [
       "Pregnancy, trying to conceive, breastfeeding, or planned deep sedation or anaesthesia is worth prompt review with the prescriber or procedural team.",
     inputs: [
       "uses_glp1",
-      "glp1_detail_active_ingredient",
+      "glp1_detail_product_identity",
       "glp1_detail_procedure_pregnancy",
     ],
     sourceIds: ["nhsPregnancyMedicines"],
@@ -1252,9 +1297,9 @@ const medicationReviewRules: RiskRule[] = [
     group: "medication-substance-review",
     title: "Uncertain research-product source",
     copy:
-      "A product from an online research seller or unknown source has uncertain identity and quality and is worth discussing with a pharmacist or clinician.",
+      "This assessment cannot verify the identity or quality of a product from an unauthorized online source, a research-use-only seller, or an unknown source. The exact package and source are worth reviewing with a pharmacist or qualified clinician.",
     inputs: ["uses_research_peptides", "research_detail_source"],
-    sourceIds: ["fdaUnapprovedDrugs"],
+    sourceIds: ["fdaUnapprovedDrugs", "whoSubstandardFalsifiedMedicalProducts"],
     evidenceTier: "evidence-limited-association",
     urgency: "prompt-review",
     signal: "worth-attention",
@@ -1263,7 +1308,8 @@ const medicationReviewRules: RiskRule[] = [
         equals("uses_research_peptides", true),
         {
           any: [
-            equals("research_detail_source", "online"),
+            equals("research_detail_source", "unauthorized_online"),
+            equals("research_detail_source", "research_use_only"),
             equals("research_detail_source", "unknown"),
           ],
         },
@@ -1277,10 +1323,11 @@ const medicationReviewRules: RiskRule[] = [
       ),
       factor(
         "research_detail_source",
-        "Online research seller or unknown source",
+        "Unauthorized online, research-use-only, or unknown source",
         {
           any: [
-            equals("research_detail_source", "online"),
+            equals("research_detail_source", "unauthorized_online"),
+            equals("research_detail_source", "research_use_only"),
             equals("research_detail_source", "unknown"),
           ],
         },
@@ -1646,7 +1693,7 @@ const reproductiveRules: RiskRule[] = [
     inputs: ["sexual_contact_safety"],
     sourceIds: [
       "nhsSexualAssaultSupport",
-      "whoSexualViolenceSupport",
+      "whoSexualViolenceSurvivorCare",
       "whoChildAdolescentSexualAbuse",
     ],
     evidenceTier: "guideline-action",
@@ -1860,7 +1907,7 @@ export const riskRuleGroups: Readonly<Record<RiskGroup, RiskRuleGroupDefinition>
   "immediate-red-flags": {
     label: "Immediate red flags",
     auditNote: "Uses exact structured current-safety answers only.",
-    rules: immediateRedFlagRules,
+    rules: [...immediateRedFlagRules, ...adolescentImmediateRedFlagRules],
   },
   cardiovascular: {
     label: "Cardiovascular signals",

@@ -126,6 +126,38 @@ describe("global rule source support matrix", () => {
       `${rule.id} lost all applicable evidence in ${countryCode}`,
     ).toBeDefined();
   });
+
+  test.each(
+    riskRules.flatMap((rule) => {
+      const representativeAge = profileForRule(rule, "US").age;
+      const ages = [
+        rule.applicability.minAge ?? 0,
+        representativeAge,
+        ...(rule.applicability.maxAge === undefined
+          ? []
+          : [rule.applicability.maxAge]),
+      ];
+      return ["US", "GB", "CH", "DE", "OTHER"].flatMap((countryCode) =>
+        [...new Set(ages)].map(
+          (age) => [rule.id, countryCode, age, rule] as const,
+        ),
+      );
+    }),
+  )(
+    "keeps %s supported in %s at applicability age %i",
+    (_ruleId, countryCode, age, rule) => {
+      const leaves = evaluateRisks(
+        satisfyingAnswers(rule.condition),
+        { age, countryCode },
+        prototypePolicy,
+      );
+
+      expect(
+        leaves.find((leaf) => leaf.ruleId === rule.id),
+        `${rule.id} lost all applicable evidence in ${countryCode} at age ${age}`,
+      ).toBeDefined();
+    },
+  );
 });
 
 describe("evidence and release contracts", () => {
@@ -285,7 +317,7 @@ describe("evidence and release contracts", () => {
   test("exposes the current reviewed regulator and NHS records on consumer-visible leaves", () => {
     const glp = leafById("glp1-history-review", {
       uses_glp1: true,
-      glp1_detail_active_ingredient: "tirzepatide",
+      glp1_detail_product_identity: "zepbound_tirzepatide",
       glp1_detail_relevant_history: ["pancreatitis"],
     });
     const steroid = leafById("systemic-steroid-illness-review", {
@@ -301,7 +333,9 @@ describe("evidence and release contracts", () => {
     expect(glp.sources).toContainEqual(
       expect.objectContaining({
         id: "dailymed-zepbound-tirzepatide",
-        title: "Zepbound (tirzepatide) prescribing information",
+        title:
+          "ZEPBOUND- tirzepatide injection, solution; ZEPBOUND KWIKPEN- tirzepatide injection, solution",
+        publisher: "DailyMed, U.S. National Library of Medicine",
         url: "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=487cd7e7-434c-4925-99fa-aa80b1cc776b&version=38",
         reviewedAt: "2026-08-03",
       }),
@@ -536,6 +570,7 @@ describe("evidence and release contracts", () => {
     const byId = new Map(riskRules.map((rule) => [rule.id, rule]));
     const adolescentSupport = byId.get("adolescent-substance-support");
     const adolescentSafety = byId.get("adolescent-substance-safety-support");
+    const adolescentUrgent = byId.get("urgent-adolescent-substance-safety");
     const adolescentPregnancy = byId.get(
       "urgent-adolescent-pregnancy-safety",
     );
@@ -551,8 +586,13 @@ describe("evidence and release contracts", () => {
         "samhsaYouthSubstanceSupport",
       ]),
     );
+    expect(evidenceSources.whoAdolescentFriendlyServices.applicability).toEqual({
+      minAge: 10,
+      maxAge: 19,
+      countries: "all",
+    });
     expect(adolescentSafety?.sourceIds).not.toContain("cdcYrbs");
-    expect(adolescentSafety?.sourceIds).toContain("whoBasicEmergencyCare");
+    expect(adolescentUrgent?.sourceIds).toContain("whoBasicEmergencyCare");
     expect(adolescentPregnancy?.sourceIds).toContain(
       "whoPregnancyHealthServices",
     );
@@ -562,7 +602,10 @@ describe("evidence and release contracts", () => {
         urgency: "support",
       }),
     );
-    expect(researchSource?.sourceIds).toEqual(["fdaUnapprovedDrugs"]);
+    expect(researchSource?.sourceIds).toEqual([
+      "fdaUnapprovedDrugs",
+      "whoSubstandardFalsifiedMedicalProducts",
+    ]);
     expect(researchReaction?.sourceIds).toEqual(["fdaProductProblems"]);
     expect(researchReaction?.evidenceTier).toBe("evidence-limited-association");
     expect(researchReaction?.sourceIds).not.toContain("cdcInjectionSafety");
@@ -959,7 +1002,7 @@ describe("structured qualitative rules", () => {
     expect(
       leafIds({
         uses_glp1: true,
-        glp1_detail_active_ingredient: "tirzepatide",
+        glp1_detail_product_identity: "zepbound_tirzepatide",
         glp1_detail_current_symptoms: ["none", "allergy"],
       }),
     ).not.toContain("glp1-severe-allergy");
@@ -967,7 +1010,7 @@ describe("structured qualitative rules", () => {
     expect(
       leafIds({
         uses_glp1: true,
-        glp1_detail_active_ingredient: "tirzepatide",
+        glp1_detail_product_identity: "zepbound_tirzepatide",
         glp1_detail_current_symptoms: ["allergy"],
       }),
     ).toContain("glp1-severe-allergy");
@@ -977,7 +1020,7 @@ describe("structured qualitative rules", () => {
     "requires the exact medication gate instead of %s",
     (gate) => {
       const answers: Record<string, unknown> = {
-        glp1_detail_active_ingredient: "tirzepatide",
+        glp1_detail_product_identity: "zepbound_tirzepatide",
         glp1_detail_current_symptoms: ["allergy"],
       };
       if (gate !== undefined) answers.uses_glp1 = gate;
@@ -1043,6 +1086,18 @@ describe("structured qualitative rules", () => {
     );
     expect(adultLeaf.sources.map((source) => source.id)).not.toContain(
       "who-child-adolescent-sexual-abuse",
+    );
+    expect(adultLeaf.sources).toContainEqual(
+      expect.objectContaining({
+        id: "who-sexual-violence-survivor-care",
+        title:
+          "Clinical management of rape and intimate partner violence in emergencies: a training curriculum for health workers, facilitator guide",
+        url: "https://www.who.int/publications/i/item/9789240100213",
+        applicability: { minAge: 18, countries: "all" },
+      }),
+    );
+    expect(adultLeaf.sources.map((source) => source.id)).not.toContain(
+      "who-sexual-violence-support",
     );
 
     for (const value of [false, "unsure", null, "true", 1] as const) {
@@ -1299,7 +1354,7 @@ describe("structured qualitative rules", () => {
     const leaves = evaluateRisks(
       {
         uses_glp1: true,
-        glp1_detail_active_ingredient: "tirzepatide",
+        glp1_detail_product_identity: "zepbound_tirzepatide",
         glp1_detail_current_symptoms: ["abdominal"],
         uses_minoxidil: true,
         minoxidil_detail_route_product: "oral",
@@ -1319,25 +1374,41 @@ describe("structured qualitative rules", () => {
 
 describe("audited medication and substance class routes", () => {
   test.each([
-    ["tirzepatide", "dailymed-zepbound-tirzepatide"],
-    ["semaglutide", "dailymed-wegovy-semaglutide"],
-    ["liraglutide", "dailymed-saxenda-liraglutide"],
-    ["dulaglutide", "dailymed-trulicity-dulaglutide"],
+    ["zepbound_tirzepatide", "dailymed-zepbound-tirzepatide"],
+    ["wegovy_semaglutide", "dailymed-wegovy-semaglutide"],
+    ["saxenda_liraglutide", "dailymed-saxenda-liraglutide"],
+    ["trulicity_dulaglutide", "dailymed-trulicity-dulaglutide"],
   ] as const)(
-    "uses only the product-appropriate official label for %s",
-    (ingredient, expectedSourceId) => {
+    "maps exact structured product identity %s to its own official label",
+    (productIdentity, expectedSourceId) => {
       const leaf = leafById("glp1-gastrointestinal-review", {
         uses_glp1: true,
-        glp1_detail_active_ingredient: ingredient,
+        glp1_detail_product_identity: productIdentity,
         glp1_detail_current_symptoms: ["abdominal"],
       });
-      const labelSourceIds = leaf.sources
-        .map((source) => source.id)
-        .filter((sourceId) => sourceId.startsWith("dailymed-"));
 
-      expect(labelSourceIds).toEqual([expectedSourceId]);
+      expect(
+        leaf.sources
+          .map((source) => source.id)
+          .filter((sourceId) => sourceId.startsWith("dailymed-")),
+      ).toEqual([expectedSourceId]);
     },
   );
+
+  test.each([
+    "mounjaro_tirzepatide",
+    "ozempic_semaglutide",
+    "rybelsus_semaglutide",
+    "victoza_liraglutide",
+  ] as const)("does not substitute another product label for %s", (productIdentity) => {
+    expect(
+      leafIds({
+        uses_glp1: true,
+        glp1_detail_product_identity: productIdentity,
+        glp1_detail_current_symptoms: ["abdominal"],
+      }),
+    ).not.toContain("glp1-gastrointestinal-review");
+  });
 
   test.each([
     [
@@ -1371,7 +1442,7 @@ describe("audited medication and substance class routes", () => {
       { glp1_detail_procedure_pregnancy: ["procedure"] },
     ],
   ] as const)(
-    "requires a recognized structured ingredient for %s",
+    "requires a recognized structured product identity for %s",
     (expectedId, detail) => {
       const base = { uses_glp1: true, ...detail } as AnswerMap;
 
@@ -1385,7 +1456,7 @@ describe("audited medication and substance class routes", () => {
       expect(
         leafIds({
           ...base,
-          glp1_detail_active_ingredient: "other_or_unsure",
+          glp1_detail_product_identity: "other_or_unsure",
         }),
       ).not.toContain(expectedId);
     },
@@ -1399,11 +1470,18 @@ describe("audited medication and substance class routes", () => {
     } as const;
 
     expect(
-      leafIds({ ...detail, glp1_detail_active_ingredient: "liraglutide" }),
+      leafIds({
+        ...detail,
+        glp1_detail_product_identity: "saxenda_liraglutide",
+      }),
     ).not.toContain("glp1-diabetes-vision-review");
-    for (const ingredient of ["tirzepatide", "semaglutide", "dulaglutide"] as const) {
+    for (const productIdentity of [
+      "zepbound_tirzepatide",
+      "wegovy_semaglutide",
+      "trulicity_dulaglutide",
+    ] as const) {
       expect(
-        leafIds({ ...detail, glp1_detail_active_ingredient: ingredient }),
+        leafIds({ ...detail, glp1_detail_product_identity: productIdentity }),
       ).toContain("glp1-diabetes-vision-review");
     }
   });
@@ -1411,27 +1489,33 @@ describe("audited medication and substance class routes", () => {
   test.each([
     [
       "dailymed-zepbound-tirzepatide",
-      "Zepbound (tirzepatide) prescribing information",
+      "ZEPBOUND- tirzepatide injection, solution; ZEPBOUND KWIKPEN- tirzepatide injection, solution",
       "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=487cd7e7-434c-4925-99fa-aa80b1cc776b&version=38",
     ],
     [
       "dailymed-wegovy-semaglutide",
-      "Wegovy (semaglutide) prescribing information",
+      "WEGOVY- semaglutide injection, solution; WEGOVY- semaglutide tablet",
       "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=ee06186f-2aa3-4990-a760-757579d8f77b&version=19",
     ],
     [
       "dailymed-saxenda-liraglutide",
-      "Saxenda (liraglutide) prescribing information",
+      "SAXENDA- liraglutide injection, solution",
       "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=3946d389-0926-4f77-a708-0acb8153b143&version=22",
     ],
     [
       "dailymed-trulicity-dulaglutide",
-      "Trulicity (dulaglutide) prescribing information",
+      "TRULICITY- dulaglutide injection, solution",
       "https://dailymed.nlm.nih.gov/dailymed/lookup.cfm?setid=463050bd-2b1c-40f5-b3c3-0a04bb433309&version=60",
     ],
   ] as const)("registers current official product label %s", (id, title, url) => {
     expect(Object.values(evidenceSources)).toContainEqual(
-      expect.objectContaining({ id, title, url, reviewedAt: "2026-08-03" }),
+      expect.objectContaining({
+        id,
+        title,
+        publisher: "DailyMed, U.S. National Library of Medicine",
+        url,
+        reviewedAt: "2026-08-03",
+      }),
     );
   });
 
@@ -1440,7 +1524,7 @@ describe("audited medication and substance class routes", () => {
       "GLP-1 fainting with glucose-lowering medicines",
       {
         uses_glp1: true,
-        glp1_detail_active_ingredient: "tirzepatide",
+        glp1_detail_product_identity: "zepbound_tirzepatide",
         glp1_detail_glucose_medicines: true,
         glp1_detail_current_symptoms: ["fainting"],
       },
@@ -1450,7 +1534,7 @@ describe("audited medication and substance class routes", () => {
       "GLP-1 vision change in diabetes",
       {
         uses_glp1: true,
-        glp1_detail_active_ingredient: "tirzepatide",
+        glp1_detail_product_identity: "zepbound_tirzepatide",
         glp1_detail_indication: "diabetes",
         glp1_detail_current_symptoms: ["vision"],
       },
@@ -1460,7 +1544,7 @@ describe("audited medication and substance class routes", () => {
       "GLP-1 relevant history",
       {
         uses_glp1: true,
-        glp1_detail_active_ingredient: "tirzepatide",
+        glp1_detail_product_identity: "zepbound_tirzepatide",
         glp1_detail_relevant_history: ["pancreatitis"],
       },
       "glp1-history-review",
@@ -1469,7 +1553,7 @@ describe("audited medication and substance class routes", () => {
       "GLP-1 pregnancy or procedure context",
       {
         uses_glp1: true,
-        glp1_detail_active_ingredient: "tirzepatide",
+        glp1_detail_product_identity: "zepbound_tirzepatide",
         glp1_detail_procedure_pregnancy: ["procedure"],
       },
       "glp1-pregnancy-procedure-review",
@@ -1568,7 +1652,7 @@ describe("audited medication and substance class routes", () => {
   test("keeps temporally ambiguous medication symptoms out of call-now routing", () => {
     const glpAllergy = leafById("glp1-severe-allergy", {
       uses_glp1: true,
-      glp1_detail_active_ingredient: "tirzepatide",
+      glp1_detail_product_identity: "zepbound_tirzepatide",
       glp1_detail_current_symptoms: ["allergy"],
     });
     const researchSystemic = leafById("research-product-condition-review", {
@@ -1620,17 +1704,44 @@ describe("audited medication and substance class routes", () => {
     },
   );
 
-  test("does not treat every unapproved product as a compounded product", () => {
-    const leaf = leafById("research-product-source-review", {
-      uses_research_peptides: true,
-      research_detail_source: "online",
-    });
+  test.each(["unauthorized_online", "research_use_only", "unknown"] as const)(
+    "uses direct global source evidence for %s research-product sourcing",
+    (sourceAnswer) => {
+      const globalLeaf = leafById(
+        "research-product-source-review",
+        {
+          uses_research_peptides: true,
+          research_detail_source: sourceAnswer,
+        },
+        adultCH,
+      );
+      const usLeaf = leafById("research-product-source-review", {
+        uses_research_peptides: true,
+        research_detail_source: sourceAnswer,
+      });
 
-    expect(leaf.sources.map((source) => source.id)).toEqual([
-      "fda-unapproved-drugs",
-    ]);
-    expect(leaf.copy).not.toMatch(/compound/i);
-  });
+      expect(globalLeaf.sources.map((source) => source.id)).toEqual([
+        "who-substandard-falsified-medical-products",
+      ]);
+      expect(usLeaf.sources.map((source) => source.id)).toEqual([
+        "fda-unapproved-drugs",
+        "who-substandard-falsified-medical-products",
+      ]);
+      expect(globalLeaf.copy).not.toMatch(/compound/i);
+    },
+  );
+
+  test.each(["authorized_online", "online"] as const)(
+    "does not infer uncertain identity from %s",
+    (sourceAnswer) => {
+      expect(
+        leafIds({
+          uses_research_peptides: true,
+          research_detail_source: sourceAnswer,
+        }),
+      ).not.toContain("research-product-source-review");
+    },
+  );
 
   test.each([
     ["chest_breath", "anabolic-cardiorespiratory-review"],
@@ -1792,43 +1903,64 @@ describe("audited medication and substance class routes", () => {
     ).toEqual([]);
   });
 
-  test("keeps an adolescent past-year severe substance event in support-only routing", () => {
+  test("keeps an adolescent resolved past-year severe substance event in support-only routing", () => {
     const leaf = leafById(
       "adolescent-substance-safety-support",
-      { uses_cannabis: true, adolescent_substance_urgent_safety: true },
+      {
+        uses_cannabis: true,
+        adolescent_substance_severe_timing: "past_year_not_now",
+      },
       { age: 15, countryCode: "GB" },
     );
 
     expect(leaf.urgency).toBe("support");
     expect(leaf.copy).not.toMatch(/call .*emergency/i);
-    expect(leaf.copy).toMatch(/if .*happening now.*immediate.*emergency/i);
+    expect(leaf.copy).toMatch(/past year/i);
   });
 
   test.each(["CH", "GB", "OTHER"] as const)(
-    "supports adolescent severe substance signals directly outside the US in %s",
+    "routes a current adolescent severe substance signal urgently in %s",
     (countryCode) => {
       const leaf = leafById(
-        "adolescent-substance-safety-support",
-        { uses_cannabis: true, adolescent_substance_urgent_safety: true },
+        "urgent-adolescent-substance-safety",
+        {
+          uses_cannabis: true,
+          adolescent_substance_severe_timing: "happening_now",
+        },
         { age: 15, countryCode },
       );
 
+      expect(leaf.urgency).toBe("urgent");
       expect(leaf.sources.map((source) => source.id)).toContain(
         "who-basic-emergency-care",
       );
-      expect(leaf.sources.map((source) => source.id)).toContain(
-        "who-adolescent-friendly-services",
-      );
+      if (countryCode === "CH") expect(leaf.copy).toMatch(/144/);
+      if (countryCode === "GB") expect(leaf.copy).toMatch(/999/);
+      if (countryCode === "OTHER") {
+        expect(leaf.copy).toMatch(/local emergency service/i);
+        expect(leaf.copy).not.toMatch(/\b(?:911|999|144)\b/);
+      }
     },
   );
 
   test("rejects a stale adolescent safety answer without any substance gate", () => {
     expect(
       leafIds(
+        { adolescent_substance_severe_timing: "happening_now" },
+        { age: 15, countryCode: "GB" },
+      ),
+    ).not.toContain("urgent-adolescent-substance-safety");
+    expect(
+      leafIds(
         { adolescent_substance_urgent_safety: true },
         { age: 15, countryCode: "GB" },
       ),
-    ).not.toContain("adolescent-substance-safety-support");
+    ).not.toEqual(
+      expect.arrayContaining([
+        "urgent-adolescent-substance-safety",
+        "adolescent-substance-safety-support",
+      ]),
+    );
   });
 });
 
@@ -1877,15 +2009,24 @@ describe("minor and pregnancy boundaries", () => {
     ).toContain("who-adolescent-pregnancy");
   });
 
-  test("child feeling support cites child- or adolescent-applicable guidance", () => {
-    const leaf = leafById(
-      "child-feeling-support",
-      { child_feeling_support: true },
-      { age: 12, countryCode: "GB", assistedMinor: true },
-    );
+  test.each([0, 9, 12] as const)(
+    "child feeling support has global child-specific evidence at age %s",
+    (age) => {
+      const leaf = leafById(
+        "child-feeling-support",
+        { child_feeling_support: true },
+        { age, countryCode: "CH", assistedMinor: true },
+      );
 
-    expect(leaf.sources.map((source) => source.id)).not.toContain(
-      "nice-depression-adults",
-    );
-  });
+      expect(leaf.sources.map((source) => source.id)).toContain(
+        "who-child-young-people-mental-health-services",
+      );
+      expect(leaf.sources.map((source) => source.id)).not.toContain(
+        "who-adolescent-friendly-services",
+      );
+      expect(leaf.sources.map((source) => source.id)).not.toContain(
+        "nice-depression-adults",
+      );
+    },
+  );
 });
