@@ -33,6 +33,15 @@ function contrast(left: string, right: string): number {
 }
 
 describe("global interaction styles", () => {
+  test("uses the smaller question-heading scale at desktop and mobile widths", () => {
+    expect(css).toMatch(
+      /\.question-sheet h1[^{]*\{[^}]*font-size:\s*clamp\(1\.9rem,\s*3\.4vw,\s*3\.75rem\)/s,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 560px\)[\s\S]+\.question-sheet h1[^{]*\{[^}]*clamp\(1\.7rem,\s*7\.4vw,\s*2\.6rem\)/s,
+    );
+  });
+
   test("uses a two-color focus-visible indicator that contrasts on paper and deep water", () => {
     const focusRule = css.match(
       /button:focus-visible[^{]+\{(?<declarations>[^}]+)\}/s,

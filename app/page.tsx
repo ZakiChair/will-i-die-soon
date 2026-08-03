@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { Assessment } from "./components/assessment";
 import { ConsentScreen } from "./components/consent-screen";
 import { Landing } from "./components/landing";
+import { LanguageSwitcher } from "./components/language-switcher";
 import { Results } from "./components/results";
+import { I18nProvider } from "./i18n/context";
 import type { ConfirmedLabValue } from "./lib/labs";
 import type { AnalysisDepth, AnswerMap, ProfileContext } from "./lib/types";
 
@@ -20,7 +22,7 @@ type AppScreen =
       profile: ProfileContext;
     };
 
-export default function Home() {
+function HomeExperience() {
   const [screen, setScreen] = useState<AppScreen>({ kind: "landing" });
 
   useEffect(() => {
@@ -84,5 +86,14 @@ export default function Home() {
         onRestart={() => setScreen({ kind: "landing" })}
       />
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <I18nProvider>
+      <LanguageSwitcher />
+      <HomeExperience />
+    </I18nProvider>
   );
 }
