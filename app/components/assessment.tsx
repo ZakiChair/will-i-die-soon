@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { questionBank } from "../data/questions";
+import { useI18n } from "../i18n/context";
+import { localizeRiskLeaves } from "../i18n/presentation";
+import { localizeQuestion } from "../i18n/questions-fr";
+import { uiCopyKeys } from "../i18n/ui-copy";
 import {
   buildAssessmentQueue,
   getNextQuestion,
@@ -82,6 +86,7 @@ function milestoneIndices(queue: ReadonlyArray<Question>, depth: AnalysisDepth) 
 }
 
 export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
+  const { locale, t } = useI18n();
   const initialQueue = useMemo(
     () => buildAssessmentQueue(depth, questionBank, profile, {}),
     [depth, profile],
@@ -106,6 +111,12 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   const urgentHeading = useRef<HTMLHeadingElement>(null);
   const { answers, queue } = questionnaire;
   const question = queue[currentIndex] ?? getNextQuestion(questionnaire);
+  const presentedQuestion = question ? localizeQuestion(question, locale) : null;
+  const presentedUrgentLeaf = useMemo(
+    () =>
+      urgentLeaf ? localizeRiskLeaves([urgentLeaf], locale, profile)[0] ?? null : null,
+    [locale, profile, urgentLeaf],
+  );
 
   useEffect(() => {
     if (!intermission && !urgentLeaf) questionHeading.current?.focus();
@@ -227,20 +238,19 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
           <div className="wordmark">
             Will I Die <strong>Soon?</strong>
           </div>
-          <p className="prototype-label data-label">Immediate safety / {depth}</p>
+          <p className="prototype-label data-label">
+            {t("urgent.header", { depth: t(uiCopyKeys.depth[depth]) })}
+          </p>
         </header>
         <article className="question-sheet safety-screen" role="alert">
-          <p className="question-sheet__domain data-label">Immediate safety signal</p>
+          <p className="question-sheet__domain data-label">{t("urgent.eyebrow")}</p>
           <h1 id="urgent-action-title" ref={urgentHeading} tabIndex={-1}>
-            Immediate action
+            {t("urgent.title")}
           </h1>
-          <p className="safety-screen__action">{urgentLeaf.copy}</p>
-          <p>
-            This prototype cannot contact emergency services, crisis support, or anyone
-            nearby for you.
-          </p>
+          <p className="safety-screen__action">{presentedUrgentLeaf?.copy}</p>
+          <p>{t("urgent.localBoundary")}</p>
           <button type="button" onClick={() => setUrgentLeaf(null)}>
-            Change my answer
+            {t("urgent.change")}
           </button>
         </article>
       </section>
@@ -274,13 +284,15 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
         <div className="wordmark">
           Will I Die <strong>Soon?</strong>
         </div>
-        <p className="prototype-label data-label">In-memory assessment / {depth}</p>
+        <p className="prototype-label data-label">
+          {t("assessment.header", { depth: t(uiCopyKeys.depth[depth]) })}
+        </p>
       </header>
       <div className="assessment__layout">
-        <aside className="assessment__rail" aria-label="Assessment progress">
-          <p className="data-label">Your living map</p>
+        <aside className="assessment__rail" aria-label={t("assessment.progress.aria")}>
+          <p className="data-label">{t("assessment.map")}</p>
           <progress value={currentIndex} max={queue.length}>
-            {currentIndex} of {queue.length}
+            {t("assessment.progress", { completed: currentIndex, total: queue.length })}
           </progress>
           <LivingCanopy
             progress={currentIndex / queue.length}
@@ -290,18 +302,18 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
         </aside>
         <article className="question-sheet">
           <p className="assessment__progress" aria-live="polite">
-            Question {currentIndex + 1} of {queue.length}
+            {t("assessment.question", { current: currentIndex + 1, total: queue.length })}
           </p>
           <p className="question-sheet__domain data-label">
-            {question?.domain.replaceAll("-", " ")}
+            {question ? t(uiCopyKeys.domain[question.domain]) : null}
           </p>
           <h1 id="question-title" ref={questionHeading} tabIndex={-1}>
-            {question?.prompt}
+            {presentedQuestion?.prompt}
           </h1>
           {question ? (
             <QuestionControl
               key={question.id}
-              question={question}
+              question={presentedQuestion ?? question}
               answer={answers[question.id]}
               onAnswer={recordAnswer}
               canGoBack={currentIndex > 0}

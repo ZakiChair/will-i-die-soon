@@ -1,9 +1,17 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render as testingRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { vi } from "vitest";
 
+import { I18nProvider } from "../i18n/context";
+import * as labsModule from "../lib/labs";
 import { Assessment } from "./assessment";
 import { LabImport } from "./lab-import";
+import { LanguageSwitcher } from "./language-switcher";
+
+function render(ui: ReactElement) {
+  return testingRender(<I18nProvider>{ui}</I18nProvider>);
+}
 
 function localTextFile(contents: string) {
   const file = new File([contents], "report.txt", { type: "text/plain" });
@@ -434,4 +442,183 @@ test("a subset re-import removes only stale imported mappings and preserves manu
       reviewed: expect.objectContaining({ marker: "ast", value: 48 }),
     }),
   ]);
+});
+
+test("keeps an editable manual row and its machine values intact while localizing every lab control", async () => {
+  const user = userEvent.setup();
+  const onConfirm = vi.fn();
+  render(
+    <>
+      <LanguageSwitcher />
+      <LabImport onConfirm={onConfirm} onCancel={vi.fn()} />
+    </>,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Enter results manually" }));
+  await user.selectOptions(screen.getByRole("combobox", { name: "Marker" }), "hba1c");
+  await user.type(screen.getByRole("spinbutton", { name: "Reported value" }), "5.7");
+  await user.type(screen.getByRole("textbox", { name: "Reported unit" }), "%");
+  await user.type(
+    screen.getByRole("textbox", { name: "Laboratory reference range" }),
+    "4.0–5.6 H",
+  );
+  await user.type(screen.getByLabelText("Collection date"), "2026-07-30");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Fasting status" }), "fasting");
+  await user.click(screen.getByRole("checkbox", { name: "Include HbA1c" }));
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(screen.getByRole("combobox", { name: "Marqueur" })).toHaveValue("hba1c");
+  expect(screen.getByRole("spinbutton", { name: "Valeur indiquée" })).toHaveValue(5.7);
+  expect(screen.getByRole("textbox", { name: "Unité indiquée" })).toHaveValue("%");
+  expect(screen.getByRole("textbox", { name: "Intervalle de référence du laboratoire" }))
+    .toHaveValue("4.0–5.6 H");
+  expect(screen.getByRole("combobox", { name: "Statut de jeûne" })).toHaveValue("fasting");
+  expect(screen.getByRole("checkbox", { name: "Inclure HbA1c" })).toBeChecked();
+  await user.click(screen.getByRole("button", { name: "Confirmer les résultats sélectionnés" }));
+
+  expect(onConfirm).toHaveBeenCalledWith([
+    expect.objectContaining({
+      reviewed: expect.objectContaining({
+        marker: "hba1c",
+        valueText: "5.7",
+        unit: "%",
+        referenceRange: "4.0–5.6 H",
+        collectionDate: "2026-07-30",
+        fastingStatus: "fasting",
+      }),
+    }),
+  ]);
+});
+
+test("rerenders an already-visible no-marker error from its key after a locale switch", async () => {
+  const user = userEvent.setup();
+  render(
+    <>
+      <LanguageSwitcher />
+      <LabImport onConfirm={vi.fn()} onCancel={vi.fn()} />
+    </>,
+  );
+
+  await user.upload(
+    screen.getByLabelText("Choose a lab report"),
+    localTextFile("unsupported report content"),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(/no unambiguous supported markers/i);
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(screen.getByRole("alert")).toHaveTextContent(/aucun marqueur pris en charge/i);
+  expect(screen.getByRole("group", { name: "Résultat indiqué 1" })).toBeVisible();
+  expect(screen.queryByText(/please use manual entry/i)).not.toBeInTheDocument();
+});
+
+test("localizes a pending extraction and its eventual failure without restarting the file task", async () => {
+  const user = userEvent.setup();
+  let rejectText: ((reason?: unknown) => void) | undefined;
+  const file = new File(["pending"], "analyse.txt", { type: "text/plain" });
+  Object.defineProperty(file, "text", {
+    value: vi.fn(
+      () =>
+        new Promise<string>((_resolve, reject) => {
+          rejectText = reject;
+        }),
+    ),
+  });
+  render(
+    <>
+      <LanguageSwitcher />
+      <LabImport onConfirm={vi.fn()} onCancel={vi.fn()} />
+    </>,
+  );
+
+  await user.upload(screen.getByLabelText("Choose a lab report"), file);
+  expect(screen.getByRole("status")).toHaveTextContent("Reading the report on this device…");
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  expect(screen.getByRole("status")).toHaveTextContent("Lecture du rapport sur cet appareil…");
+
+  rejectText?.(new Error("local extraction failed"));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Le rapport analyse.txt n'a pas pu être extrait sur cet appareil.",
+  );
+  expect(screen.getByRole("group", { name: "Résultat indiqué 1" })).toBeVisible();
+});
+
+test("localizes extracted-row metadata and row tools while preserving every printed value", async () => {
+  const user = userEvent.setup();
+  const onCancel = vi.fn();
+  render(
+    <>
+      <LanguageSwitcher />
+      <LabImport onConfirm={vi.fn()} onCancel={onCancel} />
+    </>,
+  );
+
+  await user.upload(
+    screen.getByLabelText("Choose a lab report"),
+    localTextFile(
+      "Collection date: 2026-07-30\nFasting: no\nLDL Chol Calc = 100 mg/dL [ 0 – 99 ] H",
+    ),
+  );
+  await screen.findByDisplayValue("100");
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(screen.getByText(/l'extraction est un brouillon/i)).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Marqueur" })).toHaveValue("ldl_cholesterol");
+  expect(screen.getByRole("spinbutton", { name: "Valeur indiquée" })).toHaveValue(100);
+  expect(screen.getByRole("spinbutton", { name: "Valeur indiquée" })).toHaveAttribute(
+    "placeholder",
+    "Valeur",
+  );
+  expect(screen.getByRole("textbox", { name: "Unité indiquée" })).toHaveValue("mg/dL");
+  expect(screen.getByRole("textbox", { name: "Unité indiquée" })).toHaveAttribute(
+    "placeholder",
+    "Unité telle qu'imprimée",
+  );
+  expect(screen.getByRole("textbox", { name: "Intervalle de référence du laboratoire" }))
+    .toHaveValue("[ 0 – 99 ]");
+  expect(screen.getByText("Indicateur imprimé par le laboratoire : H")).toBeVisible();
+  expect(screen.getByText("Note de méthode du laboratoire : calculated")).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Statut de jeûne" })).toHaveValue("not_fasting");
+
+  await user.click(screen.getByRole("button", { name: "Ajouter un autre résultat" }));
+  expect(screen.getAllByRole("group", { name: /Résultat indiqué/ })).toHaveLength(2);
+  await user.click(screen.getByRole("button", { name: "Supprimer la valeur de laboratoire 2" }));
+  expect(screen.getAllByRole("group", { name: /Résultat indiqué/ })).toHaveLength(1);
+  expect(screen.getByDisplayValue("100")).toBeVisible();
+  expect(screen.getByDisplayValue("mg/dL")).toBeVisible();
+
+  await user.click(screen.getByRole("button", { name: "Continuer sans importation" }));
+  expect(onCancel).toHaveBeenCalledOnce();
+});
+
+test("does not re-extract or reparse an existing laboratory draft when locale changes", async () => {
+  const user = userEvent.setup();
+  const extract = vi.spyOn(labsModule, "extractLabText");
+  const parse = vi.spyOn(labsModule, "parseLabCandidates");
+  render(
+    <>
+      <LanguageSwitcher />
+      <LabImport onConfirm={vi.fn()} onCancel={vi.fn()} />
+    </>,
+  );
+  await user.upload(
+    screen.getByLabelText("Choose a lab report"),
+    localTextFile("HbA1c 5.7 % (4.0 - 5.6)"),
+  );
+  await screen.findByDisplayValue("5.7");
+  const callsBeforeSwitch = {
+    extract: extract.mock.calls.length,
+    parse: parse.mock.calls.length,
+  };
+  expect(callsBeforeSwitch.extract).toBeGreaterThan(0);
+  expect(callsBeforeSwitch.parse).toBeGreaterThan(0);
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(extract).toHaveBeenCalledTimes(callsBeforeSwitch.extract);
+  expect(parse).toHaveBeenCalledTimes(callsBeforeSwitch.parse);
+  extract.mockRestore();
+  parse.mockRestore();
 });

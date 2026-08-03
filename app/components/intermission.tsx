@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { useI18n } from "../i18n/context";
+import { uiCopyKeys } from "../i18n/ui-copy";
 import type { HealthDomain } from "../lib/types";
 
 export type IntermissionProps = {
@@ -9,10 +11,6 @@ export type IntermissionProps = {
   total: number;
   onContinue: () => void;
 };
-
-function domainLabel(domain: HealthDomain) {
-  return domain.replaceAll("-", " ");
-}
 
 const SLEEP_DOMAINS: ReadonlySet<HealthDomain> = new Set([
   "sleep",
@@ -54,6 +52,7 @@ export function Intermission({
   total,
   onContinue,
 }: IntermissionProps) {
+  const { t } = useI18n();
   const artwork = artworkFor(completedDomain);
 
   return (
@@ -76,14 +75,13 @@ export function Intermission({
         />
       </div>
       <div className="intermission__panel">
-        <p className="data-label">Milestone · {completed} of {total}</p>
-        <h1 id="intermission-title">A moment to let the map settle.</h1>
-        <p>
-          You have completed the {domainLabel(completedDomain)} section. Your answers
-          are still here in this browser session.
+        <p className="data-label">
+          {t("intermission.eyebrow", { completed, total })}
         </p>
+        <h1 id="intermission-title">{t("intermission.title")}</h1>
+        <p>{t("intermission.body", { domain: t(uiCopyKeys.domain[completedDomain]) })}</p>
         <button className="primary-action" type="button" onClick={onContinue} autoFocus>
-          Continue assessment
+          {t("intermission.continue")}
         </button>
       </div>
     </section>

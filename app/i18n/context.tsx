@@ -10,10 +10,10 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import { uiCopy } from "./ui-copy";
+import { uiCopy, type UiCopyKey } from "./ui-copy";
 import type { Locale, MessageVariables } from "./types";
 
-type Translate = (key: string, variables?: MessageVariables) => string;
+export type Translate = (key: UiCopyKey, variables?: MessageVariables) => string;
 
 type I18nContextValue = {
   locale: Locale;
@@ -30,8 +30,8 @@ function interpolate(message: string, variables?: MessageVariables): string {
   });
 }
 
-function translate(locale: Locale, key: string, variables?: MessageVariables): string {
-  const message = uiCopy[locale][key as keyof (typeof uiCopy)[Locale]];
+function translate(locale: Locale, key: UiCopyKey, variables?: MessageVariables): string {
+  const message = uiCopy[locale][key];
 
   if (!message) {
     if (process.env.NODE_ENV !== "production") {

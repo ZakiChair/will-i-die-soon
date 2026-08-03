@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useI18n } from "../i18n/context";
+import { type UiCopyKey, uiCopyKeys } from "../i18n/ui-copy";
 import { LivingCanopy } from "./living-canopy";
 
 export type AnalysisDepth = "quick" | "detailed" | "deep";
@@ -12,31 +14,28 @@ type LandingProps = {
 
 const depths: ReadonlyArray<{
   id: AnalysisDepth;
-  label: string;
-  detail: string;
-  description: string;
+  detailKey: UiCopyKey;
+  descriptionKey: UiCopyKey;
 }> = [
   {
     id: "quick",
-    label: "Quick",
-    detail: "20 core signals · about 3 minutes",
-    description: "A concise map of current signals and protective roots.",
+    detailKey: "depth.quick.detail",
+    descriptionKey: "depth.quick.description",
   },
   {
     id: "detailed",
-    label: "Detailed",
-    detail: "50 questions · about 8 minutes",
-    description: "A broader look at habits, context, and follow-up questions.",
+    detailKey: "depth.detailed.detail",
+    descriptionKey: "depth.detailed.description",
   },
   {
     id: "deep",
-    label: "Deep",
-    detail: "150–200 adaptive questions · 20–30 minutes",
-    description: "A paced, domain-by-domain exploration with more context.",
+    detailKey: "depth.deep.detail",
+    descriptionKey: "depth.deep.description",
   },
 ];
 
 export function Landing({ onStart }: LandingProps) {
+  const { t } = useI18n();
   const [motionAllowed, setMotionAllowed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
 
@@ -68,22 +67,18 @@ export function Landing({ onStart }: LandingProps) {
           Will I Die <strong>Soon?</strong>
         </div>
         <div className="prototype-label data-label">
-          Private research prototype / local-only
+          {t("landing.prototype")}
         </div>
       </header>
 
       <div className="landing__main">
         <section className="landing__hero" aria-labelledby="landing-title">
           <div>
-            <p className="landing__kicker data-label">A calmer way to inspect uncertainty</p>
+            <p className="landing__kicker data-label">{t("landing.kicker")}</p>
             <h1 id="landing-title">
-              Your health is not a verdict.<span>It is a map.</span>
+              {t("landing.title.before")}<span>{t("landing.title.after")}</span>
             </h1>
-            <p className="landing__intro">
-              Explore health signals and modifiable factors in your browser.
-              This prototype gives you a paced, explainable view—not a diagnosis,
-              prediction, or final word about your future.
-            </p>
+            <p className="landing__intro">{t("landing.intro")}</p>
             <div className="landing__rule" aria-hidden="true" />
           </div>
           <div className="landing__canopy-stage">
@@ -135,17 +130,17 @@ export function Landing({ onStart }: LandingProps) {
 
         <section className="depth-section" aria-labelledby="depth-title">
           <div className="section-heading">
-            <p className="data-label">Choose your pace</p>
-            <h2 id="depth-title">The same map, with room for different questions.</h2>
+            <p className="data-label">{t("landing.pace.eyebrow")}</p>
+            <h2 id="depth-title">{t("landing.pace.title")}</h2>
           </div>
           <div className="depth-grid">
             {depths.map((depth) => (
               <article className="depth-card" key={depth.id}>
-                <p className="depth-card__eyebrow">{depth.detail}</p>
-                <h3>{depth.label}</h3>
-                <p>{depth.description}</p>
+                <p className="depth-card__eyebrow">{t(depth.detailKey)}</p>
+                <h3>{t(uiCopyKeys.depth[depth.id])}</h3>
+                <p>{t(depth.descriptionKey)}</p>
                 <button type="button" onClick={() => onStart(depth.id)}>
-                  Choose {depth.label}
+                  {t("depth.choose", { depth: t(uiCopyKeys.depth[depth.id]) })}
                 </button>
               </article>
             ))}
@@ -154,28 +149,28 @@ export function Landing({ onStart }: LandingProps) {
 
         <section className="privacy-panel" aria-labelledby="privacy-title">
           <div>
-            <p className="privacy-panel__eyebrow">Private by design</p>
-            <h2 id="privacy-title">Your answers stay in this browser session.</h2>
+            <p className="privacy-panel__eyebrow">{t("landing.privacy.eyebrow")}</p>
+            <h2 id="privacy-title">{t("landing.privacy.title")}</h2>
           </div>
           <dl className="privacy-panel__facts">
             <div>
-              <dt>Local only</dt>
-              <dd>No account, backend, analytics, cookies, or answer storage.</dd>
+              <dt>{t("landing.privacy.local.title")}</dt>
+              <dd>{t("landing.privacy.local.body")}</dd>
             </div>
             <div>
-              <dt>Evidence first</dt>
-              <dd>Every later signal is designed to show its evidence tier, inputs, and limits.</dd>
+              <dt>{t("landing.privacy.evidence.title")}</dt>
+              <dd>{t("landing.privacy.evidence.body")}</dd>
             </div>
             <div>
-              <dt>Clear boundary</dt>
-              <dd>This private prototype explores patterns; it does not diagnose or predict death.</dd>
+              <dt>{t("landing.privacy.boundary.title")}</dt>
+              <dd>{t("landing.privacy.boundary.body")}</dd>
             </div>
           </dl>
         </section>
       </div>
 
       <footer className="landing__footnote">
-        If you think you may be in immediate danger, contact local emergency services now.
+        {t("landing.urgent")}
       </footer>
     </div>
   );

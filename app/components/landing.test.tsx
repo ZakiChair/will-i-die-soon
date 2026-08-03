@@ -1,7 +1,14 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render as testingRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { afterEach, expect, test, vi } from "vitest";
+import { I18nProvider } from "../i18n/context";
+import { LanguageSwitcher } from "./language-switcher";
 import { Landing } from "./landing";
+
+function render(ui: ReactElement) {
+  return testingRender(<I18nProvider>{ui}</I18nProvider>);
+}
 
 type MotionPreference = {
   media: MediaQueryList;
@@ -54,6 +61,34 @@ test("starts the quick exploration from the landing action", async () => {
 
   await user.click(screen.getByRole("button", { name: /choose quick/i }));
 
+  expect(onStart).toHaveBeenCalledWith("quick");
+});
+
+test("presents every landing section in French while keeping canonical depth values", async () => {
+  const onStart = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <>
+      <LanguageSwitcher />
+      <Landing onStart={onStart} />
+    </>,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(
+    screen.getByRole("heading", { name: /votre santé n'est pas un verdict.*c'est une carte/i }),
+  ).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Rapide" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Détaillée" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Approfondie" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Vos réponses restent dans cette session du navigateur." }))
+    .toBeVisible();
+  expect(document.body.textContent).not.toMatch(
+    /Choose your pace|Private by design|Evidence first|Clear boundary/i,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Choisir l'analyse Rapide" }));
   expect(onStart).toHaveBeenCalledWith("quick");
 });
 

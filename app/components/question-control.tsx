@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "../i18n/context";
+import { questionUnitKeys, type UiCopyKey } from "../i18n/ui-copy";
 import type { AnswerValue, Question } from "../lib/types";
 
 export type QuestionControlProps = {
@@ -21,36 +23,8 @@ function initialValue(question: Question, answer: AnswerValue | undefined) {
   return String(answer);
 }
 
-const NUMERIC_UNITS: Readonly<Record<string, string>> = {
-  height_cm: "cm",
-  weight_kg: "kg",
-  plant_food_frequency: "portions / day",
-  weekly_moderate_activity_minutes: "minutes / week",
-  usual_sleep_hours: "hours / day",
-  waist_circumference_cm: "cm",
-  sun_burns_recent: "times / year",
-  dental_brushing: "times / day",
-  blood_pressure_systolic: "mmHg",
-  blood_pressure_diastolic: "mmHg",
-  diet_legumes: "times / week",
-  diet_nuts_seeds: "days / week",
-  diet_fish: "servings / week",
-  diet_sugary_drinks: "drinks / week",
-  hydration_daily_fluid: "litres / day",
-  movement_walking_days: "days / week",
-  movement_strength_days: "days / week",
-  sedentary_total_hours: "hours / day",
-  sedentary_screen_evening: "hours",
-  sleep_fall_asleep_minutes: "minutes",
-  circadian_bedtime_variation: "hours",
-  circadian_wake_variation: "hours",
-  tobacco_detail_frequency: "uses / day",
-  alcohol_detail_typical_amount: "standard drinks",
-  cannabis_detail_frequency: "days / 30 days",
-};
-
-function numericUnit(questionId: string): string | null {
-  return NUMERIC_UNITS[questionId] ?? null;
+function numericUnitKey(questionId: string): UiCopyKey | null {
+  return questionUnitKeys[questionId as keyof typeof questionUnitKeys] ?? null;
 }
 
 export function QuestionControl({
@@ -60,6 +34,7 @@ export function QuestionControl({
   onBack,
   canGoBack,
 }: QuestionControlProps) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState<string | string[]>(() =>
     initialValue(question, answer),
   );
@@ -99,7 +74,7 @@ export function QuestionControl({
     setDraft([...current.filter((item) => item !== "none" && item !== value), value]);
   }
 
-  const unit = numericUnit(question.id);
+  const unitKey = numericUnitKey(question.id);
 
   return (
     <form
@@ -116,14 +91,14 @@ export function QuestionControl({
       }}
     >
       <fieldset aria-labelledby="question-title">
-        <legend className="sr-only">Answer choices</legend>
+        <legend className="sr-only">{t("question.legend")}</legend>
 
         {question.answerType === "boolean" ? (
           <div className="answer-grid">
             {[
-              { value: "true", label: "Yes" },
-              { value: "false", label: "No" },
-              { value: "unsure", label: "Not sure" },
+              { value: "true", label: t("question.yes") },
+              { value: "false", label: t("question.no") },
+              { value: "unsure", label: t("question.unsure") },
             ].map((option) => (
               <label className="answer-option" key={option.value}>
                 <input
@@ -183,20 +158,20 @@ export function QuestionControl({
               type="number"
               inputMode="decimal"
               step="any"
-              aria-describedby={unit ? `${question.id}-unit` : undefined}
+              aria-describedby={unitKey ? `${question.id}-unit` : undefined}
               value={Array.isArray(draft) ? "" : draft}
               onChange={(event) => setDraft(event.target.value)}
             />
-            {unit ? (
+            {unitKey ? (
               <span id={`${question.id}-unit`} className="question-number__unit">
-                {unit}
+                {t(unitKey)}
               </span>
             ) : null}
           </div>
         ) : null}
 
         {question.answerType === "scale" ? (
-          <div className="scale-grid" aria-label="Scale from 0 to 10">
+          <div className="scale-grid" role="group" aria-label={t("question.scale")}>
             {Array.from({ length: 11 }, (_, value) => (
               <label key={value}>
                 <input
@@ -228,22 +203,22 @@ export function QuestionControl({
       </fieldset>
 
       <details className="why-we-ask">
-        <summary>Why we ask</summary>
+        <summary>{t("question.why")}</summary>
         <p>{question.why}</p>
       </details>
 
       <div className="question-actions">
         <button type="button" onClick={onBack} disabled={!canGoBack}>
-          Back
+          {t("question.back")}
         </button>
         <button
           type="button"
           aria-pressed={answer === null}
           onClick={() => onAnswer(null)}
         >
-          Prefer not to say
+          {t("question.skip")}
         </button>
-        <button type="submit">Continue</button>
+        <button type="submit">{t("question.continue")}</button>
       </div>
     </form>
   );

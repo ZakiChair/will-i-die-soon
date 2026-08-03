@@ -1,12 +1,34 @@
-import { render, screen, within } from "@testing-library/react";
+import { render as testingRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { expect, test, vi } from "vitest";
 
 import Home from "../page";
+import { I18nProvider } from "../i18n/context";
 import type { ConfirmedLabValue } from "../lib/labs";
+import * as riskEngineModule from "../lib/risk-engine";
+import * as scoringModule from "../lib/scoring";
 import type { AnswerMap, RiskLeaf } from "../lib/types";
+import { LanguageSwitcher } from "./language-switcher";
 import { RiskTree } from "./risk-tree";
 import { Results } from "./results";
+
+function render(ui: ReactElement) {
+  return testingRender(<I18nProvider>{ui}</I18nProvider>);
+}
+
+function renderLocalizedResults(
+  props: Omit<React.ComponentProps<typeof Results>, "onRestart"> & {
+    readonly onRestart?: () => void;
+  },
+) {
+  return render(
+    <>
+      <LanguageSwitcher />
+      <Results {...props} onRestart={props.onRestart ?? vi.fn()} />
+    </>,
+  );
+}
 
 const source = {
   id: "official-source",
@@ -133,7 +155,7 @@ test("the risk canopy is complete semantic navigation with an adjacent evidence 
   expect(reviewButton).toHaveAttribute("aria-pressed", "true");
   const panel = screen.getByRole("region", { name: "Follow-up conversation" });
   expect(panel).toHaveTextContent("A structured self-reported factor");
-  expect(panel).toHaveTextContent("another structured answer");
+  expect(panel).toHaveTextContent("A question not shown in this route");
   expect(panel).toHaveTextContent("Guideline action");
   expect(within(panel).getByRole("link", { name: /official public-health guidance/i })).toHaveAttribute(
     "href",
@@ -418,7 +440,7 @@ test("print, explicit raw JSON opt-in, and restart are separate local controls",
 
 test("page completion hands depth into Results and restart clears the in-memory journey", async () => {
   const user = userEvent.setup();
-  render(<Home />);
+  testingRender(<Home />);
   await user.click(screen.getByRole("button", { name: /choose quick/i }));
   await user.type(screen.getByLabelText(/how old are you/i), "35");
   await user.selectOptions(screen.getByLabelText(/country or region/i), "CH");
@@ -439,4 +461,254 @@ test("page completion hands depth into Results and restart clears the in-memory 
   expect(
     screen.getByRole("heading", { name: /your health is not a verdict.*it is a map/i }),
   ).toBeVisible();
+});
+
+test("renders the complete adult result presentation in French while preserving clinical machine data", async () => {
+  const user = userEvent.setup();
+  renderLocalizedResults({
+    answers: {
+      ...F1_ANSWERS,
+      urgent_chest_discomfort_now: true,
+      preventive_followup_action: "access_or_safety_barrier",
+      med_detail_prescriber_followup: "no_current_access",
+    },
+    assessmentDepth: "deep",
+    confirmedLabs: [confirmedLab],
+    profile: { age: 35, countryCode: "CH" },
+  });
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(
+    screen.getByRole("heading", {
+      name: "Votre carte de santé, avec les raisons associées.",
+    }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("heading", {
+      name: "Purity Score — habitudes de bien-être, pas un verdict sur la santé.",
+    }),
+  ).toBeVisible();
+  expect(screen.getByText("Habitudes alimentaires")).toBeVisible();
+  expect(screen.getByRole("alert")).toHaveTextContent(/appelez maintenant le 144/i);
+  expect(
+    screen.getByRole("heading", { name: "Actions que vous pouvez choisir" }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("region", { name: "Contexte de laboratoire confirmé" }),
+  ).toHaveTextContent("5.7 %");
+  expect(
+    screen.getByRole("region", { name: "Contexte de laboratoire confirmé" }),
+  ).toHaveTextContent("4.0–5.6");
+  expect(screen.getByRole("button", { name: "Télécharger le JSON" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Recommencer depuis le début" })).toBeVisible();
+  expect(document.body.textContent).not.toMatch(
+    /Your field notes|Versioned habit ledger|Actions you can choose|Confirmed lab context|Keep or clear these results/i,
+  );
+});
+
+test("keeps the selected evidence leaf and raw-answer choice while exporting equivalent localized JSON", async () => {
+  const user = userEvent.setup();
+  const blobs: Blob[] = [];
+  const downloads: string[] = [];
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: vi.fn((blob: Blob) => {
+      blobs.push(blob);
+      return `blob:localized-report-${blobs.length}`;
+    }),
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: vi.fn(),
+  });
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    downloads.push(this.download);
+  });
+
+  renderLocalizedResults({
+    answers: {
+      ...F1_ANSWERS,
+      urgent_chest_discomfort_now: true,
+      urgent_breathing_now: true,
+      preventive_followup_action: "access_or_safety_barrier",
+      med_detail_prescriber_followup: "no_current_access",
+    },
+    assessmentDepth: "deep",
+    confirmedLabs: [confirmedLab],
+    profile: { age: 35, countryCode: "CH" },
+  });
+
+  const rawToggle = screen.getByRole("checkbox", {
+    name: /include structured raw answers in json/i,
+  });
+  await user.click(rawToggle);
+  const canopy = screen.getByRole("navigation", { name: /living risk canopy/i });
+  const leafButtons = within(canopy).getAllByRole("button");
+  const selected = leafButtons.at(-1);
+  expect(selected).toBeDefined();
+  if (!selected) return;
+  await user.click(selected);
+  const selectedPanelId = screen.getByRole("region", { name: selected.textContent ?? "" }).id;
+
+  await user.click(screen.getByRole("button", { name: "Download JSON" }));
+  const english = await readBlob(blobs[0]);
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(rawToggle).toBeChecked();
+  expect(selected).toHaveAttribute("aria-pressed", "true");
+  expect(document.getElementById(selectedPanelId)).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Télécharger le JSON" }));
+  const french = await readBlob(blobs[1]);
+
+  expect(downloads).toEqual([
+    "health-risk-explorer-report.json",
+    "rapport-explorateur-risques-sante.json",
+  ]);
+  expect(french).toMatchObject({
+    schemaVersion: english.schemaVersion,
+    assessmentDepth: english.assessmentDepth,
+    score: {
+      kind: (english.score as Record<string, unknown>).kind,
+      score: (english.score as Record<string, unknown>).score,
+      coverage: (english.score as Record<string, unknown>).coverage,
+      label: "Purity Score — habitudes de bien-être, pas un verdict sur la santé.",
+    },
+    rawAnswers: english.rawAnswers,
+  });
+  const englishLeaves = english.riskLeaves as Array<Record<string, unknown>>;
+  const frenchLeaves = french.riskLeaves as Array<Record<string, unknown>>;
+  expect(frenchLeaves.map(({ id, ruleId }) => ({ id, ruleId }))).toEqual(
+    englishLeaves.map(({ id, ruleId }) => ({ id, ruleId })),
+  );
+  expect(frenchLeaves[0].sources).toEqual(englishLeaves[0].sources);
+  expect(frenchLeaves[0].title).not.toBe(englishLeaves[0].title);
+  expect((french.actions as Array<Record<string, unknown>>)[0].title).not.toBe(
+    (english.actions as Array<Record<string, unknown>>)[0].title,
+  );
+});
+
+test("localizes adolescent, assisted-handoff, and child result routes without exposing adult scoring", async () => {
+  const user = userEvent.setup();
+  const adolescent = renderLocalizedResults({
+    answers: {
+      adolescent_nicotine_support: "find_service",
+      reliable_social_support: true,
+      stress_recovery_practice: "rarely",
+    },
+    assessmentDepth: "detailed",
+    confirmedLabs: [],
+    profile: { age: 15, countryCode: "CH" },
+  });
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  expect(screen.getByRole("heading", { name: "Ma carte des habitudes de santé" })).toBeVisible();
+  expect(screen.getByText(/trouver un service concernant la nicotine ou le tabac/i)).toBeVisible();
+  expect(document.body.textContent).not.toMatch(/Purity Score|mapped points|adult comparison/i);
+  adolescent.unmount();
+
+  const assisted = renderLocalizedResults({
+    answers: { adolescent_pregnancy_support: "find_service" },
+    assessmentDepth: "detailed",
+    confirmedLabs: [confirmedLab],
+    profile: { age: 15, countryCode: "CH", assistedMinor: true },
+  });
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  expect(screen.getByRole("heading", { name: "Vos résultats privés sont prêts" })).toBeVisible();
+  expect(screen.queryByRole("navigation", { name: /canopée vivante/i })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Afficher mes résultats privés" }));
+  expect(screen.getByRole("heading", { name: "Une canopée vivante que vous pouvez examiner." }))
+    .toHaveFocus();
+  expect(screen.getByRole("heading", { name: "Ma carte des habitudes de santé" })).toBeVisible();
+  assisted.unmount();
+
+  renderLocalizedResults({
+    answers: F1_ANSWERS,
+    assessmentDepth: "deep",
+    confirmedLabs: [confirmedLab],
+    profile: { age: 12, countryCode: "CH", assistedMinor: true },
+  });
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  expect(
+    screen.getByRole("heading", { name: "Un guide pour vous et l'adulte qui vous accompagne" }),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: "Recommencer et effacer" })).toBeVisible();
+  expect(document.body.textContent).not.toMatch(/Purity Score|Ma carte des habitudes de santé/);
+});
+
+test.each([
+  [
+    "Swiss poisoning",
+    "CH",
+    { urgent_overdose_poisoning_now: true },
+    /144[\s\S]*145/,
+  ],
+  [
+    "US self-harm",
+    "US",
+    { urgent_self_harm_now: true },
+    /911[\s\S]*988/,
+  ],
+  [
+    "GB emergency",
+    "GB",
+    { urgent_chest_discomfort_now: true },
+    /999/,
+  ],
+  [
+    "other-country emergency",
+    "OTHER",
+    { urgent_severe_bleeding_now: true },
+    /service d'urgence local/i,
+  ],
+] as const)("renders the French %s route with only its applicable urgent instructions", async (
+  _route,
+  countryCode,
+  urgentAnswer,
+  expected,
+) => {
+  const user = userEvent.setup();
+  renderLocalizedResults({
+    answers: urgentAnswer,
+    assessmentDepth: "quick",
+    confirmedLabs: [],
+    profile: { age: 35, countryCode },
+  });
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  const alert = screen.getByRole("alert");
+  expect(alert).toHaveTextContent(expected);
+  expect(alert.textContent).not.toMatch(/Call .* now|Seek emergency care/i);
+});
+
+test("does not rerun risk, score, or action engines when only the result locale changes", async () => {
+  const user = userEvent.setup();
+  const evaluate = vi.spyOn(riskEngineModule, "evaluateRisks");
+  const calculate = vi.spyOn(scoringModule, "calculatePurityScore");
+  const buildActions = vi.spyOn(scoringModule, "buildActionPlan");
+  renderLocalizedResults({
+    answers: { ...F1_ANSWERS, urgent_chest_discomfort_now: true },
+    assessmentDepth: "deep",
+    confirmedLabs: [],
+    profile: { age: 35, countryCode: "CH" },
+  });
+  const callsBeforeSwitch = {
+    evaluate: evaluate.mock.calls.length,
+    calculate: calculate.mock.calls.length,
+    buildActions: buildActions.mock.calls.length,
+  };
+  expect(callsBeforeSwitch.evaluate).toBeGreaterThan(0);
+  expect(callsBeforeSwitch.calculate).toBeGreaterThan(0);
+  expect(callsBeforeSwitch.buildActions).toBeGreaterThan(0);
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(evaluate).toHaveBeenCalledTimes(callsBeforeSwitch.evaluate);
+  expect(calculate).toHaveBeenCalledTimes(callsBeforeSwitch.calculate);
+  expect(buildActions).toHaveBeenCalledTimes(callsBeforeSwitch.buildActions);
+  evaluate.mockRestore();
+  calculate.mockRestore();
+  buildActions.mockRestore();
 });

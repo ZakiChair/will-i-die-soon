@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import { useI18n } from "../i18n/context";
+import { uiCopyKeys } from "../i18n/ui-copy";
 
 export type LivingCanopyTone = "calm" | "watchful" | "urgent";
 
@@ -10,18 +12,14 @@ export type LivingCanopyProps = {
   reducedMotion: boolean;
 };
 
-const branches = [
-  { id: "sleep", label: "Sleep" },
-  { id: "heart", label: "Heart" },
-  { id: "habits", label: "Habits" },
-  { id: "care", label: "Care" },
-] as const;
+const branches = ["sleep", "heart", "habits", "care"] as const;
 
 export function LivingCanopy({
   progress,
   tone,
   reducedMotion,
 }: LivingCanopyProps) {
+  const { t } = useI18n();
   const [activeBranch, setActiveBranch] = useState<string | null>(null);
   const boundedProgress = Math.max(0, Math.min(1, progress));
 
@@ -31,7 +29,7 @@ export function LivingCanopy({
       aria-labelledby="canopy-title"
     >
       <figcaption id="canopy-title" className="canopy__caption">
-        A living map of connected health signals
+        {t("canopy.caption")}
       </figcaption>
       <div
         className="canopy__field"
@@ -40,25 +38,25 @@ export function LivingCanopy({
         <span className="canopy__trunk" aria-hidden="true" />
         {branches.map((branch) => (
           <span
-            key={branch.id}
-            className={`canopy__branch canopy__branch--${branch.id}`}
+            key={branch}
+            className={`canopy__branch canopy__branch--${branch}`}
             aria-hidden="true"
           />
         ))}
-        <ul className="canopy__leaves" aria-label="Canopy domains">
+        <ul className="canopy__leaves" aria-label={t("canopy.aria")}>
           {branches.map((branch) => (
-            <li key={branch.id}>
+            <li key={branch}>
               <button
                 type="button"
-                className={`canopy__leaf canopy__leaf--${branch.id}`}
-                aria-pressed={activeBranch === branch.id}
-                onFocus={() => setActiveBranch(branch.id)}
+                className={`canopy__leaf canopy__leaf--${branch}`}
+                aria-pressed={activeBranch === branch}
+                onFocus={() => setActiveBranch(branch)}
                 onBlur={() => setActiveBranch(null)}
-                onMouseEnter={() => setActiveBranch(branch.id)}
+                onMouseEnter={() => setActiveBranch(branch)}
                 onMouseLeave={() => setActiveBranch(null)}
-                onClick={() => setActiveBranch(branch.id)}
+                onClick={() => setActiveBranch(branch)}
               >
-                {branch.label}
+                {t(uiCopyKeys.canopyBranch[branch])}
               </button>
             </li>
           ))}

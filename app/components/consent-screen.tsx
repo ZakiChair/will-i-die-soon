@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { questionBank } from "../data/questions";
+import { useI18n } from "../i18n/context";
+import { uiCopyKeys } from "../i18n/ui-copy";
 import { getAvailableDepths } from "../lib/questionnaire";
 import type { AnalysisDepth, ProfileContext } from "../lib/types";
 
@@ -12,13 +14,8 @@ export type ConsentScreenProps = {
 
 type MinorMode = "assisted" | "private";
 
-const depthLabels: Readonly<Record<AnalysisDepth, string>> = {
-  quick: "Quick",
-  detailed: "Detailed",
-  deep: "Deep",
-};
-
 export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
+  const { t } = useI18n();
   const [ageInput, setAgeInput] = useState("");
   const [countryCode, setCountryCode] = useState("");
   const [minorMode, setMinorMode] = useState<MinorMode | null>(null);
@@ -60,23 +57,19 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
         <div className="wordmark">
           Will I Die <strong>Soon?</strong>
         </div>
-        <p className="prototype-label data-label">Private research prototype / local-only</p>
+        <p className="prototype-label data-label">{t("landing.prototype")}</p>
       </header>
       <div className="consent__body">
-        <p className="data-label">Consent &amp; profile</p>
-        <h1 id="consent-title">Before we begin</h1>
-        <p className="consent__intro">
-          This is a private research prototype, not medical care. It does not diagnose,
-          predict death, or replace a health professional.
-        </p>
-        <aside className="consent__privacy" aria-label="Privacy boundary">
-          <strong>Your answers stay in this browser session.</strong> You can skip any
-          question. This prototype cannot stop someone near you from seeing your screen.
+        <p className="data-label">{t("consent.eyebrow")}</p>
+        <h1 id="consent-title">{t("consent.title")}</h1>
+        <p className="consent__intro">{t("consent.intro")}</p>
+        <aside className="consent__privacy" aria-label={t("consent.privacy.aria")}>
+          <strong>{t("consent.privacy.strong")}</strong> {t("consent.privacy.body")}
         </aside>
 
         <form className="consent__form" onSubmit={submitConsent}>
           <div className="form-field">
-            <label htmlFor="profile-age">How old are you?</label>
+            <label htmlFor="profile-age">{t("consent.age")}</label>
             <div className="input-with-unit">
               <input
                 id="profile-age"
@@ -89,12 +82,12 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
                 value={ageInput}
                 onChange={(event) => setAgeInput(event.target.value)}
               />
-              <span id="profile-age-unit">years</span>
+              <span id="profile-age-unit">{t("consent.age.unit")}</span>
             </div>
           </div>
 
           <div className="form-field">
-            <label htmlFor="profile-country">Country or region</label>
+            <label htmlFor="profile-country">{t("consent.country")}</label>
             <select
               id="profile-country"
               name="country"
@@ -102,18 +95,18 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
               value={countryCode}
               onChange={(event) => setCountryCode(event.target.value)}
             >
-              <option value="">Choose one</option>
-              <option value="CH">Switzerland</option>
-              <option value="GB">United Kingdom</option>
-              <option value="US">United States</option>
-              <option value="OTHER">Another country or region</option>
+              <option value="">{t("consent.country.choose")}</option>
+              <option value="CH">{t(uiCopyKeys.country.CH)}</option>
+              <option value="GB">{t(uiCopyKeys.country.GB)}</option>
+              <option value="US">{t(uiCopyKeys.country.US)}</option>
+              <option value="OTHER">{t(uiCopyKeys.country.OTHER)}</option>
             </select>
           </div>
 
           {validAge && parsedAge < 13 ? (
             <fieldset className="minor-route">
-              <legend>Guardian-assisted mode is required</legend>
-              <p>A parent, guardian, or other trusted adult must help with this route.</p>
+              <legend>{t("minor.child.title")}</legend>
+              <p>{t("minor.child.body")}</p>
               <label>
                 <input
                   type="radio"
@@ -121,18 +114,15 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
                   checked={minorMode === "assisted"}
                   onChange={() => setMinorMode("assisted")}
                 />
-                A parent, guardian, or trusted adult is helping
+                {t("minor.assisted")}
               </label>
             </fieldset>
           ) : null}
 
           {validAge && parsedAge >= 13 && parsedAge < 18 ? (
             <fieldset className="minor-route">
-              <legend>How would you like to answer?</legend>
-              <p>
-                Local-only is not medical confidentiality. People nearby may still see
-                this screen.
-              </p>
+              <legend>{t("minor.adolescent.title")}</legend>
+              <p>{t("minor.adolescent.body")}</p>
               <label>
                 <input
                   type="radio"
@@ -140,7 +130,7 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
                   checked={minorMode === "assisted"}
                   onChange={() => setMinorMode("assisted")}
                 />
-                A parent, guardian, or trusted adult is helping
+                {t("minor.assisted")}
               </label>
               <label>
                 <input
@@ -149,19 +139,16 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
                   checked={minorMode === "private"}
                   onChange={() => setMinorMode("private")}
                 />
-                Answer privately on my own
+                {t("minor.private")}
               </label>
             </fieldset>
           ) : null}
 
           {profile && selectedDepth === "deep" && !selectedDepthAvailable ? (
             <div className="depth-unavailable" role="status">
-              <p>
-                Deep needs at least 150 eligible questions for this profile, so it is not
-                available. Choose Detailed to continue with 50 eligible questions.
-              </p>
+              <p>{t("consent.deep.unavailable")}</p>
               <button type="button" onClick={() => setSelectedDepth("detailed")}>
-                Use Detailed instead
+                {t("consent.deep.useDetailed")}
               </button>
             </div>
           ) : null}
@@ -172,12 +159,12 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
               checked={accepted}
               onChange={(event) => setAccepted(event.target.checked)}
             />
-            I understand and want to continue
+            {t("consent.accept")}
           </label>
 
           {selectedDepthAvailable ? (
             <button className="primary-action" type="submit" disabled={!canSubmit}>
-              Start {depthLabels[selectedDepth]} assessment
+              {t("consent.start", { depth: t(uiCopyKeys.depth[selectedDepth]) })}
             </button>
           ) : null}
         </form>

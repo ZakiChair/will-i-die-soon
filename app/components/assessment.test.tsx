@@ -1,11 +1,19 @@
-import { render, screen } from "@testing-library/react";
+import { render as testingRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { vi } from "vitest";
 
 import { questionBank } from "../data/questions";
+import { I18nProvider } from "../i18n/context";
+import * as questionnaireModule from "../lib/questionnaire";
 import Home from "../page";
 import { Assessment } from "./assessment";
+import { LanguageSwitcher } from "./language-switcher";
 import { QuestionControl } from "./question-control";
+
+function render(ui: ReactElement) {
+  return testingRender(<I18nProvider>{ui}</I18nProvider>);
+}
 
 const adultProfile = { age: 35, countryCode: "CH" };
 
@@ -183,6 +191,56 @@ test("interrupts immediately for a confirmed red flag and lets the user correct 
   await user.click(screen.getByRole("button", { name: "Continue" }));
   expect(screen.queryByRole("heading", { name: /immediate action/i })).not.toBeInTheDocument();
   expect(screen.getByText(/Question 7 of 20/)).toBeVisible();
+});
+
+test("keeps a live urgent interruption and the triggering answer while switching it to French", async () => {
+  const user = userEvent.setup();
+  render(
+    <>
+      <LanguageSwitcher />
+      <Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />
+    </>,
+  );
+
+  await skipUntilQuestion(user, /chest pressure, tightness, or pain/i);
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  const french = screen.getByRole("button", { name: "Français" });
+  await user.click(french);
+
+  expect(french).toHaveFocus();
+  expect(screen.getByRole("heading", { name: "Action immédiate" })).toBeVisible();
+  expect(screen.getByRole("alert")).toHaveTextContent(/appelez maintenant le 144/i);
+  await user.click(screen.getByRole("button", { name: "Modifier ma réponse" }));
+  expect(screen.getByRole("radio", { name: "Oui" })).toBeChecked();
+  expect(screen.getByRole("heading", { name: /pression.*douleur.*thoracique/i })).toBeVisible();
+});
+
+test("keeps a live intermission milestone and does not reconstruct the queue on a locale switch", async () => {
+  const user = userEvent.setup();
+  const buildQueue = vi.spyOn(questionnaireModule, "buildAssessmentQueue");
+  render(
+    <>
+      <LanguageSwitcher />
+      <Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />
+    </>,
+  );
+
+  for (let step = 0; step < 20; step += 1) {
+    if (screen.queryByRole("button", { name: "Continue assessment" })) break;
+    await user.click(screen.getByRole("button", { name: "Prefer not to say" }));
+  }
+  const milestone = screen.getByText(/Milestone · \d+ of 20/).textContent;
+  const callsBeforeSwitch = buildQueue.mock.calls.length;
+  expect(callsBeforeSwitch).toBeGreaterThan(0);
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(screen.getByText(milestone?.replace("Milestone", "Étape").replace(" of ", " sur ") ?? ""))
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: "Continuer l'analyse" })).toBeVisible();
+  expect(buildQueue).toHaveBeenCalledTimes(callsBeforeSwitch);
+  buildQueue.mockRestore();
 });
 
 test("interrupts for an adolescent current pregnancy or safeguarding concern", async () => {

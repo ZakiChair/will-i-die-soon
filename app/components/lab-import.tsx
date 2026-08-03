@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "../i18n/context";
+import { uiCopyKeys, type UiCopyKey } from "../i18n/ui-copy";
+import type { MessageVariables } from "../i18n/types";
 import {
   extractLabText,
   LAB_MARKERS,
@@ -31,21 +34,9 @@ type EditableLabRow = {
   reviewedFastingStatus: FastingStatus | "";
 };
 
-const MARKER_LABELS: Readonly<Record<LabMarker, string>> = {
-  glucose: "Glucose",
-  total_cholesterol: "Total cholesterol",
-  hdl_cholesterol: "HDL cholesterol",
-  ldl_cholesterol: "LDL cholesterol",
-  triglycerides: "Triglycerides",
-  hba1c: "HbA1c",
-  creatinine_serum: "Serum/plasma creatinine",
-  hemoglobin_blood: "Blood haemoglobin",
-  ferritin: "Ferritin",
-  vitamin_d_25oh: "Total 25-OH vitamin D",
-  alt: "ALT",
-  ast: "AST",
-  egfr: "Laboratory-reported eGFR",
-  tsh: "TSH",
+type LabError = {
+  readonly key: Extract<UiCopyKey, "lab.error.noMarkers" | "lab.error.extraction">;
+  readonly variables: MessageVariables;
 };
 
 function candidateRow(candidate: LabCandidate, index: number): EditableLabRow {
@@ -94,11 +85,12 @@ function isReady(row: EditableLabRow): boolean {
 }
 
 export function LabImport({ onConfirm, onCancel }: LabImportProps) {
+  const { t } = useI18n();
   const heading = useRef<HTMLHeadingElement>(null);
   const [rows, setRows] = useState<EditableLabRow[]>([]);
   const [manualMode, setManualMode] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LabError | null>(null);
 
   useEffect(() => {
     heading.current?.focus();
@@ -110,10 +102,10 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
     );
   }
 
-  function openManual(message?: string) {
+  function openManual(nextError?: LabError) {
     setManualMode(true);
     setRows([emptyRow(0)]);
-    if (message) setError(message);
+    if (nextError) setError(nextError);
   }
 
   async function selectFile(file: File | undefined) {
@@ -124,17 +116,19 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
       const text = await extractLabText(file);
       const parsed = parseLabCandidates(text);
       if (parsed.length === 0) {
-        openManual(
-          "No unambiguous supported markers were found. Please use manual entry and review every field.",
-        );
+        openManual({
+          key: "lab.error.noMarkers",
+          variables: { filename: file.name },
+        });
       } else {
         setManualMode(false);
         setRows(parsed.map(candidateRow));
       }
     } catch {
-      openManual(
-        "This report could not be extracted on this device. Manual entry is available below.",
-      );
+      openManual({
+        key: "lab.error.extraction",
+        variables: { filename: file.name },
+      });
     } finally {
       setBusy(false);
     }
@@ -184,17 +178,16 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
 
   return (
     <section className="lab-import" aria-labelledby="lab-import-title">
-      <p className="data-label">Optional report import</p>
+      <p className="data-label">{t("lab.eyebrow")}</p>
       <h1 id="lab-import-title" ref={heading} tabIndex={-1}>
-        Bring in results without sending them away.
+        {t("lab.title")}
       </h1>
       <p className="lab-import__privacy">
-        <strong>Processed on this device.</strong> Your report and its contents are never
-        uploaded. PDF and image tools load from this site only after you choose a file.
+        <strong>{t("lab.privacy.strong")}</strong> {t("lab.privacy.body")}
       </p>
 
       <div className="lab-import__source">
-        <label htmlFor="lab-report-file">Choose a lab report</label>
+        <label htmlFor="lab-report-file">{t("lab.file.label")}</label>
         <input
           id="lab-report-file"
           type="file"
@@ -203,12 +196,12 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
           onChange={(event) => void selectFile(event.target.files?.[0])}
         />
         <button type="button" onClick={() => openManual()} disabled={busy}>
-          Enter results manually
+          {t("lab.manual")}
         </button>
       </div>
 
-      {busy ? <p role="status">Reading the report on this device…</p> : null}
-      {error ? <p role="alert">{error}</p> : null}
+      {busy ? <p role="status">{t("lab.busy")}</p> : null}
+      {error ? <p role="alert">{t(error.key, error.variables)}</p> : null}
 
       {rows.length > 0 ? (
         <form
@@ -219,13 +212,11 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
           }}
         >
           <p>
-            {manualMode
-              ? "Copy what the laboratory printed and review every field."
-              : "Extraction is a draft. Check only rows you want to use and review every field."}
+            {manualMode ? t("lab.review.manual") : t("lab.review.extracted")}
           </p>
           {rows.map((row, index) => (
             <fieldset className="lab-review__row" key={row.id}>
-              <legend>Reported result {index + 1}</legend>
+              <legend>{t("lab.row.legend", { number: index + 1 })}</legend>
               <label className="lab-review__include">
                 <input
                   type="checkbox"
@@ -234,10 +225,14 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
                     updateRow(row.id, { selected: event.target.checked })
                   }
                 />
-                Include {row.reviewedMarker ? MARKER_LABELS[row.reviewedMarker] : "this result"}
+                {t("lab.row.include", {
+                  marker: row.reviewedMarker
+                    ? t(uiCopyKeys.labMarker[row.reviewedMarker])
+                    : t("lab.row.thisResult"),
+                })}
               </label>
               <label>
-                Marker
+                {t("lab.row.marker")}
                 <select
                   value={row.reviewedMarker}
                   onChange={(event) =>
@@ -246,49 +241,51 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
                     })
                   }
                 >
-                  <option value="">Select marker</option>
+                  <option value="">{t("lab.row.selectMarker")}</option>
                   {LAB_MARKERS.map((marker) => (
                     <option value={marker} key={marker}>
-                      {MARKER_LABELS[marker]}
+                      {t(uiCopyKeys.labMarker[marker])}
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                Reported value
+                {t("lab.row.value")}
                 <input
                   type="number"
                   inputMode="decimal"
                   step="any"
                   value={row.reviewedValueText}
+                  placeholder={t("lab.row.placeholder.value")}
                   onChange={(event) =>
                     updateRow(row.id, { reviewedValueText: event.target.value })
                   }
                 />
               </label>
               <label>
-                Reported unit
+                {t("lab.row.unit")}
                 <input
                   type="text"
                   value={row.reviewedUnit}
+                  placeholder={t("lab.row.placeholder.unit")}
                   onChange={(event) =>
                     updateRow(row.id, { reviewedUnit: event.target.value })
                   }
                 />
               </label>
               <label>
-                Laboratory reference range
+                {t("lab.row.range")}
                 <input
                   type="text"
                   value={row.reviewedRange}
-                  placeholder="Copy the range or write Not printed"
+                  placeholder={t("lab.row.placeholder.range")}
                   onChange={(event) =>
                     updateRow(row.id, { reviewedRange: event.target.value })
                   }
                 />
               </label>
               <label>
-                Collection date
+                {t("lab.row.date")}
                 <input
                   type="date"
                   value={row.reviewedCollectionDate}
@@ -298,7 +295,7 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
                 />
               </label>
               <label>
-                Fasting status
+                {t("lab.row.fasting")}
                 <select
                   value={row.reviewedFastingStatus}
                   onChange={(event) =>
@@ -307,34 +304,41 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
                     })
                   }
                 >
-                  <option value="">Review fasting status</option>
-                  <option value="fasting">Fasting</option>
-                  <option value="not_fasting">Not fasting</option>
-                  <option value="not_stated">Not stated or unsure</option>
+                  <option value="">{t("lab.row.reviewFasting")}</option>
+                  <option value="fasting">{t(uiCopyKeys.fasting.fasting)}</option>
+                  <option value="not_fasting">{t(uiCopyKeys.fasting.not_fasting)}</option>
+                  <option value="not_stated">{t(uiCopyKeys.fasting.not_stated)}</option>
                 </select>
               </label>
               {row.source?.printedFlag ? (
-                <p>Laboratory-printed flag: {row.source.printedFlag}</p>
+                <p>{t("lab.row.flag", { flag: row.source.printedFlag })}</p>
               ) : null}
               {row.source?.method ? (
-                <p>Laboratory method note: {row.source.method}</p>
+                <p>{t("lab.row.method", { method: row.source.method })}</p>
               ) : null}
+              <button
+                type="button"
+                aria-label={t("lab.row.remove", { number: index + 1 })}
+                onClick={() => setRows((current) => current.filter(({ id }) => id !== row.id))}
+              >
+                {t("lab.row.remove", { number: index + 1 })}
+              </button>
             </fieldset>
           ))}
           <button
             type="button"
             onClick={() => setRows((current) => [...current, emptyRow(current.length)])}
           >
-            Add another result
+            {t("lab.add")}
           </button>
           <button type="submit" disabled={!canConfirm}>
-            Confirm selected results
+            {t("lab.confirm")}
           </button>
         </form>
       ) : null}
 
       <button type="button" onClick={onCancel}>
-        Continue without import
+        {t("lab.cancel")}
       </button>
     </section>
   );
