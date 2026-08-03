@@ -7,6 +7,7 @@ import type { MessageVariables } from "../i18n/types";
 import {
   extractLabText,
   LAB_MARKERS,
+  LabProcessingLimitError,
   normalizeLabValue,
   parseLabCandidates,
 } from "../lib/labs";
@@ -35,9 +36,24 @@ type EditableLabRow = {
 };
 
 type LabError = {
-  readonly key: Extract<UiCopyKey, "lab.error.noMarkers" | "lab.error.extraction">;
+  readonly key: Extract<
+    UiCopyKey,
+    | "lab.error.noMarkers"
+    | "lab.error.extraction"
+    | "lab.error.fileTooLarge"
+    | "lab.error.tooManyPages"
+    | "lab.error.tooMuchText"
+  >;
   readonly variables: MessageVariables;
 };
+
+const PROCESSING_LIMIT_ERROR_KEYS = {
+  "file-too-large": "lab.error.fileTooLarge",
+  "pdf-too-many-pages": "lab.error.tooManyPages",
+  "text-too-long": "lab.error.tooMuchText",
+} as const satisfies Readonly<
+  Record<LabProcessingLimitError["code"], LabError["key"]>
+>;
 
 function candidateRow(candidate: LabCandidate, index: number): EditableLabRow {
   return {
@@ -124,9 +140,12 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
         setManualMode(false);
         setRows(parsed.map(candidateRow));
       }
-    } catch {
+    } catch (extractionError) {
       openManual({
-        key: "lab.error.extraction",
+        key:
+          extractionError instanceof LabProcessingLimitError
+            ? PROCESSING_LIMIT_ERROR_KEYS[extractionError.code]
+            : "lab.error.extraction",
         variables: { filename: file.name },
       });
     } finally {

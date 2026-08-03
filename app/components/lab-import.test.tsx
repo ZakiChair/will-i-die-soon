@@ -214,6 +214,36 @@ test("opens the manual grid after unsupported or failed extraction", async () =>
   expect(screen.getByLabelText(/reported value/i)).toHaveValue(null);
 });
 
+test("shows a distinct bilingual processing-limit message and keeps manual entry available", async () => {
+  const user = userEvent.setup();
+  const file = new File(["small fixture"], "oversized-report.pdf", {
+    type: "application/pdf",
+  });
+  Object.defineProperty(file, "size", { value: 20 * 1024 * 1024 + 1 });
+  render(
+    <>
+      <LanguageSwitcher />
+      <LabImport onConfirm={vi.fn()} onCancel={vi.fn()} />
+    </>,
+  );
+
+  await user.upload(screen.getByLabelText("Choose a lab report"), file);
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "oversized-report.pdf is too large to process safely on this device (maximum 20 MiB)",
+  );
+  expect(screen.getByRole("group", { name: "Reported result 1" })).toBeVisible();
+  expect(screen.getByRole("combobox", { name: "Marker" })).toHaveValue("");
+  expect(screen.getByRole("alert")).not.toHaveTextContent(/could not be extracted/i);
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "oversized-report.pdf est trop volumineux pour être traité en toute sécurité sur cet appareil (maximum 20 Mio)",
+  );
+  expect(screen.getByRole("group", { name: "Résultat indiqué 1" })).toBeVisible();
+});
+
 test("manual entry never classifies or diagnoses the reported value", async () => {
   const user = userEvent.setup();
   render(<LabImport onConfirm={vi.fn()} onCancel={vi.fn()} />);

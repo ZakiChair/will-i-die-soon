@@ -1,5 +1,31 @@
 import Decimal from "decimal.js";
 
+export const LAB_PROCESSING_LIMITS = {
+  maximumFileBytes: 20 * 1024 * 1024,
+  maximumPdfPages: 50,
+  maximumExtractedTextCharacters: 500_000,
+} as const;
+
+export type LabProcessingLimitCode =
+  | "file-too-large"
+  | "pdf-too-many-pages"
+  | "text-too-long";
+
+export class LabProcessingLimitError extends Error {
+  readonly code: LabProcessingLimitCode;
+
+  constructor(code: LabProcessingLimitCode) {
+    const messages: Readonly<Record<LabProcessingLimitCode, string>> = {
+      "file-too-large": "Lab report exceeds the local file-size limit",
+      "pdf-too-many-pages": "Lab report exceeds the local PDF page limit",
+      "text-too-long": "Lab report exceeds the local extracted-text limit",
+    };
+    super(messages[code]);
+    this.name = "LabProcessingLimitError";
+    this.code = code;
+  }
+}
+
 export const LAB_MARKERS = [
   "glucose",
   "total_cholesterol",
@@ -368,6 +394,13 @@ export function normalizeLabValue(candidate: LabCandidate): NormalizedLabValue {
   return converted(original, decimal, unit, 6);
 }
 
+function boundedExtractedText(text: string): string {
+  if (text.length > LAB_PROCESSING_LIMITS.maximumExtractedTextCharacters) {
+    throw new LabProcessingLimitError("text-too-long");
+  }
+  return text;
+}
+
 async function extractPdfText(file: File): Promise<string> {
   const pdfjs =
     typeof Worker === "undefined"
@@ -377,14 +410,18 @@ async function extractPdfText(file: File): Promise<string> {
     pdfjs.GlobalWorkerOptions.workerSrc = "/lab-assets/pdf.worker.min.mjs";
   }
   const loadingTask = pdfjs.getDocument({ data: await file.arrayBuffer() });
-  const document = await loadingTask.promise;
-  const pages: string[] = [];
   try {
+    const document = await loadingTask.promise;
+    if (document.numPages > LAB_PROCESSING_LIMITS.maximumPdfPages) {
+      throw new LabProcessingLimitError("pdf-too-many-pages");
+    }
+    const pages: string[] = [];
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
       const content = await page.getTextContent();
       const lines: string[] = [];
       let line: string[] = [];
+      let pageCharacterEstimate = 0;
       let previousY: number | undefined;
       const flushLine = () => {
         const text = line.join(" ").replace(/\s+/g, " ").trim();
@@ -393,6 +430,13 @@ async function extractPdfText(file: File): Promise<string> {
       };
       for (const item of content.items) {
         if (!("str" in item) || item.str === "") continue;
+        pageCharacterEstimate += item.str.length + (line.length === 0 ? 0 : 1);
+        if (
+          pageCharacterEstimate >
+          LAB_PROCESSING_LIMITS.maximumExtractedTextCharacters
+        ) {
+          throw new LabProcessingLimitError("text-too-long");
+        }
         const y = item.transform[5];
         if (previousY !== undefined && Math.abs(y - previousY) > 1) flushLine();
         line.push(item.str);
@@ -404,11 +448,12 @@ async function extractPdfText(file: File): Promise<string> {
       }
       flushLine();
       pages.push(lines.join("\n"));
+      boundedExtractedText(pages.join("\n"));
     }
+    return boundedExtractedText(pages.join("\n"));
   } finally {
     await loadingTask.destroy();
   }
-  return pages.join("\n");
 }
 
 async function extractImageText(file: File): Promise<string> {
@@ -421,16 +466,19 @@ async function extractImageText(file: File): Promise<string> {
   });
   try {
     const result = await worker.recognize(file);
-    return result.data.text;
+    return boundedExtractedText(result.data.text);
   } finally {
     await worker.terminate();
   }
 }
 
 export async function extractLabText(file: File): Promise<string> {
+  if (file.size > LAB_PROCESSING_LIMITS.maximumFileBytes) {
+    throw new LabProcessingLimitError("file-too-large");
+  }
   const fileName = file.name.toLowerCase();
   if (file.type.startsWith("text/plain") || /\.(?:txt|text)$/.test(fileName)) {
-    return file.text();
+    return boundedExtractedText(await file.text());
   }
   if (file.type === "application/pdf" || fileName.endsWith(".pdf")) {
     return extractPdfText(file);

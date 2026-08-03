@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import {
   Bricolage_Grotesque,
   IBM_Plex_Mono,
   Manrope,
 } from "next/font/google";
+import { resolveMetadataOrigin } from "./lib/metadata";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({
@@ -22,50 +24,48 @@ const mono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
-const localMetadataBase = "http://localhost:3000";
-const socialImage = {
-  url: "/og.png",
-  width: 1200,
-  height: 630,
-  alt: "Will I Die Soon? — Your health is not a verdict. It is a map.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const metadataBase = resolveMetadataOrigin({
+    configuredUrl: process.env.NEXT_PUBLIC_SITE_URL,
+    forwardedHost: requestHeaders.get("x-forwarded-host"),
+    forwardedProto: requestHeaders.get("x-forwarded-proto"),
+    host: requestHeaders.get("host"),
+  });
+  const rootUrl = new URL("/", metadataBase);
+  const socialImage = {
+    url: new URL("/og.png", metadataBase),
+    width: 1200,
+    height: 630,
+    alt: "Will I Die Soon? — Your health is not a verdict. It is a map.",
+  };
 
-function resolveMetadataBase(configuredUrl: string | undefined): URL {
-  if (configuredUrl) {
-    try {
-      const parsedUrl = new URL(configuredUrl);
-      if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
-        return parsedUrl;
-      }
-    } catch {
-      // Fall through to the local development URL.
-    }
-  }
-
-  return new URL(localMetadataBase);
+  return {
+    metadataBase,
+    title: "Will I Die Soon? | Health Risk Explorer",
+    description:
+      "A private, local-only prototype for exploring health signals and modifiable factors.",
+    alternates: {
+      canonical: rootUrl,
+    },
+    openGraph: {
+      type: "website",
+      url: rootUrl,
+      title: "Will I Die Soon?",
+      description: "Your health is not a verdict. It is a map.",
+      images: [socialImage],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Will I Die Soon?",
+      description: "Your health is not a verdict. It is a map.",
+      images: [socialImage],
+    },
+    icons: {
+      icon: "/favicon.svg",
+    },
+  };
 }
-
-export const metadata: Metadata = {
-  metadataBase: resolveMetadataBase(process.env.NEXT_PUBLIC_SITE_URL),
-  title: "Will I Die Soon? | Health Risk Explorer",
-  description:
-    "A private, local-only prototype for exploring health signals and modifiable factors.",
-  openGraph: {
-    type: "website",
-    title: "Will I Die Soon?",
-    description: "Your health is not a verdict. It is a map.",
-    images: [socialImage],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Will I Die Soon?",
-    description: "Your health is not a verdict. It is a map.",
-    images: [socialImage],
-  },
-  icons: {
-    icon: "/favicon.svg",
-  },
-};
 
 export default function RootLayout({
   children,

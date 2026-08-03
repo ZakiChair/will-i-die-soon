@@ -402,21 +402,21 @@ source-state saving, and owner-only deployment remain open below.
 - Consumes: the complete application.
 - Produces: verified build, documentation, saved Sites version, and owner-only production deployment.
 
-- [ ] **Step 1: Document evidence and release boundaries.**
+- [x] **Step 1: Document evidence and release boundaries.**
 
 List every enabled rule group, source URL, evidence tier, last-reviewed date, intended population, and release policy. Document that the production deployment is private research access and that public wellness/regulated releases require separate review.
 
-- [ ] **Step 2: Run automated verification from a clean install.**
+- [x] **Step 2: Run automated verification from a clean install.**
 
 Run `npm ci`, `npm test -- --run`, and `npm run build`. Search the production code for `fetch(`, analytics packages, storage APIs, “you will develop,” and unguarded `%` disease outputs. Resolve every unexpected match.
 Apply the same calibrated-language and medicine-neutrality scans to both English and French
 presentation corpora.
 
-- [ ] **Step 3: Review React quality and bundle behavior.**
+- [x] **Step 3: Review React quality and bundle behavior.**
 
 Confirm stable component definitions, direct imports, lazy heavy parsers, accessible semantics, derived state computed during render, and no unnecessary effect synchronization. Confirm the long question bank does not render all items simultaneously.
 
-- [ ] **Step 4: Perform final security and privacy checks.**
+- [x] **Step 4: Perform final security and privacy checks.**
 
 Verify lab files never leave the device, no answer appears in a URL or persistent browser store, exports require explicit clicks, and restarts clear in-memory answers. Confirm public assets contain no embedded user data.
 
