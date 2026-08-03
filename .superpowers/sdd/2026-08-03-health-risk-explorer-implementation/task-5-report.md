@@ -7,16 +7,18 @@ leaves without probability, never parses free text or printed laboratory strings
 not diagnose conditions or create medicine dosing plans. The second correction round closes
 the provenance/applicability, urgent de-duplication, product-specific GLP-1, acute adolescent
 support, postpartum, research-product, source-population, and operational emergency findings
-raised by controller and independent review.
+raised by controller and independent review. The third correction round closes the remaining
+adolescent-pregnancy age and source-scope findings and hardens the all-branch age matrix.
 
 ## Current inventory and changed surfaces
 
-- `app/data/evidence.ts` — 72 reviewed source records. Publisher/regulator
+- `app/data/evidence.ts` — 71 reviewed source records. Publisher/regulator
   `jurisdictions` are provenance only. Independent `applicability` metadata describes
   supported content countries and ages, while `operationalCountries` identifies sources that
   directly support local numbers or workflows. The final pass adds WHO sources for
   all-gender survivor care, child mental-health services, and globally relevant
-  substandard/falsified products.
+  substandard/falsified products, then removes the LMIC-only adolescent-pregnancy guideline
+  because no active global route can honestly use it.
 - `app/data/rules.ts` — 54 explicit rules across 14 groups. Six GLP-1 routes consume an exact
   structured product-plus-ingredient identity and conditionally resolve only that product's
   current label. A new current adolescent substance-safety rule is urgent and localized;
@@ -32,15 +34,16 @@ raised by controller and independent review.
   operational-country scope, conditional source references, fail-loud evidence resolution,
   source-backed emergency localization, and equivalence-based semantic de-duplication.
 - `app/lib/risk-engine.test.ts` and `app/lib/questionnaire.test.ts` — contain a 54-rule by
-  5-country source matrix plus rule age-boundary cases, malformed metadata contracts,
-  operational-copy boundaries, exact product/label mapping, research/postpartum and
-  adolescent regressions, and non-equivalent urgent collisions.
+  5-country source matrix across every satisfiable `condition.any` path, inside/outside rule
+  ages, and question-versus-rule age contracts, plus malformed metadata, operational-copy,
+  exact product/label, research/postpartum, adolescent, and urgent-collision regressions.
 - Earlier Task 5 corrections to the clinical/core question banks, questionnaire branch
   validation, release policy, assessment interruption UI, multi-select `none` handling, and
   assessment tests remain intact and covered.
 
-The live modules contain 240 question declarations, 72 source records, and 54 rules. These
-counts were loaded directly from the registries after the final code correction.
+The live modules contain 240 question declarations, 71 source records, and 54 rules across
+14 declared groups; 12 groups contain rules, while `metabolic` and `kidney` remain explicitly
+empty. These counts were loaded directly from the registries after the final code correction.
 
 ## TDD evidence
 
@@ -78,12 +81,34 @@ Independent review of that first production pass then produced five further RED/
 - The strengthened source matrix passed all 270 rule-country cases plus 565 rule-country
   age-boundary cases, 835/835 total.
 
+The third controller/reviewer pass then produced the final RED/GREEN slices:
+
+- The adolescent-pregnancy age/source slice failed 44 of 4,200 engine cases as expected:
+  30 injected `pregnancy_relevant` cases at ages 0, 4, 5, 9, 10, and 12 across five
+  countries; 10 age-13/17 source/copy/applicability cases; the input-age contract; the
+  LMIC-source registry contract; the urgent route reference; and the prior leaf-source
+  assertion. The other 4,156 cases remained green.
+- Adding `minAge: 13`, narrowing the copy to adolescent-friendly service access, replacing
+  the route evidence with global WHO adolescent-service guidance, and removing the LMIC-only
+  record made the expanded engine suite green.
+- Independent review found three future-only witness-generator edge classes. Dedicated RED
+  slices covered overlapping and bounded numeric ranges, fractional intersections, and a
+  contradictory multi-select `none` combination. Candidate branching, full-condition
+  filtering, valid-bound witnesses, and structural multi-select rejection made each slice
+  green without changing any production rule.
+- The final matrix covers all 179 satisfiable activation variants, all five countries,
+  representative/in-range boundary ages, and declared below/above ages. Its 3,974 cases pass.
+
 ## Engine and evidence boundaries
 
 - Every rule condition reads a declared question ID and validates its runtime value against
   the question's type/options. Boolean signals require exact `true`; malformed, stale,
   unknown, refusal, contradictory multi-select, and out-of-range values cannot activate a
   route. Questionnaire branches enforce the same boundary.
+- Every declared rule input must fit inside the input question's age range. The sole audited
+  exception is `urgent-self-harm:urgent_self_harm_now`: a legacy/stale immediate-danger
+  answer remains routable below the question's current age-13 display boundary, with direct
+  age-11 urgent-routing regression coverage. Non-urgent routes receive no exception.
 - Text answers and printed laboratory values have no rule conditions and are never parsed.
   Free-text brand or ingredient names cannot substitute for an exact GLP-1 product identity.
 - `EvidenceSource.jurisdictions` records source origin only and never filters a user.
@@ -114,8 +139,14 @@ Independent review of that first production pass then produced five further RED/
   problem, chest symptom, or immediate danger, or a separate support leaf for a resolved
   past-year event. The urgent route has direct WHO acute evidence and localized actions.
 - New pregnancy/postpartum concerns include WHO `Getting the health services you need: after
-  childbirth`. The adolescent pregnancy record uses the exact WHO title/URL and is scoped
-  through age 19.
+  childbirth`. The LMIC-only 2025 adolescent-pregnancy programme guideline is no longer in
+  the registry or any active route. Urgent adolescent pregnancy/safeguarding routing retains
+  direct WHO pregnancy-service and emergency evidence.
+- `minor-pregnancy-support` now applies exactly at ages 13–17 in every supported country and
+  cites global WHO adolescent-friendly service guidance (content ages 10–19). Its narrowed
+  copy offers local service access, asks the service what privacy rules apply, and explicitly
+  avoids determining pregnancy or giving medicine advice; it no longer makes trying,
+  breastfeeding, medicine-decision, trusted-adult, or guaranteed-confidentiality claims.
 - WHO adolescent-friendly service guidance is scoped to ages 10–19. `child-feeling-support`
   uses separate WHO/UNICEF `Mental health of children and young people: service guidance`,
   preserving global support at ages 5–12. The self-report question and rule both start at age
@@ -148,35 +179,48 @@ Independent review of that first production pass then produced five further RED/
 - The sexual route starts at age 13; adult pregnancy and systemic-steroid routes start at
   18. Stale downstream values cannot bypass exact gates. Minors receive only urgent/support
   leaves.
+- The minor pregnancy-support rule now mirrors its gate at ages 13–17. Injected or persisted
+  `pregnancy_relevant: true` cannot activate it at ages 0, 4, 5, 9, 10, 12, or 18 in US, GB,
+  CH, DE, or OTHER; age 13 and 17 support remains available in every one of those countries.
 
 ## Verification
 
-- Country and population-boundary support matrix: `npm test --
-  app/lib/risk-engine.test.ts -t "global rule source support matrix"` — 835/835 passed
-  (270 representative rule-country cases and 565 age-boundary cases).
-- Focused suites: `npm test -- app/lib/risk-engine.test.ts
-  app/lib/questionnaire.test.ts` — 2 files, 1,062/1,062 passed.
-- Repository suite: `npm test` — 6 files, 1,144/1,144 passed.
+- All-path country and age-boundary matrix: `npx vitest run
+  app/lib/risk-engine.test.ts -t "global rule source support matrix"` — 3,974/3,974
+  passed. It covers 179 satisfiable route variants across US, GB, CH, DE, and OTHER,
+  in-range ages, below/above declared rule ages, the input-question age contract, and helper
+  witness invariants.
+- Dedicated minor/pregnancy age sweep: `npx vitest run app/lib/risk-engine.test.ts -t
+  "minor and pregnancy boundaries"` — 52/52 passed.
+- Focused engine/questionnaire suites: `npx vitest run app/lib/risk-engine.test.ts
+  app/lib/questionnaire.test.ts` — 2 files, 4,246/4,246 passed.
+- Repository suite: `npm test -- --reporter=dot` — 6 files, 4,328/4,328 passed. The lab
+  dependency retained its known non-failing PDF font/legacy-build warnings.
 - `npm run lint` — exit 0 with no findings.
 - `npm run build` — exit 0; all five vinext environments built. Vinext retained only its
   informational unknown-route classification.
 - `git diff --check` — exit 0.
-- Second-correction commits:
+- Correction commits:
   - `da33d6add97ae5684d64223984717e76d2352bf3` — provenance/applicability,
     conditional labels, de-duplication, source fit, and operational actions.
   - `38fdccc799030db5b592ab3c59eaf59a2c736752` — exact product/population/source
     narrowing and current adolescent emergency routing.
   - `bc3609a874c034cf9634432195a4da31f0508f5c` — exact WHO/UNICEF child-service
     age boundary across source, question, rule, and regressions.
+  - `912231910784aa0fa793788fe9ade7aa6a280497` — adolescent pregnancy age/source
+    correction plus all-path and outside-boundary matrix hardening.
 
 ## Review disposition and deferred work
 
-Independent re-review through `bc3609a` returned `APPROVED` with no remaining Important
-finding. It confirmed separate current/past adolescent routes, exact GLP-1 product-label
-selection, all-gender adult survivor evidence, narrowed research-source routing, and the
-age-5 child-service boundary. It also revalidated the WHO/UNICEF and four DailyMed records
-and independently reproduced 835/835 matrix cases, 1,144/1,144 repository tests, lint,
-production build, and commit-range diff checks.
+Independent re-review through `bc3609a` returned `APPROVED` for the second correction. The
+third review initially reproduced the two remaining Important findings (minor pregnancy
+support below age 13 and globally mis-scoped adolescent-pregnancy evidence), then reviewed
+the corrected working tree before commit. Its final verdict was `APPROVED — no findings in
+the requested scope`. It confirmed the 13–17 behavior across all five countries, the global
+WHO adolescent-service source/copy fit, complete removal of the LMIC-only record from active
+data, the explicit age-11 urgent self-harm exception, and all satisfiable `any`-path and age
+boundary coverage. It independently passed the focused engine/questionnaire suites, lint,
+and `git diff --check`.
 
 Three non-blocking follow-ups remain deferred to Task 8/tooling work: broaden the copy linter
 beyond its current diagnostic/dose phrases, add temporal follow-ups for other routes where
