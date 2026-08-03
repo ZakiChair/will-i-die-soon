@@ -55,6 +55,21 @@ describe("global interaction styles", () => {
     expect(css).toMatch(/\.canopy__leaf:focus-visible[^}]+transform:\s*none/s);
   });
 
+  test("crops decorative artwork responsively and removes video under reduced motion", () => {
+    expect(css).toMatch(
+      /\.landing__canopy-media\s+(?:img|> img)[^{]*\{[^}]*object-fit:\s*cover/s,
+    );
+    expect(css).toMatch(
+      /\.intermission__media\s+(?:img|> img)[^{]*\{[^}]*object-fit:\s*cover/s,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 560px\)[\s\S]+\.intermission__[^{]+\{/,
+    );
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]+\.landing__canopy-video\s*\{[^}]*display:\s*none/s,
+    );
+  });
+
   test("keeps both focus rings when a risk-tree button is selected or hovered", () => {
     const riskTreeFocusRule = css.match(
       /\.risk-tree__leaves button:hover:focus-visible,[^{]+\{(?<declarations>[^}]+)\}/s,

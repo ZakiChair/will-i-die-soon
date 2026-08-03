@@ -26,6 +26,25 @@ export const metadata: Metadata = {
   title: "Will I Die Soon? | Health Risk Explorer",
   description:
     "A private, local-only prototype for exploring health signals and modifiable factors.",
+  openGraph: {
+    type: "website",
+    title: "Will I Die Soon?",
+    description: "Your health is not a verdict. It is a map.",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Will I Die Soon? — Your health is not a verdict. It is a map.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Will I Die Soon?",
+    description: "Your health is not a verdict. It is a map.",
+    images: ["/og.png"],
+  },
   icons: {
     icon: "/favicon.svg",
   },

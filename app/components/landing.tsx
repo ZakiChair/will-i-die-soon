@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { LivingCanopy } from "./living-canopy";
 
@@ -36,7 +37,7 @@ const depths: ReadonlyArray<{
 ];
 
 export function Landing({ onStart }: LandingProps) {
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [motionAllowed, setMotionAllowed] = useState(false);
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") {
@@ -44,11 +45,17 @@ export function Landing({ onStart }: LandingProps) {
     }
 
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const updatePreference = () => setReducedMotion(media.matches);
+    const updateMotion = () => {
+      setMotionAllowed(!media.matches && !document.hidden);
+    };
 
-    updatePreference();
-    media.addEventListener("change", updatePreference);
-    return () => media.removeEventListener("change", updatePreference);
+    updateMotion();
+    media.addEventListener("change", updateMotion);
+    document.addEventListener("visibilitychange", updateMotion);
+    return () => {
+      media.removeEventListener("change", updateMotion);
+      document.removeEventListener("visibilitychange", updateMotion);
+    };
   }, []);
 
   return (
@@ -76,7 +83,44 @@ export function Landing({ onStart }: LandingProps) {
             </p>
             <div className="landing__rule" aria-hidden="true" />
           </div>
-          <LivingCanopy progress={0.28} tone="calm" reducedMotion={reducedMotion} />
+          <div className="landing__canopy-stage">
+            <div className="landing__canopy-media" aria-hidden="true">
+              <Image
+                src="/media/canopy-hero.webp"
+                alt=""
+                aria-hidden="true"
+                width={1920}
+                height={1080}
+                sizes="(max-width: 850px) calc(100vw - 40px), 48vw"
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+                draggable={false}
+                unoptimized
+              />
+              {motionAllowed ? (
+                <video
+                  className="landing__canopy-video"
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="none"
+                  poster="/media/canopy-hero.webp"
+                  disablePictureInPicture
+                >
+                  <source src="/media/canopy-loop.mp4" type="video/mp4" />
+                </video>
+              ) : null}
+            </div>
+            <LivingCanopy
+              progress={0.28}
+              tone="calm"
+              reducedMotion={!motionAllowed}
+            />
+          </div>
         </section>
 
         <section className="depth-section" aria-labelledby="depth-title">
