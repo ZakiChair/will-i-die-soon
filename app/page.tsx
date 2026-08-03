@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Assessment } from "./components/assessment";
 import { ConsentScreen } from "./components/consent-screen";
 import { Landing } from "./components/landing";
+import { Results } from "./components/results";
 import type { ConfirmedLabValue } from "./lib/labs";
 import type { AnalysisDepth, AnswerMap, ProfileContext } from "./lib/types";
 
@@ -13,6 +14,7 @@ type AppScreen =
   | { kind: "assessment"; depth: AnalysisDepth; profile: ProfileContext }
   | {
       kind: "results";
+      depth: AnalysisDepth;
       answers: AnswerMap;
       confirmedLabs: ConfirmedLabValue[];
       profile: ProfileContext;
@@ -61,6 +63,7 @@ export default function Home() {
           onComplete={(answers, confirmedLabs) =>
             setScreen({
               kind: "results",
+              depth: screen.depth,
               answers,
               confirmedLabs,
               profile: screen.profile,
@@ -72,13 +75,14 @@ export default function Home() {
   }
 
   return (
-    <main className="journey completion-handoff">
-      <p className="data-label">Assessment complete</p>
-      <h1>Your answers are ready for the next step.</h1>
-      <p>
-        This temporary handoff keeps the completed answers in memory. Results and scoring
-        are intentionally handled by the next stage of the prototype.
-      </p>
+    <main>
+      <Results
+        answers={screen.answers}
+        assessmentDepth={screen.depth}
+        confirmedLabs={screen.confirmedLabs}
+        profile={screen.profile}
+        onRestart={() => setScreen({ kind: "landing" })}
+      />
     </main>
   );
 }

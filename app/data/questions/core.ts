@@ -154,7 +154,7 @@ export const coreQuestions = defineQuestions([
     answerType: "boolean",
     priority: 13,
     tiers: allDepths,
-    consumers: ["medication-routing"],
+    consumers: ["medication-routing", "purity-score"],
   },
   {
     id: "has_recent_labs",
@@ -241,7 +241,54 @@ export const coreQuestions = defineQuestions([
     ],
     priority: 20,
     tiers: allDepths,
+    consumers: ["preventive-follow-up"],
+  },
+  {
+    id: "preventive_followup_status",
+    domain: "preventive-care",
+    prompt:
+      "In the past 12 months, were you personally invited, advised, or due for a routine health follow-up that you could reasonably access?",
+    why:
+      "This asks only about a follow-up that applied to you; it does not infer screening needs from age, diagnosis, pregnancy, or country.",
+    answerType: "single",
+    options: [
+      { value: "not_due", label: "No — nothing was personally due and reasonably accessible" },
+      { value: "yes", label: "Yes" },
+      { value: "unsure", label: "Not sure" },
+      { value: "prefer_not", label: "Prefer not to say" },
+    ],
+    sensitive: true,
+    minAge: 18,
+    priority: 20.1,
     consumers: ["preventive-follow-up", "purity-score"],
+  },
+  {
+    id: "preventive_followup_action",
+    domain: "preventive-care",
+    prompt: "What have you chosen to do about that routine follow-up?",
+    why:
+      "Your chosen action can shape a voluntary next step; access and safety barriers are excluded from scoring.",
+    answerType: "single",
+    options: [
+      { value: "completed", label: "Completed it" },
+      { value: "booked_or_contacted", label: "Booked it or contacted the service" },
+      { value: "not_yet", label: "Not yet" },
+      { value: "access_or_safety_barrier", label: "An access or safety barrier is in the way" },
+      { value: "prefer_not", label: "Prefer not to say" },
+    ],
+    sensitive: true,
+    minAge: 18,
+    priority: 20.2,
+    condition: {
+      questionId: "preventive_followup_status",
+      operator: "equals",
+      value: "yes",
+    },
+    consumers: [
+      "preventive-follow-up",
+      "purity-score",
+      "purity-score-exclusion-support",
+    ],
   },
   {
     id: "gender_identity_optional",

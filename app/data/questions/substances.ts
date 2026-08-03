@@ -9,15 +9,28 @@ const recencyOptions = [{ value: "today", label: "Today" }, { value: "past_week"
 const anabolicSymptomOptions = [{ value: "chest_breath", label: "Chest pain or breathlessness" }, { value: "leg_swelling", label: "One-sided leg swelling or pain" }, { value: "jaundice", label: "Yellow skin or eyes, or dark urine" }, { value: "neurologic", label: "Sudden neurologic symptoms" }, { value: "mood", label: "Severe mood or behavior change" }, { value: "none", label: "None of these" }] as const;
 const adolescentSupportOptions = [{ value: "no_support_now", label: "No support right now" }, { value: "general_information", label: "General information" }, { value: "find_service", label: "Help finding a health service" }] as const;
 const adolescentSevereTimingOptions = [{ value: "happening_now", label: "One of these is happening now" }, { value: "past_year_not_now", label: "It happened during the past twelve months, but is not happening now" }, { value: "none", label: "None of these" }] as const;
+const nicotineContextOptions = [
+  {
+    value: "only_prescribed_nrt_quit_plan",
+    label: "Only prescribed nicotine replacement as part of a quit plan",
+  },
+  {
+    value: "tobacco_vape_or_other_nicotine",
+    label: "Tobacco, vaping, pouches, or another nicotine product",
+  },
+  { value: "both", label: "Both of these" },
+  { value: "unsure", label: "Not sure" },
+] as const;
 
 export const substanceQuestions = defineQuestions([
+  { id: "tobacco_nicotine_context", domain: "tobacco-nicotine", prompt: "Which current tobacco or nicotine context best fits?", why: "Prescribed nicotine replacement in a quit plan is excluded from the wellness-habit index rather than rewarded or penalized.", answerType: "single", options: nicotineContextOptions, sensitive: true, minAge: 18, priority: 11.05, tiers: allDepths, condition: whenTrue("current_tobacco_nicotine"), consumers: ["dependency-signals", "purity-score"] },
   { id: "tobacco_detail_products", domain: "tobacco-nicotine", prompt: "Which tobacco or nicotine products do you currently use?", why: "Product type changes exposure, dependence, and cessation-support context.", answerType: "multi", options: nicotineProducts, sensitive: true, minAge: 18, priority: 160, condition: whenTrue("current_tobacco_nicotine"), consumers: ["dependency-signals", "tobacco-exposure"] },
   { id: "tobacco_detail_frequency", domain: "tobacco-nicotine", prompt: "On a typical day, how often do you use your main nicotine product?", why: "Current use frequency helps describe dependence without converting products into equivalents.", answerType: "number", sensitive: true, minAge: 18, priority: 161, condition: whenTrue("current_tobacco_nicotine"), consumers: ["dependency-signals"] },
   { id: "tobacco_detail_first_use", domain: "tobacco-nicotine", prompt: "How soon after waking do you usually first use tobacco or nicotine?", why: "Time to first use is a practical marker of nicotine dependence.", answerType: "single", options: firstUseOptions, sensitive: true, minAge: 18, priority: 162, condition: whenTrue("current_tobacco_nicotine"), consumers: ["dependency-signals"] },
   { id: "tobacco_detail_quit_interest", domain: "tobacco-nicotine", prompt: "Would you like support to reduce or stop tobacco or nicotine use?", why: "Readiness and preference should guide whether support options are shown.", answerType: "single", options: supportOptions, sensitive: true, minAge: 18, priority: 163, condition: whenTrue("current_tobacco_nicotine"), consumers: ["dependency-support", "protective-roots"] },
 
-  { id: "alcohol_detail_typical_amount", domain: "alcohol", prompt: "On a usual drinking day, how many standard drinks do you have?", why: "Typical amount adds context to frequency while keeping units explicit.", answerType: "number", sensitive: true, minAge: 18, priority: 164, condition: { questionId: "alcohol_frequency", operator: "not-equals", value: "never" }, consumers: ["alcohol-pattern"] },
-  { id: "alcohol_detail_heavy_episode", domain: "alcohol", prompt: "How often do you have six or more standard drinks on one occasion?", why: "Heavy single-occasion use can carry risks not visible in weekly averages.", answerType: "single", options: frequencyOptions, sensitive: true, minAge: 18, priority: 165, condition: { questionId: "alcohol_frequency", operator: "not-equals", value: "never" }, consumers: ["alcohol-pattern", "urgent-signals"] },
+  { id: "alcohol_detail_typical_amount", domain: "alcohol", prompt: "On a usual drinking day, how many standard drinks do you have?", why: "Typical amount adds context to frequency while keeping units explicit.", answerType: "number", sensitive: true, minAge: 18, priority: 164, condition: { questionId: "alcohol_frequency", operator: "not-equals", value: "never" }, consumers: ["alcohol-pattern", "purity-score"] },
+  { id: "alcohol_detail_heavy_episode", domain: "alcohol", prompt: "How often do you have six or more standard drinks on one occasion?", why: "Heavy single-occasion use can carry risks not visible in weekly averages.", answerType: "single", options: frequencyOptions, sensitive: true, minAge: 18, priority: 165, condition: { questionId: "alcohol_frequency", operator: "not-equals", value: "never" }, consumers: ["alcohol-pattern", "urgent-signals", "purity-score"] },
   { id: "alcohol_detail_control_concern", domain: "alcohol", prompt: "Have you worried about losing control, withdrawal, or alcohol affecting responsibilities?", why: "Control and consequences can identify a need for non-judgmental support.", answerType: "boolean", sensitive: true, minAge: 18, priority: 166, condition: { questionId: "alcohol_frequency", operator: "not-equals", value: "never" }, consumers: ["dependency-signals", "dependency-support"] },
 
   { id: "uses_cannabis", domain: "cannabis", prompt: "Have you used cannabis during the past twelve months?", why: "A broad time-bounded gate avoids assuming current or problematic use.", answerType: "boolean", sensitive: true, minAge: 13, priority: 36.1, consumers: ["substance-routing"] },
