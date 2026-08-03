@@ -17,8 +17,8 @@
     "decimal.js": "10.6.0",
     "next": "16.2.12",
     "pdfjs-dist": "6.2.108",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "tesseract.js": "7.0.0"
   },
   "devDependencies": {
@@ -35,7 +35,7 @@
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.12",
     "jsdom": "26.1.0",
-    "react-server-dom-webpack": "19.2.6",
+    "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "vinext": "0.0.50",
