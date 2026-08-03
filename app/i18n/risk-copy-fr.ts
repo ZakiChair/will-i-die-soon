@@ -283,7 +283,7 @@ export const riskFactorLabelsFr: Readonly<Record<string, string>> = {
   "Confirmed immediate danger of self-harm or inability to stay safe":
     "Danger immédiat confirmé d'auto-agression ou impossibilité de rester en sécurité",
   "Pregnancy, trying to conceive, or breastfeeding may be relevant":
-    "Une grossesse, un projet de grossesse ou l'allaitement peut être pertinent",
+    "Une grossesse, un projet de grossesse ou l'allaitement peuvent être pertinents",
   "Severe pregnancy-related symptom or current pressure or safety concern reported":
     "Symptôme grave lié à la grossesse, pressions subies actuellement ou inquiétude concernant la sécurité signalés",
   "Current severe substance-related symptom or immediate safety concern reported":

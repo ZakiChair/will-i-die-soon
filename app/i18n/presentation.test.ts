@@ -1010,6 +1010,23 @@ describe("risk presentation", () => {
     );
   });
 
+  it("uses plural agreement for coordinated pregnancy-relevance subjects", () => {
+    const profile = { age: 15, countryCode: "CH" };
+    const canonical = leafByRuleId(
+      "urgent-adolescent-pregnancy-safety",
+      {
+        pregnancy_relevant: true,
+        adolescent_pregnancy_urgent_safety: true,
+      },
+      profile,
+    );
+    const localized = localizeRiskLeaves([canonical], "fr", profile)[0];
+
+    expect(localized.factors).toContain(
+      "Une grossesse, un projet de grossesse ou l'allaitement peuvent être pertinents",
+    );
+  });
+
   it("does not mutate a deeply frozen merged emergency leaf", () => {
     const evaluated = evaluateRisks(
       { urgent_chest_discomfort_now: true, urgent_breathing_now: true },
