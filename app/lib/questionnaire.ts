@@ -14,6 +14,14 @@ const DEPTH_LIMITS: Readonly<Record<AnalysisDepth, number>> = {
   deep: 200,
 };
 
+const DEPTH_MINIMUMS: Readonly<Record<AnalysisDepth, number>> = {
+  quick: 20,
+  detailed: 50,
+  deep: 150,
+};
+
+const DEPTH_ORDER: ReadonlyArray<AnalysisDepth> = ["quick", "detailed", "deep"];
+
 function valuesEqual(left: AnswerValue | undefined, right: AnswerValue): boolean {
   if (Array.isArray(left) || Array.isArray(right)) {
     return (
@@ -41,6 +49,10 @@ function matchesCondition(condition: BranchCondition, answers: AnswerMap): boole
   }
 
   const answer = answers[condition.questionId];
+  if (answer === null || answer === undefined) {
+    return false;
+  }
+
   if (condition.operator === "equals") {
     return valuesEqual(answer, condition.value);
   }
@@ -74,6 +86,20 @@ function compareQuestions(left: Question, right: Question): number {
   return left.priority - right.priority || left.id.localeCompare(right.id);
 }
 
+export function getAvailableDepths(
+  bank: ReadonlyArray<Question>,
+  context: ProfileContext,
+  answers: AnswerMap,
+): AnalysisDepth[] {
+  const eligible = getEligibleQuestions(bank, context, answers);
+
+  return DEPTH_ORDER.filter(
+    (depth) =>
+      eligible.filter((question) => question.tiers.includes(depth)).length >=
+      DEPTH_MINIMUMS[depth],
+  );
+}
+
 export function buildAssessmentQueue(
   depth: AnalysisDepth,
   bank: ReadonlyArray<Question>,
@@ -83,6 +109,12 @@ export function buildAssessmentQueue(
   const eligible = getEligibleQuestions(bank, context, answers).filter((question) =>
     question.tiers.includes(depth),
   );
+  if (depth === "deep" && eligible.length < DEPTH_MINIMUMS.deep) {
+    throw new RangeError(
+      `Deep assessment is unavailable: ${eligible.length} eligible questions; at least 150 eligible questions are required.`,
+    );
+  }
+
   const core = eligible
     .filter((question) => question.tiers.includes("quick"))
     .sort(compareQuestions);

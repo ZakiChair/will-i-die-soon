@@ -51,7 +51,7 @@ export type HealthDomain =
 
 export type AnswerValue = string | number | boolean | ReadonlyArray<string> | null;
 
-export type AnswerMap = Readonly<Record<string, AnswerValue | undefined>>;
+export type AnswerMap = Readonly<Partial<Record<string, AnswerValue>>>;
 
 export type ProfileContext = {
   age: number;
@@ -82,7 +82,7 @@ export type Question = {
   options?: ReadonlyArray<{ value: string; label: string }>;
   tiers: ReadonlyArray<AnalysisDepth>;
   priority: number;
-  sensitive?: boolean;
+  sensitive: true;
   minAge?: number;
   maxAge?: number;
   condition?: BranchCondition;

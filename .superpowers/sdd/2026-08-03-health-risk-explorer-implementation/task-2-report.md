@@ -173,3 +173,112 @@ All 47 design domains are represented. The bank audit found 228 unique stable ID
 - Node 22 emits the existing `[DEP0205] module.register()` deprecation warning through the current Vite/Vitest toolchain; it does not fail tests or build.
 - Task 3 must enforce the consent/guardian screen and inject the visible `Prefer not to say` control for every sensitive categorical item. This engine supplies the age gates and null skip semantics but intentionally does not implement UI policy.
 - The bank is curated prototype intake content, not a validated diagnostic instrument. Later evidence/risk tasks must continue to keep medication and substance answers out of numeric models unless a published model explicitly includes them.
+
+## Fix round 1/5 — null branching, depth availability, adolescent routes, and sensitivity
+
+### Findings addressed
+
+- **Null branch leak:** branch evaluation now treats `null`, an absent key, and defensive runtime `undefined` as unresolved before evaluating `equals`, `not-equals`, or `includes`. A deliberate skip therefore unlocks no dependent questions. `getNextQuestion` continues to treat a present `null` value as a completed skip.
+- **Deep minimum:** added `getAvailableDepths(bank, context, answers): AnalysisDepth[]`. It exposes a depth only when at least 20 Quick, 50 Detailed, or 150 Deep-tier questions are eligible. `buildAssessmentQueue("deep", ...)` now throws a descriptive `RangeError` below 150 rather than returning a misleading short Deep assessment.
+- **Adolescent disclosure routes:** added seven `minAge: 13`, `maxAge: 17` follow-ups covering nicotine, alcohol, cannabis, other drugs, shared urgent substance safety, pregnancy support, and urgent pregnancy/safety concerns. The prompts are broad, voluntary, non-diagnostic, non-scored, time-bounded for substance use, and remain separate from adult detail branches.
+- **Sensitivity policy:** `Question.sensitive` is now required as the literal type `true`; the typed factory applies it to every bank item. The invariant checks the entire bank, not just entries already flagged sensitive.
+- **Answer typing:** `AnswerMap` is now `Readonly<Partial<Record<string, AnswerValue>>>`. A missing key is unanswered; `null` is the only explicit skip value. `AnswerValue` excludes `undefined`.
+
+### RED evidence
+
+The first fix tests were written before implementation:
+
+```text
+$ npm test -- questionnaire.test.ts
+Test Files 1 failed (1)
+Tests 3 failed | 12 passed (15)
+
+FAIL marks every health question sensitive and leaves skip rendering to controls
+expected false to be true
+
+FAIL treats null and missing gates as unresolved for not-equals branches
+expected true to be false
+
+FAIL offers adolescents broad support and urgent-safety follow-ups without adult details
+expected adolescent follow-up IDs, received none
+exit 1
+```
+
+After those three behaviors were green, the separate Deep-availability tests were added first:
+
+```text
+$ npm test -- questionnaire.test.ts
+Test Files 1 failed (1)
+Tests 2 failed | 15 passed (17)
+
+FAIL advertises Deep only when the profile has at least 150 eligible Deep items
+TypeError: getAvailableDepths is not a function
+
+FAIL rejects unavailable Deep queues instead of returning a misleading short assessment
+expected function to throw an error
+exit 1
+```
+
+### GREEN outcomes
+
+Focused questionnaire suite after both RED→GREEN cycles:
+
+```text
+$ npm test -- questionnaire.test.ts
+Test Files 1 passed (1)
+Tests 17 passed (17)
+exit 0
+```
+
+Full suite:
+
+```text
+$ npm test
+Test Files 2 passed (2)
+Tests 18 passed (18)
+exit 0
+```
+
+Lint:
+
+```text
+$ npm run lint
+exit 0
+```
+
+Task 2 strict targeted typecheck:
+
+```text
+$ npx tsc --noEmit --target ES2022 --lib ES2022,DOM --module esnext \
+    --moduleResolution bundler --strict --skipLibCheck --types vitest/globals \
+    app/lib/types.ts app/lib/questionnaire.ts app/lib/questionnaire.test.ts \
+    app/data/questions/*.ts
+exit 0
+```
+
+Production build:
+
+```text
+$ npm run build
+vinext built all five environments
+Build complete
+exit 0
+```
+
+### Updated exact audits
+
+- Bank total: **235** questions, all **235** explicitly sensitive.
+- Updated source counts: core **40**, lifestyle **54**, clinical **52**, substances **33**, medications **38**, labs **18**.
+- Updated affected domain counts: tobacco-nicotine **6**, alcohol **5**, cannabis **5**, recreational-drugs **5**, pregnancy **9**. Other domain counts remain as listed in the initial report.
+- Age 12: **108** eligible Deep-tier items; available depths are Quick and Detailed; direct Deep construction rejects.
+- Age 15: **127** eligible Deep-tier items; available depths are Quick and Detailed; direct Deep construction rejects.
+- Age 35: **150** eligible Deep-tier items; Quick, Detailed, and Deep are available; queues remain 20, 50, and 150.
+- Skipped `alcohol_frequency: null`: **0** alcohol detail questions.
+- A second synthetic `not-equals` gate with `null`: **0** dependents.
+- Adult detail questions remain excluded at age 15; all seven adolescent follow-ups are eligible when their gates are affirmatively answered.
+
+### Fix-round concerns
+
+- Task 3 must call `getAvailableDepths` before presenting depth choices and handle the defensive Deep `RangeError` if profile/answer eligibility changes.
+- The existing Node `[DEP0205] module.register()` warning remains non-failing in tests and builds.
+- The pre-existing bare repository-wide TypeScript configuration gaps noted above are unchanged; the strict Task 2 target, lint, full tests, and production build pass.
