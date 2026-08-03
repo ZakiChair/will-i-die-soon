@@ -76,7 +76,7 @@ function protectiveRoots(answers: AnswerMap): string[] {
       : null,
     answers.stress_recovery_practice === "often" ||
     answers.stress_recovery_practice === "daily"
-      ? "Regular chosen time for recovery or enjoyable activity"
+      ? "A regular brief stress-management practice"
       : null,
   ];
   return candidates.filter((candidate): candidate is string => candidate !== null);
@@ -187,7 +187,7 @@ function AdolescentHabitsMap({ answers }: { readonly answers: AnswerMap }) {
       : null,
     answers.stress_recovery_practice === "often" ||
     answers.stress_recovery_practice === "daily"
-      ? "You reported making regular time for recovery or enjoyable activity."
+      ? "You reported regularly practising a brief stress-management skill."
       : null,
     answers.circadian_morning_light === true
       ? "You reported getting outdoor or bright light after waking."
@@ -196,7 +196,7 @@ function AdolescentHabitsMap({ answers }: { readonly answers: AnswerMap }) {
   const optionalHabit =
     answers.stress_recovery_practice === "never" ||
     answers.stress_recovery_practice === "rarely"
-      ? "If you want, choose one brief recovery or enjoyable activity that feels realistic this week."
+      ? "If you want, choose one brief stress-management practice and try it for a few minutes today."
       : answers.reliable_social_support === false
         ? "If it feels safe, choose one trusted person or service you could contact when you need support."
         : "You can choose whether there is any habit you want to explore; no card is ranked.";
@@ -293,9 +293,15 @@ function ActionPlan({ actions }: { readonly actions: ReadonlyArray<ActionItem> }
             <h3>{action.title}</h3>
             <p><strong>Why this appears:</strong> {action.reason}</p>
             <p><strong>Voluntary next step:</strong> {action.nextStep}</p>
-            <a href={action.source.url} target="_blank" rel="noreferrer">
-              {action.source.title} — {action.source.publisher}
-            </a>
+            <ul className="action-plan__sources" aria-label="Sources">
+              {action.sources.map((source) => (
+                <li key={`${source.publisher}:${source.title}:${source.url}`}>
+                  <a href={source.url} target="_blank" rel="noreferrer">
+                    {source.title} — {source.publisher}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </li>
         ))}
       </ol>
@@ -372,6 +378,7 @@ export function Results({
   const urgentLeaves = leaves.filter((leaf) => leaf.urgency === "urgent");
   const report = useMemo(
     () => ({
+      subjectAgeYears: profile.age,
       assessmentDepth,
       score,
       riskLeaves: leaves,
@@ -379,7 +386,7 @@ export function Results({
       confirmedLabs,
       answers,
     }),
-    [actions, answers, assessmentDepth, confirmedLabs, leaves, score],
+    [actions, answers, assessmentDepth, confirmedLabs, leaves, profile.age, score],
   );
 
   useEffect(() => {

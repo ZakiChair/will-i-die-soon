@@ -28,8 +28,9 @@ body {
 button, a, input, select { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, [tabindex="-1"]:focus-visible {
-  outline: 3px solid var(--electric-blue);
-  outline-offset: 3px;
+  outline: 3px solid var(--signal-amber);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 8px var(--deep-water);
 }
 button:disabled { cursor: not-allowed; opacity: .48; }
 
@@ -540,6 +541,9 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
   box-shadow: inset 5px 0 var(--electric-blue);
   transform: translateX(3px);
 }
+.risk-tree__leaves button:hover:focus-visible, .risk-tree__leaves button[aria-pressed="true"]:focus-visible {
+  box-shadow: inset 5px 0 var(--electric-blue), 0 0 0 8px var(--deep-water);
+}
 .risk-tree__leaves--empty, .risk-tree__roots { color: var(--muted); font-size: .84rem; line-height: 1.5; }
 .risk-tree__roots li { padding-left: 14px; border-left: 3px solid var(--deep-water); }
 
@@ -662,11 +666,12 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
   line-height: .95;
 }
 .action-plan ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; counter-reset: action; }
-.action-plan li { position: relative; min-height: 340px; padding: 66px 22px 22px; border: 1px solid var(--line); background: rgb(255 255 255 / 50%); counter-increment: action; }
-.action-plan li::before { position: absolute; top: 20px; left: 22px; color: var(--electric-blue); font-family: var(--font-data), monospace; font-size: .72rem; font-weight: 700; letter-spacing: .08em; content: "ACTION " counter(action); }
+.action-plan > ol > li { position: relative; min-height: 340px; padding: 66px 22px 22px; border: 1px solid var(--line); background: rgb(255 255 255 / 50%); counter-increment: action; }
+.action-plan > ol > li::before { position: absolute; top: 20px; left: 22px; color: var(--electric-blue); font-family: var(--font-data), monospace; font-size: .72rem; font-weight: 700; letter-spacing: .08em; content: "ACTION " counter(action); }
 .action-plan h3 { font-size: 1.55rem; letter-spacing: -.04em; }
 .action-plan p { color: var(--deep-water); line-height: 1.6; }
 .action-plan a { color: var(--electric-blue); font-size: .88rem; line-height: 1.5; text-underline-offset: 3px; }
+.action-plan__sources { display: grid; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
 
 .confirmed-labs > .data-label { color: var(--electric-blue); }
 .confirmed-labs > p:not(.data-label), .result-tools > p:not(.data-label) { max-width: 790px; color: var(--deep-water); line-height: 1.7; }
@@ -712,7 +717,7 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
   .score-sheet > .data-label, .score-sheet h2, .score-sheet__readout, .score-sheet__coverage, .score-sheet__scope, .score-sheet--reflection > p:not(.data-label, .score-sheet__coverage), .score-categories { grid-column: 1; grid-row: auto; }
   .score-sheet > .data-label { margin-bottom: 14px; }
   .habits-map__cards, .action-plan ol { grid-template-columns: 1fr; }
-  .action-plan li { min-height: 0; }
+  .action-plan > ol > li { min-height: 0; }
 }
 
 @media (max-width: 560px) {

@@ -164,6 +164,39 @@ test("urgent findings render before the adult habits score without changing its 
   expect(document.body.textContent).not.toMatch(/your disease probability|\byou will (?:live|die)\b/i);
 });
 
+test("a merged support action renders every applicable reason and source link", () => {
+  render(
+    <Results
+      answers={{
+        ...F1_ANSWERS,
+        preventive_followup_action: "access_or_safety_barrier",
+        med_detail_prescriber_followup: "no_current_access",
+      }}
+      assessmentDepth="deep"
+      confirmedLabs={[]}
+      profile={{ age: 35, countryCode: "CH" }}
+      onRestart={vi.fn()}
+    />,
+  );
+
+  const action = screen
+    .getByRole("heading", { name: /practical access and safety support/i })
+    .closest("li");
+  expect(action).not.toBeNull();
+  if (!action) return;
+  expect(action).toHaveTextContent(/access or safety barrier/i);
+  expect(action).toHaveTextContent(/no current access to prescriber follow-up/i);
+  expect(
+    within(action).getByRole("link", { name: /primary health care/i }),
+  ).toHaveAttribute("href", "https://www.who.int/health-topics/primary-health-care");
+  expect(
+    within(action).getByRole("link", { name: /medication without harm/i }),
+  ).toHaveAttribute(
+    "href",
+    "https://www.who.int/initiatives/medication-without-harm",
+  );
+});
+
 test("Quick shows a habits reflection and coverage but never a numeric score", () => {
   render(
     <Results
@@ -226,6 +259,8 @@ test("ages 13 to 17 receive a non-ranked My Health Habits Map", () => {
   expect(screen.getByRole("heading", { name: "One habit you could choose to work on" })).toBeVisible();
   expect(screen.getByRole("heading", { name: "Support you asked for" })).toBeVisible();
   expect(screen.getByText(/help finding a pregnancy-related health service/i)).toBeVisible();
+  expect(screen.getByText(/brief stress-management practice/i)).toBeVisible();
+  expect(document.body.textContent).not.toMatch(/recovery or enjoyable activity/i);
   expect(screen.getByText(/parent, guardian, or another trusted adult/i)).toBeVisible();
   expect(document.body.textContent).not.toMatch(
     /purity score|\b\d+\s*\/\s*100\b|\bpoints?\b|\bgrade\b|adult comparison/i,

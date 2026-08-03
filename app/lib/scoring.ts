@@ -159,7 +159,7 @@ export type ActionItem = {
   readonly title: string;
   readonly reason: string;
   readonly nextStep: string;
-  readonly source: ScoreSource;
+  readonly sources: ReadonlyArray<ScoreSource>;
   readonly opportunity: number;
 };
 
@@ -190,9 +190,9 @@ const SOURCES = {
     url: "https://www.cdc.gov/sleep/about/index.html",
   },
   recovery: {
-    title: "Mental health: strengthening our response",
+    title: "Doing What Matters in Times of Stress: An Illustrated Guide",
     publisher: "World Health Organization",
-    url: "https://www.who.int/news-room/fact-sheets/detail/mental-health-strengthening-our-response",
+    url: "https://www.who.int/publications/i/item/9789240003927",
   },
   preventive: {
     title: "Primary health care",
@@ -771,20 +771,20 @@ function recoveryCategory(answers: AnswerMap) {
     answers,
     {
       questionId: "stress_recovery_practice",
-      label: "Chosen recovery practice",
+      label: "Brief stress-management practice",
       maxPoints: 7,
       source: SOURCES.recovery,
     },
     { never: 0, rarely: 0.25, sometimes: 0.5, often: 0.75, daily: 1 },
     {
-      never: "You reported never making deliberate time for recovery.",
-      rarely: "You reported rarely making deliberate time for recovery.",
-      sometimes: "You reported sometimes making deliberate time for recovery.",
-      often: "You reported often making deliberate time for recovery.",
-      daily: "You reported making deliberate time for recovery daily or almost daily.",
+      never: "You reported never practising a brief stress-management skill.",
+      rarely: "You reported rarely practising a brief stress-management skill.",
+      sometimes: "You reported sometimes practising a brief stress-management skill.",
+      often: "You reported often practising a brief stress-management skill.",
+      daily: "You reported practising a brief stress-management skill daily or almost daily.",
     },
   );
-  return category("recovery", "Recovery practice", 7, SOURCES.recovery, [component]);
+  return category("recovery", "Stress-management practice", 7, SOURCES.recovery, [component]);
 }
 
 function preventiveCategory(answers: AnswerMap) {
@@ -799,7 +799,7 @@ function preventiveCategory(answers: AnswerMap) {
   if (status === "not_due") {
     component = componentExcluded(
       options,
-      "You reported no personally due and accessible routine follow-up.",
+      "You reported that no routine follow-up was personally due.",
       "not-due",
     );
   } else if (status === "yes" && answers.preventive_followup_action === "access_or_safety_barrier") {
@@ -825,7 +825,7 @@ function preventiveCategory(answers: AnswerMap) {
               ? "You reported completing a personally due follow-up."
               : action === "booked_or_contacted"
                 ? "You reported booking or contacting a service about a personally due follow-up."
-                : "You reported not yet acting on a personally due and accessible follow-up.",
+                : "You reported not yet acting on a personally due follow-up.",
           );
   } else {
     component = componentMissing(options, "Whether a chosen preventive follow-up applies is unresolved.");
@@ -1121,9 +1121,9 @@ const ACTION_COPY: Readonly<
       "Choose one feasible routine change, such as protecting sleep time or making bedtime timing more regular.",
   },
   recovery: {
-    title: "Make room for one chosen recovery practice",
+    title: "Try one brief stress-management practice",
     nextStep:
-      "Choose one brief, realistic recovery or enjoyable activity; structural pressure is not a personal failure.",
+      "Choose grounding, unhooking, acting on your values, being kind, or making room, and practise it for a few minutes today.",
   },
   "preventive-followup": {
     title: "Take one step on the follow-up you chose",
@@ -1159,6 +1159,18 @@ function evidenceDirectionRank(categoryId: ScoreCategoryId | undefined): number 
     : (ACTION_EVIDENCE_DIRECTION.get(categoryId) ?? Number.MAX_SAFE_INTEGER);
 }
 
+function distinctSources(
+  sources: ReadonlyArray<ScoreSource>,
+): ReadonlyArray<ScoreSource> {
+  const seen = new Set<string>();
+  return sources.filter((source) => {
+    const identity = JSON.stringify([source.publisher, source.title, source.url]);
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+}
+
 function barrierAction(
   score: AdultPurityScoreResult | PublicInsufficientCoverageResult,
 ):
@@ -1190,7 +1202,7 @@ function barrierAction(
       reason: reasons.join(" "),
       nextStep:
         "If you want support, choose a qualified local service, pharmacist, clinician, or trusted helper who can work with the barrier you named.",
-      source: score.supportContexts[0].source,
+      sources: distinctSources(score.supportContexts.map((context) => context.source)),
       opportunity: Number.POSITIVE_INFINITY,
     },
   };
@@ -1230,7 +1242,7 @@ function habitActions(score: AdultPurityScoreResult): ActionItem[] {
           title: copy.title,
           reason: largestDeficitComponent.explanation,
           nextStep: copy.nextStep,
-          source: scoreCategory.source,
+          sources: [scoreCategory.source],
           opportunity: deficit,
         },
         plannedStepRank: isAlreadyPlanned ? 0 : 1,

@@ -9,9 +9,10 @@ import type {
   RiskLeaf,
 } from "./types";
 
-export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v1" as const;
+export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v2" as const;
 
 export type ResultReport = {
+  readonly subjectAgeYears: number | null;
   readonly assessmentDepth: AnalysisDepth;
   readonly score: PurityScoreResult;
   readonly riskLeaves: ReadonlyArray<RiskLeaf>;
@@ -105,7 +106,11 @@ function interpretedAction(action: ActionItem) {
     title: action.title,
     reason: action.reason,
     nextStep: action.nextStep,
-    source: action.source,
+    sources: action.sources.map((source) => ({
+      title: source.title,
+      publisher: source.publisher,
+      url: source.url,
+    })),
   };
 }
 
@@ -113,6 +118,12 @@ export function createRedactedExport(
   report: ResultReport,
   options: ExportOptions = {},
 ): Blob {
+  const rawAnswersAllowed =
+    options.includeRawAnswers === true &&
+    typeof report.subjectAgeYears === "number" &&
+    Number.isFinite(report.subjectAgeYears) &&
+    Number.isInteger(report.subjectAgeYears) &&
+    report.subjectAgeYears >= 18;
   const payload = {
     schemaVersion: RESULT_REPORT_VERSION,
     assessmentDepth: report.assessmentDepth,
@@ -120,7 +131,7 @@ export function createRedactedExport(
     riskLeaves: report.riskLeaves.map(interpretedLeaf),
     actions: report.actions.map(interpretedAction),
     confirmedLabs: report.confirmedLabs.map(reviewedLab),
-    ...(options.includeRawAnswers
+    ...(rawAnswersAllowed
       ? { rawAnswers: structuredAnswers(report.answers) }
       : {}),
   };

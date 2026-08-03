@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 
 import { createRedactedExport } from "./export";
-import { calculatePurityScore } from "./scoring";
+import { buildActionPlan, calculatePurityScore } from "./scoring";
 import type { ResultReport } from "./export";
 import type { RiskLeaf } from "./types";
 
@@ -31,7 +31,8 @@ const leaf: RiskLeaf = {
   applicability: { countries: "all" },
 };
 
-const report: ResultReport = {
+const report: ResultReport & { readonly subjectAgeYears: number } = {
+  subjectAgeYears: 35,
   assessmentDepth: "deep",
   score: calculatePurityScore(
     {
@@ -80,6 +81,34 @@ const report: ResultReport = {
   },
 };
 
+const completeAdultScore = calculatePurityScore(
+  {
+    current_tobacco_nicotine: false,
+    alcohol_frequency: "never",
+    weekly_moderate_activity_minutes: 300,
+    movement_strength_days: 2,
+    movement_walking_days: 5,
+    sedentary_total_hours: 4,
+    plant_food_frequency: 5,
+    diet_whole_grains: "daily",
+    diet_legumes: 3,
+    diet_processed_meat: "never",
+    diet_sugary_drinks: 0,
+    usual_sleep_hours: 7,
+    sleep_refreshed: 9,
+    circadian_bedtime_variation: 1,
+    stress_recovery_practice: "daily",
+    preventive_followup_status: "not_due",
+    current_medications: false,
+  },
+  { ageYears: 35, assessmentDepth: "deep" },
+);
+
+const quickAdultReflection = calculatePurityScore(
+  report.answers,
+  { ageYears: 35, assessmentDepth: "quick" },
+);
+
 async function readJson(blob: Blob) {
   const text = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -97,7 +126,7 @@ test("default JSON contains interpreted output and confirmed reviewed lab contex
 
   expect(blob.type).toBe("application/json");
   expect(json).toMatchObject({
-    schemaVersion: "health-risk-explorer-report-v1",
+    schemaVersion: "health-risk-explorer-report-v2",
     assessmentDepth: "deep",
     score: {
       kind: "insufficient-coverage",
@@ -141,6 +170,105 @@ test("explicit raw opt-in includes only valid structured answers and still remov
   );
 });
 
+test.each([
+  ["age 17 with an adult-shaped score", 17, completeAdultScore],
+  ["under 13 with a Quick reflection", 12, quickAdultReflection],
+  ["unverified age with an insufficient result", null, report.score],
+  ["invalid age with an adult-shaped score", Number.NaN, completeAdultScore],
+] as const)("raw opt-in is ignored for %s", async (_name, subjectAgeYears, score) => {
+  const json = await readJson(
+    createRedactedExport(
+      { ...report, subjectAgeYears, score },
+      { includeRawAnswers: true },
+    ),
+  );
+
+  expect(json).not.toHaveProperty("rawAnswers");
+  expect(json).not.toHaveProperty("subjectAgeYears");
+});
+
+test("merged adult barriers retain every reason and distinct source in structured export", async () => {
+  const answers = {
+    current_tobacco_nicotine: false,
+    alcohol_frequency: "never",
+    preventive_followup_status: "yes",
+    preventive_followup_action: "access_or_safety_barrier",
+    current_medications: true,
+    med_detail_prescriber_followup: "no_current_access",
+  } as const;
+  const score = calculatePurityScore(answers, {
+    ageYears: 35,
+    assessmentDepth: "detailed",
+  });
+  const actions = buildActionPlan([], score);
+  const json = await readJson(
+    createRedactedExport(
+      {
+        ...report,
+        assessmentDepth: "detailed",
+        score,
+        actions,
+        answers,
+      },
+      { includeRawAnswers: true },
+    ),
+  );
+
+  expect(json.rawAnswers).toMatchObject({
+    preventive_followup_status: "yes",
+    preventive_followup_action: "access_or_safety_barrier",
+    current_medications: true,
+    med_detail_prescriber_followup: "no_current_access",
+  });
+  expect(json.actions).toEqual([
+    expect.objectContaining({
+      kind: "access-support",
+      reason: expect.stringMatching(/access or safety barrier/i),
+      sources: [
+        expect.objectContaining({ title: "Primary health care" }),
+        expect.objectContaining({ title: "Medication Without Harm" }),
+      ],
+    }),
+  ]);
+  expect(JSON.stringify(json.actions)).toMatch(/no current access to prescriber follow-up/i);
+  expect((json.actions as Array<Record<string, unknown>>)[0]).not.toHaveProperty("source");
+  expect(json.schemaVersion).toBe("health-risk-explorer-report-v2");
+});
+
+test("raw opt-in is ignored when the trusted age guard is missing", async () => {
+  const missingAgeReport = { ...report } as Partial<ResultReport>;
+  Reflect.deleteProperty(missingAgeReport, "subjectAgeYears");
+  const json = await readJson(
+    createRedactedExport(
+      { ...missingAgeReport, score: completeAdultScore } as ResultReport,
+      { includeRawAnswers: true },
+    ),
+  );
+
+  expect(json).not.toHaveProperty("rawAnswers");
+  expect(json).not.toHaveProperty("subjectAgeYears");
+});
+
+test.each([
+  ["Quick reflection", quickAdultReflection],
+  ["insufficient coverage", report.score],
+  ["published adult score", completeAdultScore],
+] as const)("verified adults can explicitly opt into raw answers with %s", async (_name, score) => {
+  const json = await readJson(
+    createRedactedExport(
+      { ...report, subjectAgeYears: 35, score },
+      { includeRawAnswers: true },
+    ),
+  );
+
+  expect(json.rawAnswers).toEqual({
+    current_tobacco_nicotine: false,
+    diagnosed_conditions_core: ["none"],
+    sex_assigned_at_birth: "female",
+  });
+  expect(json).not.toHaveProperty("subjectAgeYears");
+});
+
 test("default JSON exports a curated action without its internal ranking sentinel", async () => {
   const json = await readJson(
     createRedactedExport({
@@ -153,11 +281,13 @@ test("default JSON exports a curated action without its internal ranking sentine
           title: "Start with practical access and safety support",
           reason: "No current access was reported.",
           nextStep: "Choose a qualified local support route if you want one.",
-          source: {
-            title: "Medication Without Harm",
-            publisher: "World Health Organization",
-            url: "https://www.who.int/initiatives/medication-without-harm",
-          },
+          sources: [
+            {
+              title: "Medication Without Harm",
+              publisher: "World Health Organization",
+              url: "https://www.who.int/initiatives/medication-without-harm",
+            },
+          ],
           opportunity: Number.POSITIVE_INFINITY,
         },
       ],
@@ -172,11 +302,13 @@ test("default JSON exports a curated action without its internal ranking sentine
       title: "Start with practical access and safety support",
       reason: "No current access was reported.",
       nextStep: "Choose a qualified local support route if you want one.",
-      source: {
-        title: "Medication Without Harm",
-        publisher: "World Health Organization",
-        url: "https://www.who.int/initiatives/medication-without-harm",
-      },
+      sources: [
+        {
+          title: "Medication Without Harm",
+          publisher: "World Health Organization",
+          url: "https://www.who.int/initiatives/medication-without-harm",
+        },
+      ],
     },
   ]);
 });

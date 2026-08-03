@@ -7,6 +7,7 @@ import {
   getAvailableDepths,
   getEligibleQuestions,
   getNextQuestion,
+  reconcileAssessmentState,
 } from "./questionnaire";
 import type {
   AnalysisDepth,
@@ -21,6 +22,11 @@ import type {
 const adult = { age: 35, countryCode: "CH" };
 const child = { age: 12, countryCode: "CH", assistedMinor: true };
 const adolescent = { age: 15, countryCode: "CH" };
+const medicationBehaviorIds = [
+  "adherence_missed_doses",
+  "adherence_access_barriers",
+  "interaction_shared_list",
+] as const;
 
 const expectedDomains: ReadonlyArray<HealthDomain> = [
   "demographics",
@@ -103,6 +109,60 @@ describe("question bank invariants", () => {
         }),
       ]),
     );
+  });
+
+  test("separates whether a preventive follow-up was due from access and action", () => {
+    const status = questionBank.find(
+      (question) => question.id === "preventive_followup_status",
+    );
+    const action = questionBank.find(
+      (question) => question.id === "preventive_followup_action",
+    );
+
+    expect(status).toMatchObject({
+      prompt:
+        "In the past 12 months, were you personally invited, advised, or due for a routine health follow-up?",
+      options: expect.arrayContaining([
+        { value: "not_due", label: "No — nothing was personally due" },
+        { value: "yes", label: "Yes" },
+      ]),
+    });
+    expect(status?.prompt).not.toMatch(/access|accessible/i);
+    expect(action).toMatchObject({
+      condition: {
+        questionId: "preventive_followup_status",
+        operator: "equals",
+        value: "yes",
+      },
+      options: expect.arrayContaining([
+        {
+          value: "access_or_safety_barrier",
+          label: "An access or safety barrier is in the way",
+        },
+      ]),
+    });
+
+    expect(
+      getEligibleQuestions(questionBank, adult, {
+        preventive_followup_status: "not_due",
+      }).map((question) => question.id),
+    ).not.toContain("preventive_followup_action");
+    expect(
+      getEligibleQuestions(questionBank, adult, {
+        preventive_followup_status: "yes",
+      }).map((question) => question.id),
+    ).toContain("preventive_followup_action");
+  });
+
+  test("asks about a brief stress-management skill supported by the named WHO guide", () => {
+    expect(
+      questionBank.find((question) => question.id === "stress_recovery_practice"),
+    ).toMatchObject({
+      prompt:
+        "How often do you spend a few minutes practising a stress-management skill such as grounding or unhooking?",
+      why:
+        "Brief, repeatable stress-management skills can support coping without implying that structural pressure is a personal failure.",
+    });
   });
 
   test("contains structured adult systemic-steroid omission and symptom questions", () => {
@@ -436,6 +496,12 @@ describe("questionnaire selection", () => {
     ]);
   });
 
+  test("keeps the existing falls and balance check available to every adult", () => {
+    expect(getEligibleQuestions(questionBank, adult, {})).toContainEqual(
+      expect.objectContaining({ id: "preventive_fall_review", priority: 139 }),
+    );
+  });
+
   test("rejects unavailable Deep queues instead of returning a misleading short assessment", () => {
     expect(() => buildAssessmentQueue("deep", questionBank, child, {})).toThrow(
       /Deep.+at least 150 eligible questions/,
@@ -528,9 +594,7 @@ describe("adaptive branches", () => {
     expect(
       medicationsSkipped.queue.some((question) => question.id.startsWith("med_detail_")),
     ).toBe(false);
-    expect(deepMedicationsYes.queue).toHaveLength(
-      155,
-    );
+    expect(deepMedicationsYes.queue).toHaveLength(158);
     expect(deepInitial.queue).toHaveLength(150);
     expect(
       deepInitial.queue.every((question) =>
@@ -776,18 +840,60 @@ describe("adaptive branches", () => {
     ).toBe(true);
   });
 
-  test("current_medications=false removes medication-detail questions", () => {
+  test("current_medications=false removes every medicine-only follow-up", () => {
     const eligible = getEligibleQuestions(questionBank, adult, {
       current_medications: false,
     });
 
     expect(eligible.some((question) => question.id.startsWith("med_detail_"))).toBe(false);
+    expect(eligible.map((question) => question.id)).not.toEqual(
+      expect.arrayContaining(medicationBehaviorIds),
+    );
     expect(
       getEligibleQuestions(questionBank, adult, { current_medications: true }).some((question) =>
         question.id.startsWith("med_detail_"),
       ),
     ).toBe(true);
+    expect(
+      getEligibleQuestions(questionBank, adult, { current_medications: true }).map(
+        (question) => question.id,
+      ),
+    ).toEqual(expect.arrayContaining(medicationBehaviorIds));
   });
+
+  test.each(["detailed", "deep"] as const)(
+    "%s reconciliation removes stale medicine behaviors when the gate changes and restores their route",
+    (depth) => {
+      const withMedicines = reconcileAssessmentState(depth, questionBank, adult, {
+        current_medications: true,
+        adherence_missed_doses: "monthly",
+        adherence_access_barriers: ["cost"],
+        interaction_shared_list: true,
+      });
+      expect(withMedicines.queue.map((question) => question.id)).toEqual(
+        expect.arrayContaining(medicationBehaviorIds),
+      );
+
+      const withoutMedicines = reconcileAssessmentState(depth, questionBank, adult, {
+        ...withMedicines.answers,
+        current_medications: false,
+      });
+      expect(withoutMedicines.queue.map((question) => question.id)).not.toEqual(
+        expect.arrayContaining(medicationBehaviorIds),
+      );
+      for (const questionId of medicationBehaviorIds) {
+        expect(withoutMedicines.answers).not.toHaveProperty(questionId);
+      }
+
+      const reopened = reconcileAssessmentState(depth, questionBank, adult, {
+        ...withoutMedicines.answers,
+        current_medications: true,
+      });
+      expect(reopened.queue.map((question) => question.id)).toEqual(
+        expect.arrayContaining(medicationBehaviorIds),
+      );
+    },
+  );
 
   test("offers adolescents broad support and urgent-safety follow-ups without adult details", () => {
     const eligible = getEligibleQuestions(questionBank, adolescent, {

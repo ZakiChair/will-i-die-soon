@@ -385,8 +385,31 @@ describe("eligibility, exclusions, and missingness", () => {
         applicablePoints: 95,
       });
     }
+    const notDueComponent = notDue.categories
+      .flatMap((category) => category.components)
+      .find((component) => component.questionId === "preventive_followup_action");
+    expect(notDueComponent?.explanation).toBe(
+      "You reported that no routine follow-up was personally due.",
+    );
+    expect(notDueComponent?.explanation).not.toMatch(/access|accessible/i);
     expect(buildActionPlan([], notDue)).toEqual([]);
     expect(buildActionPlan([], barrier)[0].kind).toBe("access-support");
+  });
+
+  test("a not-yet preventive action does not infer that the due follow-up was accessible", () => {
+    const result = adultScore({
+      ...F1_ANSWERS,
+      preventive_followup_status: "yes",
+      preventive_followup_action: "not_yet",
+    });
+    const component = result.categories
+      .flatMap((category) => category.components)
+      .find((candidate) => candidate.questionId === "preventive_followup_action");
+
+    expect(component?.explanation).toBe(
+      "You reported not yet acting on a personally due follow-up.",
+    );
+    expect(component?.explanation).not.toMatch(/access|accessible/i);
   });
 
   test("no current prescriber access excludes three points and creates support", () => {
@@ -496,6 +519,13 @@ describe("eligibility, exclusions, and missingness", () => {
     expect(actions[0]).toMatchObject({
       kind: "access-support",
       categoryId: "medication-safety",
+      sources: [
+        {
+          title: "Medication Without Harm",
+          publisher: "World Health Organization",
+          url: "https://www.who.int/initiatives/medication-without-harm",
+        },
+      ],
     });
     expect(actions[0].reason).toMatch(/no current access to prescriber follow-up/i);
     expect(actions[0].reason).toMatch(/medicine access or use barrier/i);
@@ -512,6 +542,19 @@ describe("eligibility, exclusions, and missingness", () => {
     expect(actions.filter((action) => action.kind === "access-support")).toHaveLength(1);
     expect(actions[0].reason).toMatch(/access or safety barrier/i);
     expect(actions[0].reason).toMatch(/no current access to prescriber follow-up/i);
+    expect(actions[0].sources).toEqual([
+      {
+        title: "Primary health care",
+        publisher: "World Health Organization",
+        url: "https://www.who.int/health-topics/primary-health-care",
+      },
+      {
+        title: "Medication Without Harm",
+        publisher: "World Health Organization",
+        url: "https://www.who.int/initiatives/medication-without-harm",
+      },
+    ]);
+    expect(new Set(actions[0].sources.map((source) => source.url)).size).toBe(2);
   });
 
   test("an already planned follow-up wins an equal deficit tie and suggests follow-through", () => {
@@ -542,6 +585,32 @@ describe("eligibility, exclusions, and missingness", () => {
       "sleep",
       "recovery",
     ]);
+  });
+
+  test("recovery uses the verified WHO stress guide and only its brief supported practices", () => {
+    const score = adultScore({
+      ...F1_ANSWERS,
+      stress_recovery_practice: "never",
+    });
+    const recovery = score.categories.find((category) => category.id === "recovery");
+    const action = buildActionPlan([], score).find(
+      (candidate) => candidate.categoryId === "recovery",
+    );
+
+    expect(recovery?.source).toEqual({
+      title: "Doing What Matters in Times of Stress: An Illustrated Guide",
+      publisher: "World Health Organization",
+      url: "https://www.who.int/publications/i/item/9789240003927",
+    });
+    expect(action).toMatchObject({
+      title: "Try one brief stress-management practice",
+      nextStep:
+        "Choose grounding, unhooking, acting on your values, being kind, or making room, and practise it for a few minutes today.",
+      sources: [recovery?.source],
+    });
+    expect(`${action?.title} ${action?.nextStep}`).not.toMatch(
+      /enjoyable activity|generic recovery/i,
+    );
   });
 });
 

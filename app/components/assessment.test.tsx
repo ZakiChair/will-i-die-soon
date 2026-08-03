@@ -325,7 +325,7 @@ test("Quick completes after exactly 20 deliberate skips stored only as null", as
 test.each([
   ["quick", 20, 2, 0],
   ["detailed", 50, 4, 5],
-  ["deep", 155, 6, 5],
+  ["deep", 158, 6, 5],
 ] as const)(
   "%s adaptation completes %i questions with %i intermissions and %i medication follow-ups",
   async (depth, questionCount, expectedIntermissions, expectedFollowUps) => {
@@ -364,6 +364,35 @@ test("an affirmative medication gate inserts a real follow-up into the Detailed 
   expect(Object.keys(onComplete.mock.calls[0][0])).toHaveLength(50);
 });
 
+test("a personally due preventive follow-up routes access barriers into the action question", async () => {
+  const user = userEvent.setup();
+  render(
+    <Assessment depth="detailed" profile={adultProfile} onComplete={vi.fn()} />,
+  );
+
+  await skipUntilQuestion(
+    user,
+    /personally invited, advised, or due for a routine health follow-up\?$/i,
+  );
+  const statusHeading = screen.getByRole("heading", { level: 1 });
+  expect(statusHeading).not.toHaveTextContent(/access|accessible/i);
+  expect(
+    screen.getByRole("radio", { name: "No — nothing was personally due" }),
+  ).toBeVisible();
+
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+
+  expect(
+    screen.getByRole("heading", {
+      name: /what have you chosen to do about that routine follow-up/i,
+    }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("radio", { name: /access or safety barrier is in the way/i }),
+  ).toBeVisible();
+});
+
 test.each([
   ["No", "no"],
   ["Prefer not to say", "skip"],
@@ -379,6 +408,9 @@ test.each([
   expect(Object.keys(completedAnswers).some((id) => id.startsWith("med_detail_"))).toBe(
     false,
   );
+  expect(completedAnswers).not.toHaveProperty("adherence_missed_doses");
+  expect(completedAnswers).not.toHaveProperty("adherence_access_barriers");
+  expect(completedAnswers).not.toHaveProperty("interaction_shared_list");
   expect(completedAnswers.current_medications).toBe(gateAnswer === "no" ? false : null);
 });
 
@@ -414,6 +446,9 @@ test("changing an earlier gate with Back closes its branch and removes stale ans
   expect(Object.keys(completedAnswers).some((id) => id.startsWith("med_detail_"))).toBe(
     false,
   );
+  expect(completedAnswers).not.toHaveProperty("adherence_missed_doses");
+  expect(completedAnswers).not.toHaveProperty("adherence_access_barriers");
+  expect(completedAnswers).not.toHaveProperty("interaction_shared_list");
   expect(Object.values(completedAnswers)).not.toContain(undefined);
   expect(Object.keys(completedAnswers)).toHaveLength(50);
 });

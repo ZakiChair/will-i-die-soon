@@ -247,12 +247,12 @@ export const coreQuestions = defineQuestions([
     id: "preventive_followup_status",
     domain: "preventive-care",
     prompt:
-      "In the past 12 months, were you personally invited, advised, or due for a routine health follow-up that you could reasonably access?",
+      "In the past 12 months, were you personally invited, advised, or due for a routine health follow-up?",
     why:
       "This asks only about a follow-up that applied to you; it does not infer screening needs from age, diagnosis, pregnancy, or country.",
     answerType: "single",
     options: [
-      { value: "not_due", label: "No — nothing was personally due and reasonably accessible" },
+      { value: "not_due", label: "No — nothing was personally due" },
       { value: "yes", label: "Yes" },
       { value: "unsure", label: "Not sure" },
       { value: "prefer_not", label: "Prefer not to say" },
