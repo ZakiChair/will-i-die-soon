@@ -352,14 +352,6 @@ export const evidenceSources = {
     "all",
     { applicability: { maxAge: 17, countries: "all" } },
   ),
-  whoAdolescentPregnancy: source(
-    "who-adolescent-pregnancy",
-    "WHO guideline on preventing early pregnancy and poor reproductive outcomes among adolescents in low- and middle-income countries",
-    "World Health Organization",
-    "https://www.who.int/publications/i/item/9789240104105",
-    "all",
-    { applicability: { maxAge: 19, countries: "all" } },
-  ),
   nhsPregnancyMedicines: source(
     "nhs-pregnancy-medicines",
     "Medicines in pregnancy",

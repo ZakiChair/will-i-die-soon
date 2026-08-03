@@ -26,6 +26,13 @@ import type {
 const adultUS: ProfileContext = { age: 35, countryCode: "US" };
 const adultGB: ProfileContext = { age: 35, countryCode: "GB" };
 const adultCH: ProfileContext = { age: 35, countryCode: "CH" };
+const testCountryCodes = ["US", "GB", "CH", "DE", "OTHER"] as const;
+
+// Legacy/stale immediate-danger answers must still reach urgent help below the
+// questionnaire's current display age. No non-urgent route receives this exception.
+const auditedQuestionAgeExceptions = new Set([
+  "urgent-self-harm:urgent_self_harm_now",
+]);
 
 function leafIds(answers: AnswerMap, profile = adultUS) {
   return evaluateRisks(answers, profile, prototypePolicy).map((leaf) => leaf.id);
@@ -53,46 +60,131 @@ function conditionQuestionIds(
   return ids;
 }
 
-function mergeConditionAnswers(
+function answerWitnessMatches(
+  condition: RiskCondition,
+  answers: Record<string, AnswerValue>,
+): boolean {
+  if ("all" in condition) {
+    return condition.all.every((part) => answerWitnessMatches(part, answers));
+  }
+  if ("any" in condition) {
+    return condition.any.some((part) => answerWitnessMatches(part, answers));
+  }
+
+  const answer = answers[condition.questionId];
+  if (answer === undefined) return false;
+  if (Array.isArray(answer) && answer.includes("none") && answer.length > 1) {
+    return false;
+  }
+  if (condition.operator === "equals") return answer === condition.value;
+  if (condition.operator === "includes") {
+    return Array.isArray(answer) && answer.includes(condition.value);
+  }
+  if (typeof answer !== "number" || !Number.isFinite(answer)) return false;
+  if (condition.validMin !== undefined && answer < condition.validMin) return false;
+  if (condition.validMax !== undefined && answer > condition.validMax) return false;
+  return condition.operator === "less-than"
+    ? answer < condition.value
+    : answer >= condition.value;
+}
+
+function distinctAnswerVariants(
+  variants: ReadonlyArray<Record<string, AnswerValue>>,
+): ReadonlyArray<Record<string, AnswerValue>> {
+  const byValue = new Map<string, Record<string, AnswerValue>>();
+  for (const variant of variants) {
+    const key = JSON.stringify(
+      Object.entries(variant).sort(([left], [right]) =>
+        left.localeCompare(right),
+      ),
+    );
+    byValue.set(key, variant);
+  }
+  return [...byValue.values()];
+}
+
+function mergeConditionAnswerVariants(
   left: Record<string, AnswerValue>,
   right: Record<string, AnswerValue>,
-): Record<string, AnswerValue> {
-  const merged = { ...left };
+): ReadonlyArray<Record<string, AnswerValue>> {
+  let variants: ReadonlyArray<Record<string, AnswerValue>> = [{ ...left }];
   for (const [questionId, value] of Object.entries(right)) {
-    const existing = merged[questionId];
-    if (existing === undefined || existing === value) {
-      merged[questionId] = value;
-      continue;
-    }
-    if (Array.isArray(existing) && Array.isArray(value)) {
-      merged[questionId] = [...new Set([...existing, ...value])];
-      continue;
-    }
-    throw new Error(`Cannot construct a valid answer for ${questionId}.`);
+    variants = variants.flatMap((merged) => {
+      const existing = merged[questionId];
+      if (existing === undefined || existing === value) {
+        return [{ ...merged, [questionId]: value }];
+      }
+      if (Array.isArray(existing) && Array.isArray(value)) {
+        return [
+          {
+            ...merged,
+            [questionId]: [...new Set([...existing, ...value])],
+          },
+        ];
+      }
+      if (
+        typeof existing === "number" &&
+        Number.isFinite(existing) &&
+        typeof value === "number" &&
+        Number.isFinite(value)
+      ) {
+        return [...new Set([existing, value])].map((candidate) => ({
+          ...merged,
+          [questionId]: candidate,
+        }));
+      }
+      return [];
+    });
   }
-  return merged;
+  return variants;
+}
+
+function satisfyingAnswerVariants(
+  condition: RiskCondition,
+): ReadonlyArray<Record<string, AnswerValue>> {
+  if ("all" in condition) {
+    const variants = condition.all.reduce<
+      ReadonlyArray<Record<string, AnswerValue>>
+    >(
+      (variants, part) =>
+        variants.flatMap((answers) =>
+          satisfyingAnswerVariants(part).flatMap((partAnswers) =>
+            mergeConditionAnswerVariants(answers, partAnswers),
+          ),
+        ),
+      [{}],
+    );
+    return distinctAnswerVariants(
+      variants.filter((answers) => answerWitnessMatches(condition, answers)),
+    );
+  }
+  if ("any" in condition) {
+    return distinctAnswerVariants(
+      condition.any.flatMap((part) => satisfyingAnswerVariants(part)),
+    );
+  }
+  if (condition.operator === "includes") {
+    return [{ [condition.questionId]: [condition.value] }];
+  }
+  if (condition.operator === "equals") {
+    return [{ [condition.questionId]: condition.value }];
+  }
+  const belowThreshold = Math.min(
+    condition.value - 1,
+    condition.validMax ?? condition.value - 1,
+  );
+  const candidate =
+    condition.operator === "less-than"
+      ? (condition.validMin ?? belowThreshold)
+      : Math.max(condition.value, condition.validMin ?? condition.value);
+  const answers = { [condition.questionId]: candidate };
+  return answerWitnessMatches(condition, answers) ? [answers] : [];
 }
 
 function satisfyingAnswers(condition: RiskCondition): Record<string, AnswerValue> {
-  if ("all" in condition) {
-    return condition.all.reduce<Record<string, AnswerValue>>(
-      (answers, part) => mergeConditionAnswers(answers, satisfyingAnswers(part)),
-      {},
-    );
-  }
-  if ("any" in condition) return satisfyingAnswers(condition.any[0]);
-  if (condition.operator === "includes") {
-    return { [condition.questionId]: [condition.value] };
-  }
-  if (condition.operator === "equals") {
-    return { [condition.questionId]: condition.value };
-  }
-  return {
-    [condition.questionId]:
-      condition.operator === "less-than"
-        ? Math.max(condition.validMin ?? 0, condition.value - 1)
-        : condition.value,
-  };
+  const answers = satisfyingAnswerVariants(condition)[0];
+  if (!answers) throw new Error("Cannot construct answers for an empty condition.");
+  return answers;
 }
 
 function profileForRule(rule: RiskRule, countryCode: string): ProfileContext {
@@ -105,27 +197,110 @@ function profileForRule(rule: RiskRule, countryCode: string): ProfileContext {
 }
 
 describe("global rule source support matrix", () => {
-  test.each(
-    riskRules.flatMap((rule) =>
-      ["US", "GB", "CH", "DE", "OTHER"].map((countryCode) => [
-        rule.id,
-        countryCode,
-        rule,
-      ] as const),
-    ),
-  )("keeps %s supported in %s", (_ruleId, countryCode, rule) => {
-    expect(rule.applicability.countries, rule.id).toBe("all");
-    const leaves = evaluateRisks(
-      satisfyingAnswers(rule.condition),
-      profileForRule(rule, countryCode),
-      prototypePolicy,
-    );
+  test("constructs valid numeric witnesses for bounds, overlaps, and contradictions", () => {
+    const belowTen: RiskCondition = {
+      questionId: "numeric_witness",
+      operator: "less-than",
+      value: 10,
+      validMin: 0,
+      validMax: 20,
+    };
+    const atLeastFive: RiskCondition = {
+      questionId: "numeric_witness",
+      operator: "greater-than-or-equal",
+      value: 5,
+      validMin: 0,
+      validMax: 20,
+    };
+    const atLeastTen: RiskCondition = {
+      ...atLeastFive,
+      value: 10,
+    };
 
     expect(
-      leaves.find((leaf) => leaf.ruleId === rule.id),
-      `${rule.id} lost all applicable evidence in ${countryCode}`,
-    ).toBeDefined();
+      satisfyingAnswerVariants({ ...belowTen, validMax: 5 }),
+    ).toEqual([{ numeric_witness: 0 }]);
+    expect(
+      satisfyingAnswerVariants({
+        ...belowTen,
+        validMin: undefined,
+        validMax: 5,
+      }),
+    ).toEqual([{ numeric_witness: 5 }]);
+    expect(
+      satisfyingAnswerVariants({ ...atLeastFive, validMin: 8 }),
+    ).toEqual([{ numeric_witness: 8 }]);
+    expect(
+      satisfyingAnswerVariants({ all: [belowTen, atLeastFive] }),
+    ).not.toEqual([]);
+    expect(
+      satisfyingAnswerVariants({
+        all: [{ ...belowTen, value: 5 }, atLeastTen],
+      }),
+    ).toEqual([]);
+    expect(
+      satisfyingAnswerVariants({
+        all: [
+          { ...belowTen, value: 100, validMin: 5.5, validMax: 200 },
+          { ...belowTen, value: 6 },
+        ],
+      }),
+    ).toContainEqual({ numeric_witness: 5.5 });
   });
+
+  test("drops a contradictory none-plus-other multi-select witness", () => {
+    expect(
+      satisfyingAnswerVariants({
+        all: [
+          {
+            questionId: "multi_witness",
+            operator: "includes",
+            value: "none",
+          },
+          {
+            questionId: "multi_witness",
+            operator: "includes",
+            value: "other",
+          },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  test("constructs at least one satisfiable activation variant for every rule", () => {
+    for (const rule of riskRules) {
+      expect(
+        satisfyingAnswerVariants(rule.condition).length,
+        rule.id,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  test.each(
+    riskRules.flatMap((rule) =>
+      testCountryCodes.flatMap((countryCode) =>
+        satisfyingAnswerVariants(rule.condition).map(
+          (answers, routeIndex) =>
+            [rule.id, countryCode, routeIndex + 1, rule, answers] as const,
+        ),
+      ),
+    ),
+  )(
+    "keeps %s supported in %s for route %i",
+    (_ruleId, countryCode, _routeIndex, rule, answers) => {
+      expect(rule.applicability.countries, rule.id).toBe("all");
+      const leaves = evaluateRisks(
+        answers,
+        profileForRule(rule, countryCode),
+        prototypePolicy,
+      );
+
+      expect(
+        leaves.find((leaf) => leaf.ruleId === rule.id),
+        `${rule.id} lost all applicable evidence in ${countryCode}`,
+      ).toBeDefined();
+    },
+  );
 
   test.each(
     riskRules.flatMap((rule) => {
@@ -137,17 +312,20 @@ describe("global rule source support matrix", () => {
           ? []
           : [rule.applicability.maxAge]),
       ];
-      return ["US", "GB", "CH", "DE", "OTHER"].flatMap((countryCode) =>
-        [...new Set(ages)].map(
-          (age) => [rule.id, countryCode, age, rule] as const,
+      return testCountryCodes.flatMap((countryCode) =>
+        satisfyingAnswerVariants(rule.condition).flatMap((answers, routeIndex) =>
+          [...new Set(ages)].map(
+            (age) =>
+              [rule.id, countryCode, routeIndex + 1, age, rule, answers] as const,
+          ),
         ),
       );
     }),
   )(
-    "keeps %s supported in %s at applicability age %i",
-    (_ruleId, countryCode, age, rule) => {
+    "keeps %s supported in %s for route %i at applicability age %i",
+    (_ruleId, countryCode, _routeIndex, age, rule, answers) => {
       const leaves = evaluateRisks(
-        satisfyingAnswers(rule.condition),
+        answers,
         { age, countryCode },
         prototypePolicy,
       );
@@ -156,6 +334,72 @@ describe("global rule source support matrix", () => {
         leaves.find((leaf) => leaf.ruleId === rule.id),
         `${rule.id} lost all applicable evidence in ${countryCode} at age ${age}`,
       ).toBeDefined();
+    },
+  );
+
+  test.each(
+    riskRules.flatMap((rule) => {
+      const { minAge, maxAge } = rule.applicability;
+      const outsideAges = [
+        ...(minAge !== undefined && minAge > 0 ? [minAge - 1] : []),
+        ...(maxAge === undefined ? [] : [maxAge + 1]),
+      ];
+      return testCountryCodes.flatMap((countryCode) =>
+        satisfyingAnswerVariants(rule.condition).flatMap((answers, routeIndex) =>
+          outsideAges.map(
+            (age) =>
+              [rule.id, countryCode, routeIndex + 1, age, rule, answers] as const,
+          ),
+        ),
+      );
+    }),
+  )(
+    "does not route %s in %s for route %i outside its age boundary at %i",
+    (_ruleId, countryCode, _routeIndex, age, rule, answers) => {
+      const leaves = evaluateRisks(answers, { age, countryCode }, prototypePolicy);
+
+      expect(leaves.map((leaf) => leaf.ruleId)).not.toContain(rule.id);
+    },
+  );
+
+  test(
+    "keeps input-question ages inside rule ages except the audited urgent legacy route",
+    () => {
+      const questionsById = new Map(
+        questionBank.map((question) => [question.id, question]),
+      );
+      const observedExceptions = new Set<string>();
+      const violations: string[] = [];
+
+      for (const rule of riskRules) {
+        for (const questionId of rule.inputs) {
+          const question = questionsById.get(questionId);
+          expect(
+            question,
+            `${rule.id} references unknown question ${questionId}`,
+          ).toBeDefined();
+          if (!question) continue;
+
+          const belowQuestionMinimum =
+            question.minAge !== undefined &&
+            (rule.applicability.minAge ?? 0) < question.minAge;
+          const aboveQuestionMaximum =
+            question.maxAge !== undefined &&
+            (rule.applicability.maxAge ?? Number.POSITIVE_INFINITY) >
+              question.maxAge;
+          if (!belowQuestionMinimum && !aboveQuestionMaximum) continue;
+
+          const exceptionKey = `${rule.id}:${questionId}`;
+          if (auditedQuestionAgeExceptions.has(exceptionKey)) {
+            observedExceptions.add(exceptionKey);
+          } else {
+            violations.push(exceptionKey);
+          }
+        }
+      }
+
+      expect(violations).toEqual([]);
+      expect(observedExceptions).toEqual(auditedQuestionAgeExceptions);
     },
   );
 });
@@ -358,15 +602,8 @@ describe("evidence and release contracts", () => {
     );
   });
 
-  test("registers the primary WHO adolescent-pregnancy publication rather than its news release", () => {
-    expect(evidenceSources.whoAdolescentPregnancy).toEqual(
-      expect.objectContaining({
-        title:
-          "WHO guideline on preventing early pregnancy and poor reproductive outcomes among adolescents in low- and middle-income countries",
-        url: "https://www.who.int/publications/i/item/9789240104105",
-        applicability: { maxAge: 19, countries: "all" },
-      }),
-    );
+  test("does not register the LMIC adolescent-pregnancy guideline as globally applicable evidence", () => {
+    expect("whoAdolescentPregnancy" in evidenceSources).toBe(false);
   });
 
   test("consumes every declared sexual, adult pregnancy, and steroid safety answer", () => {
@@ -593,6 +830,9 @@ describe("evidence and release contracts", () => {
     });
     expect(adolescentSafety?.sourceIds).not.toContain("cdcYrbs");
     expect(adolescentUrgent?.sourceIds).toContain("whoBasicEmergencyCare");
+    expect(adolescentPregnancy?.sourceIds).not.toContain(
+      "whoAdolescentPregnancy",
+    );
     expect(adolescentPregnancy?.sourceIds).toContain(
       "whoPregnancyHealthServices",
     );
@@ -1965,6 +2205,65 @@ describe("audited medication and substance class routes", () => {
 });
 
 describe("minor and pregnancy boundaries", () => {
+  test.each(
+    testCountryCodes.flatMap((countryCode) =>
+      [0, 4, 5, 9, 10, 12].map((age) => [countryCode, age] as const),
+    ),
+  )(
+    "rejects an injected pregnancy gate below age 13 in %s at age %i",
+    (countryCode, age) => {
+      expect(
+        leafIds(
+          { pregnancy_relevant: true },
+          { age, countryCode, assistedMinor: true },
+        ),
+      ).not.toContain("minor-pregnancy-support");
+    },
+  );
+
+  test.each(
+    testCountryCodes.flatMap((countryCode) =>
+      [13, 17].map((age) => [countryCode, age] as const),
+    ),
+  )(
+    "keeps globally sourced pregnancy-related service support in %s at age %i",
+    (countryCode, age) => {
+      const leaf = leafById(
+        "minor-pregnancy-support",
+        { pregnancy_relevant: true },
+        { age, countryCode, assistedMinor: true },
+      );
+      const sourceIds = leaf.sources.map((source) => source.id);
+
+      expect(leaf.applicability).toEqual({
+        minAge: 13,
+        maxAge: 17,
+        countries: "all",
+      });
+      expect(leaf.copy).toMatch(/adolescent-friendly local health service/i);
+      expect(leaf.copy).toMatch(
+        /does not determine pregnancy or give medicine advice/i,
+      );
+      expect(sourceIds).toContain("who-adolescent-friendly-services");
+      expect(sourceIds).not.toContain("who-adolescent-pregnancy");
+      expect(sourceIds).not.toContain("nhs-pregnancy-medicines");
+      expect(
+        leaf.sources.find(
+          (source) => source.id === "who-adolescent-friendly-services",
+        )?.applicability,
+      ).toEqual({ minAge: 10, maxAge: 19, countries: "all" });
+    },
+  );
+
+  test.each(testCountryCodes)(
+    "stops minor pregnancy support at age 18 in %s",
+    (countryCode) => {
+      expect(
+        leafIds({ pregnancy_relevant: true }, { age: 18, countryCode }),
+      ).not.toContain("minor-pregnancy-support");
+    },
+  );
+
   test("returns no adult threshold or review leaf for a minor", () => {
     const leaves = evaluateRisks(
       {
@@ -2006,7 +2305,7 @@ describe("minor and pregnancy boundaries", () => {
       leaves
         .find((leaf) => leaf.id === "minor-pregnancy-support")
         ?.sources.map((source) => source.id),
-    ).toContain("who-adolescent-pregnancy");
+    ).toContain("who-adolescent-friendly-services");
   });
 
   test.each([5, 9, 12] as const)(

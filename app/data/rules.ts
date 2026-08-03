@@ -158,7 +158,6 @@ const immediateRedFlagRules: RiskRule[] = [
     copy: "Get urgent pregnancy or safeguarding help now.",
     inputs: ["pregnancy_relevant", "adolescent_pregnancy_urgent_safety"],
     sourceIds: [
-      "whoAdolescentPregnancy",
       "whoPregnancyHealthServices",
       "whoBasicEmergencyCare",
       "us911EmergencyAssistance",
@@ -1825,9 +1824,9 @@ const reproductiveRules: RiskRule[] = [
     group: "reproductive-health",
     title: "Pregnancy-related support",
     copy:
-      "Pregnancy, trying to conceive, or breastfeeding can change health and medicine decisions; ask a trusted adult and qualified health professional for confidential support.",
+      "Pregnancy-related questions can be discussed with a qualified, adolescent-friendly local health service. Ask what privacy rules apply before sharing details; this route does not determine pregnancy or give medicine advice.",
     inputs: ["pregnancy_relevant"],
-    sourceIds: ["whoAdolescentPregnancy", "nhsPregnancyMedicines"],
+    sourceIds: ["whoAdolescentFriendlyServices"],
     evidenceTier: "guideline-action",
     urgency: "support",
     signal: "worth-attention",
@@ -1835,11 +1834,11 @@ const reproductiveRules: RiskRule[] = [
     factors: [
       factor(
         "pregnancy_relevant",
-        "Pregnancy, trying to conceive, or breastfeeding may be relevant",
+        "A pregnancy-related question or support need was reported",
         equals("pregnancy_relevant", true),
       ),
     ],
-    applicability: { maxAge: 17, countries: "all" },
+    applicability: { minAge: 13, maxAge: 17, countries: "all" },
     dedupeKey: "pregnancy-safety-emergency",
   },
 ];
