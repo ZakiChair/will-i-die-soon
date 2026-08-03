@@ -1,0 +1,236 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { vi } from "vitest";
+
+import { questionBank } from "../data/questions";
+import Home from "../page";
+import { Assessment } from "./assessment";
+import { QuestionControl } from "./question-control";
+
+const adultProfile = { age: 35, countryCode: "CH" };
+
+async function chooseDepth(depth: "quick" | "detailed" | "deep") {
+  const user = userEvent.setup();
+  render(<Home />);
+  await user.click(
+    screen.getByRole("button", { name: new RegExp(`choose ${depth}`, "i") }),
+  );
+  return user;
+}
+
+async function fillProfile(
+  user: ReturnType<typeof userEvent.setup>,
+  age: number,
+) {
+  await user.type(screen.getByLabelText(/how old are you/i), String(age));
+  await user.selectOptions(screen.getByLabelText(/country or region/i), "CH");
+  await user.click(
+    screen.getByRole("checkbox", { name: /i understand and want to continue/i }),
+  );
+}
+
+test("requires consent and a profile before showing health questions", async () => {
+  await chooseDepth("quick");
+
+  expect(
+    screen.getByRole("heading", { name: /before we begin/i }),
+  ).toBeVisible();
+  expect(screen.getByLabelText(/how old are you/i)).toBeVisible();
+  expect(
+    screen.queryByText(/what sex were you assigned at birth/i),
+  ).not.toBeInTheDocument();
+});
+
+test("requires guardian-assisted mode for a child under 13", async () => {
+  const user = await chooseDepth("quick");
+  await fillProfile(user, 12);
+
+  expect(
+    screen.getByText(/a parent, guardian, or other trusted adult must help/i),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: /start quick/i })).toBeDisabled();
+
+  await user.click(
+    screen.getByRole("radio", { name: /trusted adult is helping/i }),
+  );
+  await user.click(screen.getByRole("button", { name: /start quick/i }));
+
+  expect(screen.getByText("Question 1 of 20")).toBeVisible();
+});
+
+test("lets an adolescent choose assisted or private completion", async () => {
+  const user = await chooseDepth("quick");
+  await fillProfile(user, 15);
+
+  expect(
+    screen.getByRole("radio", { name: /answer privately on my own/i }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("radio", { name: /trusted adult is helping/i }),
+  ).toBeVisible();
+  await user.click(
+    screen.getByRole("radio", { name: /answer privately on my own/i }),
+  );
+  await user.click(screen.getByRole("button", { name: /start quick/i }));
+
+  expect(screen.getByText("Question 1 of 20")).toBeVisible();
+});
+
+test("offers Detailed instead of silently downgrading an unavailable child Deep queue", async () => {
+  const user = await chooseDepth("deep");
+  await fillProfile(user, 12);
+  await user.click(
+    screen.getByRole("radio", { name: /trusted adult is helping/i }),
+  );
+
+  expect(
+    screen.getByText(/deep needs at least 150 eligible questions/i),
+  ).toBeVisible();
+  expect(screen.queryByRole("button", { name: /start deep/i })).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /use detailed instead/i }));
+  await user.click(screen.getByRole("button", { name: /start detailed/i }));
+
+  expect(screen.getByText("Question 1 of 50")).toBeVisible();
+});
+
+test("starts the full Deep queue when 150 questions are eligible", async () => {
+  const user = await chooseDepth("deep");
+  await fillProfile(user, 35);
+  await user.click(screen.getByRole("button", { name: /start deep/i }));
+
+  expect(screen.getByText("Question 1 of 150")).toBeVisible();
+});
+
+test("Enter advances only after a valid answer and Back restores that answer", async () => {
+  const user = userEvent.setup();
+  render(
+    <Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />,
+  );
+
+  expect(
+    screen.getByRole("group", { name: /what sex were you assigned at birth/i }),
+  ).toBeVisible();
+  await user.keyboard("{Enter}");
+  expect(screen.getByText("Question 1 of 20")).toBeVisible();
+
+  await user.click(screen.getByRole("radio", { name: "Female" }));
+  await user.keyboard("{Enter}");
+
+  expect(screen.getByText("Question 2 of 20")).toBeVisible();
+  expect(
+    screen.getByRole("spinbutton", { name: /current height/i }),
+  ).toHaveAccessibleDescription("cm");
+  expect(screen.getByText("cm")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: /back/i }));
+
+  expect(screen.getByText("Question 1 of 20")).toBeVisible();
+  expect(screen.getByRole("radio", { name: "Female" })).toBeChecked();
+});
+
+test("Back visibly preserves a deliberate skip", async () => {
+  const user = userEvent.setup();
+  render(<Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />);
+
+  await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+  await user.click(screen.getByRole("button", { name: /back/i }));
+
+  expect(screen.getByRole("button", { name: /prefer not to say/i })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});
+
+test("every numeric question exposes its unit beside the input", () => {
+  for (const question of questionBank.filter(
+    (candidate) => candidate.answerType === "number",
+  )) {
+    const { unmount } = render(
+      <QuestionControl
+        question={question}
+        onAnswer={vi.fn()}
+        onBack={vi.fn()}
+        canGoBack={false}
+      />,
+    );
+    expect(screen.getByRole("spinbutton")).toHaveAccessibleDescription();
+    unmount();
+  }
+});
+
+test("Quick completes after exactly 20 deliberate skips stored only as null", async () => {
+  const user = userEvent.setup();
+  const onComplete = vi.fn();
+  render(
+    <Assessment depth="quick" profile={adultProfile} onComplete={onComplete} />,
+  );
+
+  let intermissions = 0;
+  for (let answered = 0; answered < 20; answered += 1) {
+    const continueButton = screen.queryByRole("button", {
+      name: /continue assessment/i,
+    });
+    if (continueButton) {
+      intermissions += 1;
+      await user.click(continueButton);
+    }
+    await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+  }
+
+  expect(intermissions).toBeLessThanOrEqual(2);
+  expect(onComplete).toHaveBeenCalledOnce();
+  const completedAnswers = onComplete.mock.calls[0][0];
+  expect(Object.keys(completedAnswers)).toHaveLength(20);
+  expect(Object.values(completedAnswers)).toEqual(Array(20).fill(null));
+  expect(Object.values(completedAnswers)).not.toContain(undefined);
+});
+
+test.each([
+  ["quick", 20, 2],
+  ["detailed", 50, 4],
+  ["deep", 150, 6],
+] as const)(
+  "%s pacing shows %i questions with %i milestone intermissions",
+  async (depth, questionCount, expectedIntermissions) => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    render(<Assessment depth={depth} profile={adultProfile} onComplete={onComplete} />);
+    let intermissions = 0;
+
+    for (let answered = 0; answered < questionCount; answered += 1) {
+      const continueButton = screen.queryByRole("button", {
+        name: /continue assessment/i,
+      });
+      if (continueButton) {
+        intermissions += 1;
+        await user.click(continueButton);
+        expect(screen.getByRole("heading", { name: /.+/i })).toHaveFocus();
+      }
+      await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+    }
+
+    expect(intermissions).toBe(expectedIntermissions);
+    expect(onComplete).toHaveBeenCalledOnce();
+    expect(Object.keys(onComplete.mock.calls[0][0])).toHaveLength(questionCount);
+  },
+);
+
+test("adds a navigation warning only while an assessment is active", async () => {
+  const user = userEvent.setup();
+  const { unmount } = render(<Home />);
+
+  await user.click(screen.getByRole("button", { name: /choose quick/i }));
+  expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(
+    true,
+  );
+  await fillProfile(user, 35);
+  await user.click(screen.getByRole("button", { name: /start quick/i }));
+
+  expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(
+    false,
+  );
+  unmount();
+  expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(
+    true,
+  );
+});
