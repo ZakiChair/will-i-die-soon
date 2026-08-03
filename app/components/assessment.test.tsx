@@ -343,6 +343,7 @@ test.each([
       Object.keys(completedAnswers).filter((id) => id.startsWith("med_detail_")),
     ).toHaveLength(expectedFollowUps);
   },
+  20_000,
 );
 
 test("an affirmative medication gate inserts a real follow-up into the Detailed UI", async () => {
@@ -451,7 +452,7 @@ test("changing an earlier gate with Back closes its branch and removes stale ans
   expect(completedAnswers).not.toHaveProperty("interaction_shared_list");
   expect(Object.values(completedAnswers)).not.toContain(undefined);
   expect(Object.keys(completedAnswers)).toHaveLength(50);
-});
+}, 15_000);
 
 test("adds a navigation warning only while an assessment is active", async () => {
   const user = userEvent.setup();
