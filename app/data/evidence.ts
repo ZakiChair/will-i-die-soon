@@ -240,7 +240,7 @@ export const evidenceSources = {
     "World Health Organization / UNICEF",
     "https://www.who.int/publications/i/item/9789240100374/",
     "all",
-    { applicability: { maxAge: 17, countries: "all" } },
+    { applicability: { minAge: 5, maxAge: 17, countries: "all" } },
   ),
   niaaaAlcoholControl: source(
     "niaaa-alcohol-control",

@@ -368,7 +368,7 @@ const mentalWellbeingRules: RiskRule[] = [
         equals("child_feeling_support", true),
       ),
     ],
-    applicability: { maxAge: 12, countries: "all" },
+    applicability: { minAge: 5, maxAge: 12, countries: "all" },
   },
 ];
 

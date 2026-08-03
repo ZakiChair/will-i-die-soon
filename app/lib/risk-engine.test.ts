@@ -2009,7 +2009,7 @@ describe("minor and pregnancy boundaries", () => {
     ).toContain("who-adolescent-pregnancy");
   });
 
-  test.each([0, 9, 12] as const)(
+  test.each([5, 9, 12] as const)(
     "child feeling support has global child-specific evidence at age %s",
     (age) => {
       const leaf = leafById(
@@ -2027,6 +2027,23 @@ describe("minor and pregnancy boundaries", () => {
       expect(leaf.sources.map((source) => source.id)).not.toContain(
         "nice-depression-adults",
       );
+      expect(
+        leaf.sources.find(
+          (source) => source.id === "who-child-young-people-mental-health-services",
+        )?.applicability,
+      ).toEqual({ minAge: 5, maxAge: 17, countries: "all" });
+    },
+  );
+
+  test.each([0, 4] as const)(
+    "does not activate a stale self-reported child feeling route at age %s",
+    (age) => {
+      expect(
+        leafIds(
+          { child_feeling_support: true },
+          { age, countryCode: "CH", assistedMinor: true },
+        ),
+      ).not.toContain("child-feeling-support");
     },
   );
 });

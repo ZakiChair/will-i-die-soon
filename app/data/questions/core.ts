@@ -442,6 +442,7 @@ export const coreQuestions = defineQuestions([
     why: "This offers a simple support route without administering an adult mental-health screen.",
     answerType: "boolean",
     sensitive: true,
+    minAge: 5,
     maxAge: 12,
     priority: 16,
     tiers: allDepths,

@@ -170,6 +170,14 @@ describe("question bank invariants", () => {
     ]);
   });
 
+  test("starts the self-reported child feeling-support route at age five", () => {
+    expect(
+      questionBank.find((question) => question.id === "child_feeling_support"),
+    ).toEqual(
+      expect.objectContaining({ minAge: 5, maxAge: 12 }),
+    );
+  });
+
   test("distinguishes unauthorized and research-use sellers from other online sources", () => {
     const sourceQuestion = questionBank.find(
       (question) => question.id === "research_detail_source",
