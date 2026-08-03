@@ -109,8 +109,10 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
   height: 100%;
   object-fit: cover;
 }
-.landing__canopy-media img { opacity: .78; }
-.landing__canopy-video { pointer-events: none; opacity: .62; }
+.landing__canopy-poster { opacity: .78; }
+.landing__canopy-poster--covered { opacity: 0; visibility: hidden; }
+.landing__canopy-video { pointer-events: none; opacity: 0; visibility: hidden; }
+.landing__canopy-video--ready { opacity: .78; visibility: visible; }
 .landing__canopy-stage > .canopy { z-index: 1; background: rgb(244 247 245 / 34%); }
 .landing__canopy-stage .canopy__caption { width: fit-content; padding: 5px 7px; background: rgb(244 247 245 / 88%); }
 

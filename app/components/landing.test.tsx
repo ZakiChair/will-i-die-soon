@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, test, vi } from "vitest";
 import { Landing } from "./landing";
@@ -99,6 +99,37 @@ test("keeps the hero poster available while reduced-motion changes gate the sile
     container.querySelector(".landing__canopy-video"),
   ).not.toBeInTheDocument();
   expect(container.querySelector(".landing__canopy-media img")).toBeInTheDocument();
+});
+
+test("hands the canopy artwork from the poster to the playable video without overlapping layers", () => {
+  installMotionPreference(false);
+  Object.defineProperty(document, "hidden", {
+    configurable: true,
+    value: false,
+  });
+
+  const { container } = render(<Landing onStart={vi.fn()} />);
+  const poster = container.querySelector<HTMLImageElement>(
+    ".landing__canopy-poster",
+  );
+  const video = container.querySelector<HTMLVideoElement>(
+    ".landing__canopy-video",
+  );
+
+  if (!poster || !video) throw new Error("Expected hero poster and video");
+
+  expect(poster).not.toHaveClass("landing__canopy-poster--covered");
+  expect(video).not.toHaveClass("landing__canopy-video--ready");
+
+  fireEvent.canPlay(video);
+
+  expect(poster).toHaveClass("landing__canopy-poster--covered");
+  expect(video).toHaveClass("landing__canopy-video--ready");
+
+  fireEvent.error(video);
+
+  expect(poster).not.toHaveClass("landing__canopy-poster--covered");
+  expect(video).not.toHaveClass("landing__canopy-video--ready");
 });
 
 test("stops decorative hero motion while the document is hidden", () => {

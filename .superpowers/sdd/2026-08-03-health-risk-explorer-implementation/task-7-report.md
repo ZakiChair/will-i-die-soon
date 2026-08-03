@@ -2,10 +2,11 @@
 
 ## Status
 
-Implemented and verified. The landing now combines the functional living canopy with an
-original local poster and one silent derived loop. Milestone intermissions select one of three
-original local field-notebook landscapes without making imagery necessary to understand or
-continue the assessment. The single social card uses the final brand and headline.
+Implemented, corrected, and verified. The landing now combines the functional living canopy
+with an original local poster and one silent derived loop. Milestone intermissions select one
+of three original local field-notebook landscapes without making imagery necessary to
+understand or continue the assessment. The single social card uses the final brand and
+headline.
 
 ## Delivered media and wiring
 
@@ -37,9 +38,11 @@ landscape. Each image has explicit 1920×1080 dimensions, responsive `sizes`, `l
 async decoding, empty alt text, and `aria-hidden="true"`. The milestone, completed-domain fact,
 and continue action remain normal HTML above the media and never wait for an image event.
 
-`layout.tsx` exposes one Open Graph image and one Twitter reference to the same `/og.png`
-asset, with the exact title, headline, dimensions, and descriptive alt text. No second social
-card is generated or referenced.
+`layout.tsx` exposes one Open Graph image and one Twitter descriptor for the same `/og.png`
+asset, with the exact title, headline, dimensions, and descriptive alt text. Both resolve
+through an environment-aware `metadataBase`: `NEXT_PUBLIC_SITE_URL` is used when it is a valid
+HTTP(S) URL and `http://localhost:3000` is the safe local fallback. No production domain is
+hardcoded, and no second social card is generated or referenced.
 
 ## Accessibility, responsive, and browser evidence
 
@@ -60,7 +63,7 @@ card is generated or referenced.
   only `recovery-intermission.webp` was requested when that intermission mounted; the unused
   sleep and metabolism images were not requested.
 - The production DOM contains exactly one hero image preload and one Open Graph/Twitter image
-  each, both pointing at `/og.png`.
+  each; both originate from the single `/og.png` descriptor.
 - Chrome Lighthouse snapshot: Accessibility 100, Best Practices 100, SEO 100, Agentic Browsing
   100; 28 audits passed and 0 failed.
 
@@ -81,10 +84,30 @@ The production HTML smoke later exposed a duplicate hero preload from the explic
 and React's image resource hint. The explicit duplicate was removed. A fresh production DOM
 probe then found exactly one `link[rel="preload"][as="image"]` for the hero poster.
 
+## Controller correction evidence
+
+The seamless-media regression tests were written before the correction. The landing component
+test failed because no ready-state handoff classes existed, and the CSS test failed because the
+poster and video both retained non-zero opacity. The metadata tests were isolated from Next's
+font loader, then failed on the intended missing `metadataBase` behavior. This established four
+feature-specific RED failures.
+
+The corrected landing keeps the image poster as the only visible layer while the video loads.
+`canplay` atomically covers the poster and reveals the video at the same visual opacity; a video
+error restores the poster. Disabling motion or hiding the document also clears video readiness,
+so a remounted loop must become playable again before it replaces the fallback. Focused
+component and CSS tests exercise the initial, ready, and error states.
+
+Metadata tests exercise a configured `NEXT_PUBLIC_SITE_URL`, missing and malformed values, and
+an unsupported protocol. They verify the local fallback, absolute resolution of both Open Graph
+and Twitter URLs, one descriptor per channel, the shared `/og.png` path, and explicit Twitter
+alt text. No media binary was changed as part of this correction.
+
 ## Final verification
 
-- Focused Task 7 tests — 3 files, 11/11 passed.
-- `npm test` — 11 files, 4,405/4,405 passed.
+- Focused original Task 7 tests — 3 files, 11/11 passed.
+- Focused controller-correction tests — 3 files, 12/12 passed.
+- `npm test` — 12 files, 4,409/4,409 passed.
 - `npm run lint` — passed, exit 0.
 - `npm run build` — passed, exit 0; all five Vinext environments built.
 - `git diff --check` — passed, exit 0.

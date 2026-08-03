@@ -38,6 +38,7 @@ const depths: ReadonlyArray<{
 
 export function Landing({ onStart }: LandingProps) {
   const [motionAllowed, setMotionAllowed] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") {
@@ -46,7 +47,9 @@ export function Landing({ onStart }: LandingProps) {
 
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const updateMotion = () => {
-      setMotionAllowed(!media.matches && !document.hidden);
+      const isMotionAllowed = !media.matches && !document.hidden;
+      setMotionAllowed(isMotionAllowed);
+      if (!isMotionAllowed) setVideoReady(false);
     };
 
     updateMotion();
@@ -86,6 +89,9 @@ export function Landing({ onStart }: LandingProps) {
           <div className="landing__canopy-stage">
             <div className="landing__canopy-media" aria-hidden="true">
               <Image
+                className={`landing__canopy-poster${
+                  videoReady ? " landing__canopy-poster--covered" : ""
+                }`}
                 src="/media/canopy-hero.webp"
                 alt=""
                 aria-hidden="true"
@@ -100,7 +106,9 @@ export function Landing({ onStart }: LandingProps) {
               />
               {motionAllowed ? (
                 <video
-                  className="landing__canopy-video"
+                  className={`landing__canopy-video${
+                    videoReady ? " landing__canopy-video--ready" : ""
+                  }`}
                   aria-hidden="true"
                   tabIndex={-1}
                   autoPlay
@@ -110,6 +118,8 @@ export function Landing({ onStart }: LandingProps) {
                   preload="none"
                   poster="/media/canopy-hero.webp"
                   disablePictureInPicture
+                  onCanPlay={() => setVideoReady(true)}
+                  onError={() => setVideoReady(false)}
                 >
                   <source src="/media/canopy-loop.mp4" type="video/mp4" />
                 </video>

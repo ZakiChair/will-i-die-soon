@@ -70,6 +70,21 @@ describe("global interaction styles", () => {
     );
   });
 
+  test("shows exactly one canopy layer before and after the video becomes playable", () => {
+    expect(css).toMatch(
+      /\.landing__canopy-poster\s*\{[^}]*opacity:\s*\.78/s,
+    );
+    expect(css).toMatch(
+      /\.landing__canopy-poster--covered\s*\{[^}]*opacity:\s*0[^}]*visibility:\s*hidden/s,
+    );
+    expect(css).toMatch(
+      /\.landing__canopy-video\s*\{[^}]*opacity:\s*0/s,
+    );
+    expect(css).toMatch(
+      /\.landing__canopy-video--ready\s*\{[^}]*opacity:\s*\.78/s,
+    );
+  });
+
   test("keeps both focus rings when a risk-tree button is selected or hovered", () => {
     const riskTreeFocusRule = css.match(
       /\.risk-tree__leaves button:hover:focus-visible,[^{]+\{(?<declarations>[^}]+)\}/s,

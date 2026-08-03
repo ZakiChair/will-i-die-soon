@@ -22,7 +22,31 @@ const mono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
+const localMetadataBase = "http://localhost:3000";
+const socialImage = {
+  url: "/og.png",
+  width: 1200,
+  height: 630,
+  alt: "Will I Die Soon? — Your health is not a verdict. It is a map.",
+};
+
+function resolveMetadataBase(configuredUrl: string | undefined): URL {
+  if (configuredUrl) {
+    try {
+      const parsedUrl = new URL(configuredUrl);
+      if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+        return parsedUrl;
+      }
+    } catch {
+      // Fall through to the local development URL.
+    }
+  }
+
+  return new URL(localMetadataBase);
+}
+
 export const metadata: Metadata = {
+  metadataBase: resolveMetadataBase(process.env.NEXT_PUBLIC_SITE_URL),
   title: "Will I Die Soon? | Health Risk Explorer",
   description:
     "A private, local-only prototype for exploring health signals and modifiable factors.",
@@ -30,20 +54,13 @@ export const metadata: Metadata = {
     type: "website",
     title: "Will I Die Soon?",
     description: "Your health is not a verdict. It is a map.",
-    images: [
-      {
-        url: "/og.png",
-        width: 1200,
-        height: 630,
-        alt: "Will I Die Soon? — Your health is not a verdict. It is a map.",
-      },
-    ],
+    images: [socialImage],
   },
   twitter: {
     card: "summary_large_image",
     title: "Will I Die Soon?",
     description: "Your health is not a verdict. It is a map.",
-    images: ["/og.png"],
+    images: [socialImage],
   },
   icons: {
     icon: "/favicon.svg",
