@@ -48,8 +48,7 @@ function printedLabAnswer(value: ConfirmedLabValue): string {
   const range = /^[[(]/.test(value.reviewed.referenceRange)
     ? ` ${value.reviewed.referenceRange}`
     : ` (${value.reviewed.referenceRange})`;
-  const flag = value.source?.printedFlag ? ` ${value.source.printedFlag}` : "";
-  return `${value.reviewed.valueText} ${value.reviewed.unit}${range}${flag}`;
+  return `${value.reviewed.valueText} ${value.reviewed.unit}${range}`;
 }
 
 const INTERMISSION_LIMITS: Readonly<Record<AnalysisDepth, number>> = {

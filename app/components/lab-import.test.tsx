@@ -312,6 +312,52 @@ test("recent-labs yes reaches import and confirmed rows survive the in-memory co
   storageSpy.mockRestore();
 });
 
+test("does not attach a source flag to an AnswerMap value after the marker is corrected", async () => {
+  const user = userEvent.setup();
+  const onComplete = vi.fn();
+  render(
+    <Assessment
+      depth="detailed"
+      profile={{ age: 35, countryCode: "CH" }}
+      onComplete={onComplete}
+    />,
+  );
+
+  await moveToRecentLabs(user);
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.upload(
+    screen.getByLabelText(/choose a lab report/i),
+    localTextFile(
+      "Collection date: 2026-07-30\nFasting: no\nLDL Chol Calc 100 mg/dL (0 - 99) H",
+    ),
+  );
+  await screen.findByDisplayValue("100");
+  await user.selectOptions(screen.getByLabelText(/marker/i), "ast");
+  await user.clear(screen.getByLabelText(/reported value/i));
+  await user.type(screen.getByLabelText(/reported value/i), "48");
+  await user.clear(screen.getByLabelText(/reported unit/i));
+  await user.type(screen.getByLabelText(/reported unit/i), "U/L");
+  await user.clear(screen.getByLabelText(/laboratory reference range/i));
+  await user.type(screen.getByLabelText(/laboratory reference range/i), "Not printed");
+  await user.click(screen.getByRole("checkbox", { name: /include ast/i }));
+  await user.click(screen.getByRole("button", { name: /confirm selected results/i }));
+  await completeFromCurrentQuestion(user, onComplete);
+
+  expect(onComplete).toHaveBeenCalledOnce();
+  const [answers, confirmedLabs] = onComplete.mock.calls[0];
+  expect(answers.lab_value_ast).toBe("48 U/L (Not printed)");
+  expect(confirmedLabs).toEqual([
+    expect.objectContaining({
+      source: expect.objectContaining({
+        marker: "ldl_cholesterol",
+        printedFlag: "H",
+      }),
+      reviewed: expect.objectContaining({ marker: "ast", value: 48, unit: "U/L" }),
+    }),
+  ]);
+});
+
 test("a full-marker Quick import keeps 20 answers while handing off every structured observation", async () => {
   const user = userEvent.setup();
   const onComplete = vi.fn();

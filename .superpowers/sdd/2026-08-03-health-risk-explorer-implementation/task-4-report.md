@@ -115,10 +115,10 @@ the assets. `public/lab-assets/README.md` records provenance and the network bou
   `lab_value_glucose`, `lab_value_creatinine`, `lab_value_egfr`, `lab_value_alt`,
   `lab_value_ast`, `lab_value_tsh`, `lab_value_hemoglobin`, `lab_value_ferritin`, and
   `lab_value_vitamin_d` answer IDs.
-- Answer strings use the explicitly reviewed value, unit, and range plus the immutable
-  laboratory-printed flag. Structured observations separately retain source, reviewed,
-  and normalized data, and are passed as the second `onComplete` argument into page-local
-  result state.
+- Answer strings use only the explicitly reviewed value, unit, and range. Structured
+  observations separately retain source (including any laboratory-printed flag),
+  reviewed, and normalized data, and are passed as the second `onComplete` argument into
+  page-local result state.
 - Confirmed answers participate in normal reconciliation and are skipped as already
   answered. Full regression tests retain exact 20/50/150+ depth behavior, adaptive
   branch pruning, null skip semantics, intermission limits, Back behavior, and focus.
@@ -247,3 +247,37 @@ hand-authored code.
   `c58b46a4…47b38` (SIMD LSTM core), and `ed350f37…246a8` (English data).
 - `npm audit --omit=dev` still reports only the three pre-existing high-severity groups
   rooted in `next@16.2.6`; no Task 4 dependency added a new audit finding.
+
+## Review round 2/5 — source flag isolation
+
+### RED evidence
+
+- Added a real `Assessment` integration regression that imports a source row printed as
+  `LDL Chol Calc 100 mg/dL (0 - 99) H`, reviews it as
+  `AST 48 U/L / Not printed`, completes the questionnaire, and inspects both outputs.
+- Before the fix, the new assertion failed with received
+  `lab_value_ast = "48 U/L (Not printed) H"` versus expected
+  `"48 U/L (Not printed)"`. The structured handoff correctly retained
+  `source.marker = "ldl_cholesterol"`, `source.printedFlag = "H"`, and
+  `reviewed.marker = "ast"`, isolating the defect to AnswerMap serialization.
+
+### GREEN implementation
+
+- `printedLabAnswer()` now serializes only reviewed value, unit, and range. It never
+  attaches source-only metadata to a reviewed marker.
+- The original printed flag remains available solely as provenance in
+  `confirmedLabs[].source.printedFlag`; no extracted evidence is discarded.
+- Reintroducing the source-flag concatenation makes the integration regression fail on
+  the exact misleading AnswerMap string.
+
+### Final verification for review round 2/5
+
+- `npm test -- app/components/lab-import.test.tsx` — exit 0; 1 file and 11 tests passed
+  after the observed one-test RED failure.
+- `npm test -- app/lib/labs.test.ts app/components/lab-import.test.tsx` — exit 0;
+  2 files and 61 tests passed.
+- `npm test` — exit 0; 5 files and 97 tests passed.
+- `npm run lint` — exit 0 with no findings.
+- `npm run build` — exit 0; all five vinext build stages completed.
+- The pre-existing global `Fetcher` typing baseline and Next.js audit findings were not
+  changed in this review round.
