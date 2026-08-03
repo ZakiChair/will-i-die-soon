@@ -2,15 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build and privately deploy a polished, local-only English health-risk questionnaire with three adaptive depths, original visual intermissions, transparent evidence rules, local lab import, a wellness Purity Score, and an explainable risk tree.
+**Goal:** Build and privately deploy a polished, local-only, English-default bilingual English/French health-risk questionnaire with three adaptive depths, original visual intermissions, transparent evidence rules, local lab import, a wellness Purity Score, and an explainable risk tree.
 
-**Architecture:** A client-only React application keeps transient assessment state in memory. Typed questionnaire and evidence registries feed pure selection, scoring, safety, and report functions; UI routes consume those functions without embedding health logic. Heavy file parsers load only after a user selects a lab file, and no assessment answer crosses the network.
+**Architecture:** A client-only React application keeps transient assessment and locale state in memory. Typed questionnaire and evidence registries feed pure selection, scoring, safety, and report functions; UI routes consume those functions without embedding health logic. English remains canonical, while typed French dictionaries and presentation adapters localize render/export copy without changing IDs, machine values, sources, units, rules, or scores. Heavy file parsers load only after a user selects a lab file, and no assessment answer crosses the network.
 
 **Tech Stack:** Sites vinext starter, React, TypeScript, Tailwind CSS, Vitest, Testing Library, lucide-react, Framer Motion, pdfjs-dist, Tesseract.js, browser File APIs.
 
 ## Global Constraints
 
-- The entire end-user interface is English.
+- Supported interface/report languages are exactly English and French; English is the default, and the locale is neither persisted nor encoded in the URL.
 - No account, backend, analytics, cookies, session replay, remote inference, or answer persistence.
 - Quick selects exactly 20 questions; Detailed selects exactly 50; Deep adaptively selects 150–200 eligible questions from at least 220 curated items.
 - Numeric disease probabilities can originate only from an enabled `validated-estimate` model with complete eligibility and test vectors.
@@ -45,6 +45,7 @@
 - `app/lib/labs.ts`: local text parsing and unit normalization.
 - `app/lib/export.ts`: redacted JSON and printable report construction.
 - `app/lib/release-policy.ts`: prototype/wellness/regulated feature policy.
+- `app/i18n/*`: typed in-memory locale context plus complete French question, UI, risk, score, action, and protective-root presentation dictionaries.
 - `app/**/*.test.ts(x)`: colocated unit and component tests.
 - `public/media/*`: generated artwork and derived silent loops.
 
@@ -374,6 +375,20 @@ The card must contain the final brand name and headline verbatim, reuse the fina
 
 Verify reduced motion, focus order, contrast, responsive layouts, and asset sizes. Commit with `feat: add original visual intermissions and motion`.
 
+### Completed addendum: bilingual presentation and question typography
+
+The English-default/French in-memory localization and smaller question-heading work is complete
+under [the localization implementation plan](./2026-08-03-french-localization-and-question-typography.md).
+Its release gate verifies exact coverage for 243 questions, 54 risk rules, 80 distinct factor
+labels across 100 occurrences, 9 emergency kinds across 36 country paths, 8 score categories,
+21 score components across 116 variants, 9 reachable action IDs, 9 protective roots, 330 UI
+keys in each language, and 47 live health domains. Locale switching and localized export remain
+presentation-only, in-memory, state-preserving, and schema-preserving.
+
+This addendum does not complete or replace Task 8. Final evidence/privacy documentation, clean
+installation verification, security and dependency review, canonical-origin configuration,
+source-state saving, and owner-only deployment remain open below.
+
 ### Task 8: Final content audit, verification, and private deployment
 
 **Files:**
@@ -394,6 +409,8 @@ List every enabled rule group, source URL, evidence tier, last-reviewed date, in
 - [ ] **Step 2: Run automated verification from a clean install.**
 
 Run `npm ci`, `npm test -- --run`, and `npm run build`. Search the production code for `fetch(`, analytics packages, storage APIs, “you will develop,” and unguarded `%` disease outputs. Resolve every unexpected match.
+Apply the same calibrated-language and medicine-neutrality scans to both English and French
+presentation corpora.
 
 - [ ] **Step 3: Review React quality and bundle behavior.**
 
@@ -413,4 +430,3 @@ Commit with `chore: verify private research prototype`. Push the exact commit to
 - Placeholder scan: no unresolved `TBD`, `TODO`, “implement later,” or unnamed error handling remains.
 - Type consistency: `AnalysisDepth`, `ProfileContext`, `AnswerMap`, `RiskLeaf`, `ReleasePolicy`, and `PurityScoreResult` are introduced before consumption.
 - Scope: this plan delivers the private prototype and the policy foundation; public wellness and regulated medical release work are deliberately separate future plans.
-

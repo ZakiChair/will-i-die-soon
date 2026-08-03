@@ -2,7 +2,7 @@
 
 ## Product thesis
 
-`Will I Die Soon?` is an English-language, private health-risk exploration experience for a broad international audience. It turns a potentially exhausting health questionnaire into a paced, visually engaging journey and returns an explainable tree of urgent signals, longer-term risk domains, protective factors, and practical next steps.
+`Will I Die Soon?` is an English-default, bilingual English/French private health-risk exploration experience for a broad international audience. It turns a potentially exhausting health questionnaire into a paced, visually engaging journey and returns an explainable tree of urgent signals, longer-term risk domains, protective factors, and practical next steps.
 
 The product does not claim to predict death. Its deliberately provocative name is balanced by precise copy: it explores health signals and modifiable factors, not fate. The final “Purity Score” is a transparent wellness-habit index, not a lifespan, mortality, diagnostic, or clinical probability.
 
@@ -18,7 +18,8 @@ One codebase supports all stages through an evidence registry and release-policy
 
 ## Audience and language
 
-- Interface and generated report: English.
+- Interface and generated report: English by default, with a visible switch to international French throughout the complete journey.
+- Language is presentation-only and held in React memory. Switching language preserves the profile, answers, adaptive queue, laboratory context, current screen, selected result, and export choices; it does not alter canonical IDs, values, sources, units, scores, or rules.
 - Ages: all ages, with separate child, adolescent, adult, pregnancy, and older-adult routing.
 - Under-age routes use age-appropriate language and ask whether a parent or guardian is assisting.
 - Country of residence is required because model eligibility, calibration, emergency guidance, and regulatory availability differ by jurisdiction.
@@ -30,6 +31,7 @@ One codebase supports all stages through an evidence registry and release-policy
 - No account, backend, database, telemetry, session replay, advertising pixel, or remote AI call from the assessment.
 - Answers, branching, scoring, file parsing, and report generation remain in browser memory.
 - The app does not write answer data to `localStorage`, cookies, IndexedDB, URL parameters, logs, or analytics.
+- The selected language is also not persisted to storage, cookies, a URL, analytics, or a backend.
 - Optional lab files are parsed on-device and are never uploaded.
 - Leaving or reloading clears the assessment after a confirmation prompt.
 - Export is an explicit user action and produces a printable report or local JSON file.
@@ -166,6 +168,8 @@ Rounded rectangles are used sparingly. Question stages and result leaves use cli
 - Unit tests cover branching, exact mode counts, skip behavior, purity-score fairness constraints, evidence-tier restrictions, rule grouping, unit normalization, and export redaction.
 - Component tests cover keyboard answers, age routing, consent, intermissions, lab confirmation, immediate-alert priority, and result-tree navigation.
 - Static checks reject a numeric probability from any non-validated evidence tier.
+- Localization gates require exact, nonblank English/French coverage for every live UI key, all 243 questions and option values, all enabled risk/factor presentation identifiers, every reachable score/action variant, and all 47 live health domains.
+- Browser checks cover an English-to-French switch during an active journey, French urgent/intermission/result routes, state and focus preservation, and the reduced question-heading scale at 1440 px and 390 px.
 - The production build contains no endpoint that receives assessment answers and no analytics/session-replay dependency.
 - Quick completes after 20 answers, Detailed after 50, and Deep selects between 150 and 200 eligible answers when the bank has enough applicable items.
 
@@ -185,4 +189,3 @@ Rounded rectangles are used sparingly. Question stages and result leaves use cli
 - No model training on user answers.
 - No server storage, sharing, clinician portal, insurance use, employer use, or eligibility decision.
 - No automated medication dose changes.
-

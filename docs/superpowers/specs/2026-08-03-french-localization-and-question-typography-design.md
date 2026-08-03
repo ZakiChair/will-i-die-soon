@@ -68,6 +68,10 @@ own intentional scales.
   and option values are covered, emergency numbers remain correct, French results retain
   evidence links, JSON export uses localized display copy without changing schema, and the
   smaller question scale applies at desktop and mobile widths.
+- The completed release gate also proves exact coverage for 54 risk rules, 100 factor
+  occurrences/80 distinct factor labels, 9 emergency kinds across 36 country routes, 8 score
+  categories, 21 score components across 116 reachable variants, 9 action IDs, 9 protective
+  roots, 330 UI keys per locale, and the 47 domains present in the live `HealthDomain` union.
 - Browser verification covers one English→French switch during a live assessment, one French
   urgent route, one French intermission, one French adult results screen, focus visibility,
   390px layout, and no storage/network write caused by changing language.
