@@ -65,3 +65,53 @@ not report an error in the Task 1 locale files. This task's required focused tes
 ## Commit
 
 `feat: add in-memory language switching`
+
+---
+
+## Fix round 1: journey-state regression coverage
+
+### Files changed
+
+- Added `app/page.test.tsx`.
+- Updated this report with the regression-test evidence.
+
+### RED
+
+The new integration test mounts `Home`, starts the Quick journey, enters age `42` on the consent
+screen, and changes the locale through the real global selector. The existing implementation
+already preserved state, so the regression test was proven with a temporary mutation that keyed
+the context provider by locale. That forced the journey subtree to remount.
+
+Command:
+
+```sh
+npm test -- app/page.test.tsx
+```
+
+Result: failed as intended — after selecting French, `Before we begin` was absent and the
+landing screen was visible. This demonstrates the test catches the state-reset regression.
+
+### GREEN
+
+The temporary provider key was removed; no production behavior changed in this fix round.
+
+Command:
+
+```sh
+npm test -- app/page.test.tsx app/i18n/context.test.tsx app/components/language-switcher.test.tsx app/globals.test.ts
+```
+
+Result: passed — 4 test files, 11 tests. The test confirms `lang="fr"`, the consent screen
+remains active, and the entered age remains `42` after using the real selector.
+
+### Verification and self-review
+
+- `npm run lint` passed.
+- `git diff --check` passed.
+- Self-review confirmed the test uses no mocks and exercises the real `Home` provider, selector,
+  screen branch, and controlled consent input. It adds no Task 2+ translations or production
+  changes.
+
+### Commit
+
+`test: prove locale switching preserves journey state`
