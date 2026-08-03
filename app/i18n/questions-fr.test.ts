@@ -66,4 +66,31 @@ describe("French question translations", () => {
 
     expect(localizedLabels).toEqual(Array.from({ length: 15 }, () => "Je ne sais pas"));
   });
+
+  it("keeps preference-led support wording advisory", () => {
+    expect(frQuestionTranslations.tobacco_detail_quit_interest.why).toBe(
+      "La disposition à changer et les préférences devraient guider l'affichage des options de soutien.",
+    );
+  });
+
+  it("uses natural French for meal help and missed medicine doses", () => {
+    expect(frQuestionTranslations.child_food_access.prompt).toBe(
+      "Avez-vous généralement suffisamment de nourriture et un adulte de confiance qui peut vous apporter une aide pour les repas ?",
+    );
+    expect(frQuestionTranslations.adherence_missed_doses.prompt).toBe(
+      "À quelle fréquence vous arrive-t-il de ne pas prendre, de retarder ou de répéter involontairement une dose de médicament ?",
+    );
+  });
+
+  it("uses neutral French for composite uncertainty and direct-address prompts", () => {
+    expect(frQuestionTranslations.sleep_snoring.options?.unknown).toBe(
+      "Personne n'a rien observé ou je ne sais pas",
+    );
+    expect(frQuestionTranslations.circadian_morning_light.prompt).toBe(
+      "Recevez-vous généralement de la lumière du jour ou une lumière vive dans les deux heures qui suivent votre réveil ?",
+    );
+    expect(frQuestionTranslations.corticosteroid_detail_omission_symptoms.prompt).toBe(
+      "Après l'omission d'une dose ou l'arrêt, avez-vous eu une faiblesse grave, un évanouissement, des vomissements répétés, ou avez-vous soudainement été très mal ?",
+    );
+  });
 });
