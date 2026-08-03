@@ -203,7 +203,7 @@ export const scoreComponentExplanationsFr: Readonly<Record<string, string>> = {
   "You reported not yet acting on a personally due follow-up.":
     "Vous déclarez ne pas encore avoir agi concernant un suivi qui s'appliquait à votre situation.",
   "Whether a chosen preventive follow-up applies is unresolved.":
-    "La pertinence d'un suivi préventif choisi n'est pas établie.",
+    "Il reste à déterminer si le suivi préventif choisi s'applique à votre situation.",
   "This component does not apply because you reported no current prescription medicines.":
     "Ce composant ne s'applique pas, car vous ne déclarez aucun médicament sur ordonnance actuellement.",
   "Current prescription-medicine use is unresolved.":
@@ -217,7 +217,7 @@ export const scoreComponentExplanationsFr: Readonly<Record<string, string>> = {
   "You reported no prescriber follow-up for current medicines.":
     "Vous ne déclarez aucun suivi par le prescripteur pour les médicaments actuels.",
   "A medicine access or use barrier was reported, so dose-taking is excluded.":
-    "Un obstacle à l'accès aux médicaments ou à leur utilisation est déclaré; la prise des doses est donc exclue.",
+    "Un obstacle à l'accès aux médicaments ou à leur utilisation a été signalé\u00a0; ce composant relatif aux habitudes de prise est donc exclu du calcul.",
   "You reported never missing, delaying, or repeating a dose.":
     "Vous déclarez ne jamais omettre, retarder ou répéter une dose.",
   "You reported rarely missing, delaying, or repeating a dose.":
@@ -252,7 +252,7 @@ export const actionCopyFr: Readonly<Record<ScoreCategoryId, ActionCopyTranslatio
   "tobacco-nicotine": {
     title: "Choisissez le soutien lié au tabac ou à la nicotine qui vous convient",
     nextStep:
-      "Si vous souhaitez modifier votre consommation actuelle, choisissez une première étape volontaire: renseignez-vous auprès d'un service local qualifié, d'un pharmacien ou d'un professionnel de santé sur les options de soutien.",
+      "Si vous souhaitez modifier votre consommation actuelle, choisissez une première étape volontaire\u00a0: renseignez-vous auprès d'un service local qualifié, d'un pharmacien ou d'un professionnel de santé sur les options de soutien.",
   },
   alcohol: {
     title: "Choisissez une étape concernant vos habitudes de consommation d'alcool",
@@ -277,7 +277,7 @@ export const actionCopyFr: Readonly<Record<ScoreCategoryId, ActionCopyTranslatio
   recovery: {
     title: "Essayez une brève pratique de gestion du stress",
     nextStep:
-      "Choisissez l'ancrage, le désengagement des pensées difficiles, l'action guidée par vos valeurs, la bienveillance ou l'accueil de ce que vous ressentez, puis pratiquez pendant quelques minutes aujourd'hui.",
+      "Choisissez de vous ancrer, de vous décrocher des pensées difficiles, d'agir en accord avec vos valeurs, d'être bienveillant ou de faire de la place à ce que vous ressentez, puis pratiquez pendant quelques minutes aujourd'hui.",
   },
   "preventive-followup": {
     title: "Faites une étape concernant le suivi choisi",
@@ -287,14 +287,14 @@ export const actionCopyFr: Readonly<Record<ScoreCategoryId, ActionCopyTranslatio
   "medication-safety": {
     title: "Renforcez une routine de sécurité des médicaments",
     nextStep:
-      "Choisissez une étape réalisable, comme mettre à jour votre liste de médicaments ou poser une question à un pharmacien ou au prescripteur; ne modifiez pas une dose sur la base de ce rapport.",
+      "Choisissez une étape réalisable, comme mettre à jour votre liste de médicaments ou poser une question à un pharmacien ou au prescripteur\u00a0; ne modifiez pas une dose sur la base de ce rapport.",
   },
 };
 
 export const bookedPreventiveActionCopyFr: ActionCopyTranslation = {
   title: "Poursuivez le suivi déjà engagé",
   nextStep:
-    "Un rendez-vous est déjà pris ou un service a déjà été contacté; si cela reste réalisable et sûr, choisissez une petite étape qui vous aide à vous y rendre ou à vous préparer.",
+    "Un rendez-vous est déjà pris ou un service a déjà été contacté\u00a0; si cela reste réalisable et sûr, choisissez une petite étape qui vous aide à vous y rendre ou à vous préparer.",
 };
 
 export const accessSupportCopyFr: ActionCopyTranslation = {
@@ -305,11 +305,11 @@ export const accessSupportCopyFr: ActionCopyTranslation = {
 
 export const accessSupportReasonClausesFr: Readonly<Record<string, string>> = {
   "Chosen preventive follow-up: You reported an access or safety barrier to a personally chosen follow-up.":
-    `${scoreCategoryLabelsFr["preventive-followup"]}: ${scoreComponentExplanationsFr["You reported an access or safety barrier to a personally chosen follow-up."]}`,
+    `${scoreCategoryLabelsFr["preventive-followup"]}\u00a0: ${scoreComponentExplanationsFr["You reported an access or safety barrier to a personally chosen follow-up."]}`,
   "Medication-safety behaviour: You reported no current access to prescriber follow-up.":
-    `${scoreCategoryLabelsFr["medication-safety"]}: ${scoreComponentExplanationsFr["You reported no current access to prescriber follow-up."]}`,
+    `${scoreCategoryLabelsFr["medication-safety"]}\u00a0: ${scoreComponentExplanationsFr["You reported no current access to prescriber follow-up."]}`,
   "Medication-safety behaviour: A medicine access or use barrier was reported, so dose-taking is excluded.":
-    `${scoreCategoryLabelsFr["medication-safety"]}: ${scoreComponentExplanationsFr["A medicine access or use barrier was reported, so dose-taking is excluded."]}`,
+    `${scoreCategoryLabelsFr["medication-safety"]}\u00a0: ${scoreComponentExplanationsFr["A medicine access or use barrier was reported, so dose-taking is excluded."]}`,
 };
 
 export const protectiveRootLabelsFr: Readonly<Record<string, string>> = {

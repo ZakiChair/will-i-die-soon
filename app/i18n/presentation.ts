@@ -51,16 +51,22 @@ export type PresentedPurityScoreResult =
 
 const rulesById = new Map(riskRules.map((rule) => [rule.id, rule]));
 
+function requiredFrenchCopy(
+  value: string | undefined,
+  corpus: string,
+): string {
+  if (!value?.trim()) {
+    throw new Error(`Missing French ${corpus}`);
+  }
+  return value;
+}
+
 function requiredTranslation(
   dictionary: Readonly<Record<string, string>>,
   key: string,
   corpus: string,
 ): string {
-  const translated = dictionary[key];
-  if (!translated?.trim()) {
-    throw new Error(`Missing French ${corpus}: ${key}`);
-  }
-  return translated;
+  return requiredFrenchCopy(dictionary[key], `${corpus}: ${key}`);
 }
 
 function normalizedCountry(countryCode: string): string {
@@ -220,11 +226,12 @@ export function localizePurityScore(
   locale: Locale,
 ): PresentedPurityScoreResult {
   if (locale === "en" || score.kind === "not-available") return score;
+  const label = requiredFrenchCopy(PURITY_SCORE_LABEL_FR, "score label");
 
   if (score.kind === "insufficient-coverage") {
     return {
       ...score,
-      label: PURITY_SCORE_LABEL_FR,
+      label,
       answeredCategories: score.answeredCategories.map((category) => ({
         ...category,
         label: requiredTranslation(
@@ -240,7 +247,7 @@ export function localizePurityScore(
 
   return {
     ...score,
-    label: PURITY_SCORE_LABEL_FR,
+    label,
     categories: score.categories.map((category) => ({
       ...category,
       label: requiredTranslation(

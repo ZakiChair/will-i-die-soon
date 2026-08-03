@@ -83,7 +83,7 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
   "nicotine-support": {
     title: "Consommation actuelle de tabac ou de nicotine",
     copy:
-      "La consommation actuelle de tabac ou de nicotine peut être associée à des effets nocifs à long terme; un soutien est disponible si réduire ou arrêter constitue votre objectif.",
+      "La consommation actuelle de tabac ou de nicotine peut être associée à des effets nocifs à long terme\u00a0; un soutien est disponible si réduire ou arrêter constitue votre objectif.",
   },
   "adolescent-substance-support": {
     title: "Soutien demandé par un adolescent concernant la consommation de substances",
@@ -93,12 +93,12 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
   "adolescent-substance-safety-support": {
     title: "Suivi de sécurité lié à la consommation de substances chez un adolescent",
     copy:
-      "Un malaise avec perte de connaissance, une crise convulsive, une difficulté respiratoire grave, un symptôme thoracique ou une inquiétude de sécurité lié à une consommation au cours de l'année écoulée, mais absent actuellement, mérite d'être signalé rapidement à un adulte de confiance et à un professionnel de santé qualifié.",
+      "Des événements graves liés à une consommation de substances — malaise avec perte de connaissance, crise convulsive, difficulté respiratoire grave, symptôme thoracique ou inquiétude concernant la sécurité — survenus au cours de l'année écoulée mais absents actuellement méritent d'être signalés rapidement à un adulte de confiance et à un professionnel de santé qualifié.",
   },
   "glp1-severe-allergy": {
     title: "Examen de symptômes d'allergie grave pendant l'utilisation d'un médicament GLP-1",
     copy:
-      "Des symptômes allergiques graves signalés pendant l'utilisation d'un médicament GLP-1 méritent une évaluation clinique rapide; utilisez la question sur l'allergie grave actuelle pour l'orientation vers une aide immédiate.",
+      "Des symptômes allergiques graves signalés pendant l'utilisation d'un médicament GLP-1 méritent une évaluation clinique rapide\u00a0; utilisez la question sur l'allergie grave actuelle pour l'orientation vers une aide immédiate.",
   },
   "glp1-gastrointestinal-review": {
     title: "Examen de symptômes pendant l'utilisation d'un GLP-1",
@@ -108,7 +108,7 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
   "glp1-glucose-symptom-review": {
     title: "Examen de symptômes liés à un GLP-1 et à des médicaments agissant sur la glycémie",
     copy:
-      "Un évanouissement, une confusion, des sueurs ou des tremblements signalés avec de l'insuline ou une sulfonylurée méritent une évaluation clinique rapide; ces réponses n'établissent pas une glycémie basse.",
+      "Un évanouissement, une confusion, des sueurs ou des tremblements signalés avec de l'insuline ou une sulfonylurée méritent une évaluation clinique rapide\u00a0; ces réponses n'établissent pas une glycémie basse.",
   },
   "glp1-diabetes-vision-review": {
     title: "Examen d'une modification de la vision pendant l'utilisation d'un GLP-1 pour le diabète",
@@ -118,22 +118,22 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
   "glp1-history-review": {
     title: "Examen des antécédents pertinents pour un GLP-1",
     copy:
-      "Les antécédents médicaux déclarés méritent d'être discutés avec le prescripteur; cette voie ne détermine pas si le médicament convient.",
+      "Les antécédents médicaux déclarés méritent d'être discutés avec le prescripteur\u00a0; cette voie ne détermine pas si le médicament convient.",
   },
   "glp1-pregnancy-procedure-review": {
     title: "Contexte de grossesse ou d'intervention pendant l'utilisation d'un GLP-1",
     copy:
-      "Une grossesse, un projet de grossesse, l'allaitement ou une sédation profonde ou anesthésie planifiée mérite un examen rapide avec le prescripteur ou l'équipe chargée de l'intervention.",
+      "Une grossesse, un projet de grossesse, l'allaitement, une sédation profonde planifiée ou une anesthésie planifiée méritent un examen rapide avec le prescripteur ou l'équipe chargée de l'intervention.",
   },
   "isotretinoin-physical-symptom-review": {
     title: "Examen de symptômes physiques pendant l'utilisation d'isotretinoin",
     copy:
-      "Un mal de tête grave ou une modification de la vision, des symptômes abdominaux graves, ou une éruption avec cloques ou desquamation pendant l'utilisation d'isotretinoin mérite une évaluation clinique rapide.",
+      "Pendant l'utilisation d'isotretinoin, de graves maux de tête ou une modification de la vision, des symptômes abdominaux graves, ou une éruption avec cloques ou desquamation méritent une évaluation clinique rapide.",
   },
   "isotretinoin-mood-review": {
     title: "Examen de l'humeur ou du comportement pendant l'utilisation d'isotretinoin",
     copy:
-      "Des changements d'humeur, de comportement ou de sécurité signalés pendant l'utilisation d'isotretinoin méritent une évaluation clinique rapide et un examen de la sécurité personnelle.",
+      "Des changements touchant l'humeur, le comportement ou la sécurité personnelle, signalés pendant l'utilisation d'isotretinoin, méritent une évaluation clinique rapide et un examen de la sécurité personnelle.",
   },
   "isotretinoin-pregnancy-program-review": {
     title: "Contexte de sécurité lié à la grossesse pendant l'utilisation d'isotretinoin",
@@ -173,7 +173,7 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
   "research-product-condition-review": {
     title: "Examen d'une réaction à un produit de recherche",
     copy:
-      "Une aggravation au point d'injection ou des symptômes généraux inattendus après un produit de recherche, non autorisé ou préparé en pharmacie méritent une évaluation clinique rapide; cela n'établit ni l'identité du produit ni la cause.",
+      "Une aggravation au point d'injection ou des symptômes généraux inattendus après un produit de recherche, non autorisé ou préparé en pharmacie méritent une évaluation clinique rapide\u00a0; cela n'établit ni l'identité du produit ni la cause.",
   },
   "research-product-storage-review": {
     title: "Examen du stockage ou de l'emballage d'un produit de recherche",
@@ -188,7 +188,7 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
   "anabolic-leg-symptom-review": {
     title: "Examen d'un symptôme unilatéral de la jambe pendant l'utilisation d'AAS ou de SARM",
     copy:
-      "Un gonflement ou une douleur d'un seul côté de la jambe signalé pendant l'utilisation d'un produit anabolisant, d'un SARM ou d'un produit de musculation mérite une évaluation clinique rapide.",
+      "Un gonflement ou une douleur d'un seul côté de la jambe, signalés pendant l'utilisation d'un produit anabolisant, d'un SARM ou d'un produit de musculation, méritent une évaluation clinique rapide.",
   },
   "anabolic-neurologic-review": {
     title: "Examen de symptômes neurologiques pendant l'utilisation d'AAS ou de SARM",
@@ -208,7 +208,7 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
   "stimulant-symptom-review": {
     title: "Examen de symptômes liés à un stimulant non prescrit",
     copy:
-      "Une douleur thoracique, un évanouissement, une agitation grave ou une surchauffe pendant ou après l'utilisation d'un stimulant non prescrit peut nécessiter une évaluation clinique rapide; cette réponse n'établit pas que les symptômes sont actuels.",
+      "Une douleur thoracique, un évanouissement, une agitation grave ou une surchauffe pendant ou après l'utilisation d'un stimulant non prescrit peut nécessiter une évaluation clinique rapide\u00a0; cette réponse n'établit pas que les symptômes sont actuels.",
   },
   "opioid-mixing-safety-review": {
     title: "Sécurité lors de l'association d'un opioïde et de sédatifs",
@@ -218,7 +218,7 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
   "psychedelic-aftereffect-review": {
     title: "Examen d'effets persistants après un psychédélique ou un dissociatif",
     copy:
-      "Des changements perceptifs persistants, de la panique, de la confusion ou une difficulté à fonctionner ont été signalés après l'utilisation de psychédéliques ou de dissociatifs; un professionnel de santé qualifié ou de santé mentale peut aider à les examiner sans présumer de leur cause.",
+      "Des changements perceptifs persistants, de la panique, de la confusion ou une difficulté à fonctionner ont été signalés après l'utilisation de psychédéliques ou de dissociatifs\u00a0; un professionnel de santé qualifié ou un professionnel de la santé mentale peut aider à les examiner sans présumer de leur cause.",
   },
   "recreational-drug-effect-review": {
     title: "Examen d'un effet inattendu d'une drogue récréative ou inconnue",
@@ -238,7 +238,7 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
   "sexual-safety-support": {
     title: "Soutien lié au consentement et à la sécurité sexuelle",
     copy:
-      "Une inquiétude concernant la pression, le consentement ou la sécurité dans une situation sexuelle mérite un soutien confidentiel centré sur la personne. Un professionnel de santé qualifié ou un service spécialisé peut aider; utilisez la voie de sécurité immédiate en cas de danger actuel.",
+      "Une inquiétude concernant des pressions subies, le consentement ou la sécurité dans une situation sexuelle mérite un soutien confidentiel centré sur la personne. Un professionnel de santé qualifié ou un service spécialisé peut aider\u00a0; utilisez la voie de sécurité immédiate en cas de danger actuel.",
   },
   "pregnancy-new-concern-review": {
     title: "Nouvelle préoccupation pendant la grossesse ou après l'accouchement",
@@ -258,12 +258,12 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
   "minor-pregnancy-support": {
     title: "Soutien lié à la grossesse",
     copy:
-      "Les questions liées à la grossesse peuvent être discutées avec un service de santé local qualifié et adapté aux adolescents. Demandez quelles règles de confidentialité s'appliquent avant de communiquer des détails; cette voie ne détermine pas une grossesse et ne donne pas de conseil sur les médicaments.",
+      "Les questions liées à la grossesse peuvent être discutées avec un service de santé local qualifié et adapté aux adolescents. Demandez quelles règles de confidentialité s'appliquent avant de communiquer des détails\u00a0; cette voie ne détermine pas une grossesse et ne donne pas de conseil sur les médicaments.",
   },
   "adult-movement-pattern": {
     title: "Habitudes hebdomadaires de mouvement",
     copy:
-      "Une activité aérobie ou de renforcement hebdomadaire plus faible peut être associée à une moins bonne santé à long terme; les limites personnelles et les options sûres méritent d'être discutées.",
+      "Une activité aérobie ou de renforcement hebdomadaire plus faible peut être associée à une moins bonne santé à long terme\u00a0; les limites personnelles et les options sûres méritent d'être discutées.",
   },
 };
 
@@ -337,12 +337,12 @@ export const riskFactorLabelsFr: Readonly<Record<string, string>> = {
   "One or more label-relevant history items reported":
     "Un ou plusieurs éléments d'antécédents pertinents pour la notice signalés",
   "Pregnancy, breastfeeding, or a planned procedure reported":
-    "Grossesse, allaitement ou intervention planifiée signalé",
+    "Grossesse, allaitement ou intervention planifiée signalés",
   "Current oral isotretinoin use": "Utilisation actuelle d'isotretinoin oral",
   "A label-relevant physical symptom was reported":
     "Symptôme physique pertinent pour la notice signalé",
   "Mood, behaviour, or safety change reported":
-    "Changement d'humeur, de comportement ou de sécurité signalé",
+    "Changement signalé touchant l'humeur, le comportement ou la sécurité personnelle",
   "Required pregnancy-safety steps reported as incomplete":
     "Étapes requises de sécurité liée à la grossesse signalées comme incomplètes",
   "Current minoxidil use": "Utilisation actuelle de minoxidil",
@@ -370,7 +370,7 @@ export const riskFactorLabelsFr: Readonly<Record<string, string>> = {
     "Livraison chaude ou emballage endommagé signalé",
   "Chest pain or breathlessness reported": "Douleur thoracique ou essoufflement signalé",
   "One-sided leg swelling or pain reported":
-    "Gonflement ou douleur d'un seul côté de la jambe signalé",
+    "Gonflement ou douleur d'un seul côté de la jambe signalés",
   "Sudden neurologic symptom reported": "Symptôme neurologique soudain signalé",
   "Severe mood or behaviour change reported":
     "Changement grave de l'humeur ou du comportement signalé",
@@ -380,7 +380,7 @@ export const riskFactorLabelsFr: Readonly<Record<string, string>> = {
   "Non-prescribed stimulant use in the past year":
     "Utilisation d'un stimulant non prescrit au cours de l'année écoulée",
   "Chest pain, fainting, severe agitation, or overheating reported":
-    "Douleur thoracique, évanouissement, agitation grave ou surchauffe signalé",
+    "Douleur thoracique, évanouissement, agitation grave ou surchauffe signalés",
   "Non-prescribed or differently used opioid in the past year":
     "Opioïde non prescrit ou utilisé autrement que prescrit au cours de l'année écoulée",
   "Opioid combined with alcohol or another sedative":
@@ -397,9 +397,9 @@ export const riskFactorLabelsFr: Readonly<Record<string, string>> = {
   "New, changing, bleeding, or non-healing skin mark":
     "Marque cutanée nouvelle, changeante, qui saigne ou ne guérit pas",
   "Worry about pressure, consent, or safety in a sexual situation":
-    "Inquiétude concernant la pression, le consentement ou la sécurité dans une situation sexuelle",
+    "Inquiétude concernant des pressions subies, le consentement ou la sécurité dans une situation sexuelle",
   "Pregnancy, trying to conceive, breastfeeding, or a recent pregnancy may be relevant":
-    "Une grossesse, un projet de grossesse, l'allaitement ou une grossesse récente peut être pertinent",
+    "Une grossesse, un projet de grossesse, l'allaitement ou une grossesse récente peuvent être pertinents",
   "New or worsening concern during pregnancy or after birth":
     "Préoccupation nouvelle ou qui s'aggrave pendant la grossesse ou après l'accouchement",
   "No current access to a maternity or pregnancy-care professional":

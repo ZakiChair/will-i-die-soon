@@ -28,6 +28,7 @@ import {
   riskRuleCopyFr,
 } from "./risk-copy-fr";
 import {
+  PURITY_SCORE_LABEL_FR,
   accessSupportCopyFr,
   accessSupportReasonClausesFr,
   actionCopyFr,
@@ -764,6 +765,7 @@ describe("live French presentation corpus", () => {
         "Missing answers reduce coverage rather than earning zero points.",
       ].sort(),
     );
+    expect(PURITY_SCORE_LABEL_FR.trim(), "French score label").not.toBe("");
     for (const dictionary of [
       scoreCategoryLabelsFr,
       scoreComponentLabelsFr,
@@ -772,6 +774,36 @@ describe("live French presentation corpus", () => {
     ]) {
       for (const [key, value] of Object.entries(dictionary)) {
         expect(value.trim(), key).not.toBe("");
+      }
+    }
+  });
+
+  it("uses non-breaking French spacing before semicolons and colons", () => {
+    const frenchCopy = [
+      PURITY_SCORE_LABEL_FR,
+      ...Object.values(riskRuleCopyFr).flatMap(({ title, copy }) => [title, copy]),
+      ...Object.values(riskFactorLabelsFr),
+      ...Object.values(scoreCategoryLabelsFr),
+      ...Object.values(scoreComponentLabelsFr),
+      ...Object.values(scoreComponentExplanationsFr),
+      ...Object.values(scoreLedgerExplanationsFr),
+      ...Object.values(actionCopyFr).flatMap(({ title, nextStep }) => [
+        title,
+        nextStep,
+      ]),
+      bookedPreventiveActionCopyFr.title,
+      bookedPreventiveActionCopyFr.nextStep,
+      accessSupportCopyFr.title,
+      accessSupportCopyFr.nextStep,
+      ...Object.values(accessSupportReasonClausesFr),
+      ...Object.values(protectiveRootLabelsFr),
+    ];
+
+    for (const value of frenchCopy) {
+      for (const [index, character] of [...value].entries()) {
+        if (character === ";" || character === ":") {
+          expect(value[index - 1], value).toBe("\u00a0");
+        }
       }
     }
   });
@@ -865,6 +897,117 @@ describe("risk presentation", () => {
       expect(presented.missingInputs).toBe(leaf.missingInputs);
       expect(presented.applicability).toBe(leaf.applicability);
     }
+  });
+
+  it("keeps past-event, isotretinoin, personal-safety, and coercion scope explicit", () => {
+    const adolescentProfile = { age: 15, countryCode: "CH" };
+    const adolescent = localizeRiskLeaves(
+      [
+        leafByRuleId(
+          "adolescent-substance-safety-support",
+          {
+            uses_cannabis: true,
+            adolescent_substance_severe_timing: "past_year_not_now",
+          },
+          adolescentProfile,
+        ),
+      ],
+      "fr",
+      adolescentProfile,
+    )[0];
+    const isotretinoinAnswers: AnswerMap = {
+      uses_isotretinoin: true,
+      isotretinoin_detail_symptoms: ["head_vision", "mood"],
+    };
+    const physical = localizeRiskLeaves(
+      [
+        leafByRuleId(
+          "isotretinoin-physical-symptom-review",
+          isotretinoinAnswers,
+          adultProfile,
+        ),
+      ],
+      "fr",
+      adultProfile,
+    )[0];
+    const mood = localizeRiskLeaves(
+      [
+        leafByRuleId(
+          "isotretinoin-mood-review",
+          isotretinoinAnswers,
+          adultProfile,
+        ),
+      ],
+      "fr",
+      adultProfile,
+    )[0];
+    const sexualSafety = localizeRiskLeaves(
+      [
+        leafByRuleId(
+          "sexual-safety-support",
+          { sexual_contact_safety: true },
+          adultProfile,
+        ),
+      ],
+      "fr",
+      adultProfile,
+    )[0];
+
+    expect(adolescent.copy).toBe(
+      "Des événements graves liés à une consommation de substances — malaise avec perte de connaissance, crise convulsive, difficulté respiratoire grave, symptôme thoracique ou inquiétude concernant la sécurité — survenus au cours de l'année écoulée mais absents actuellement méritent d'être signalés rapidement à un adulte de confiance et à un professionnel de santé qualifié.",
+    );
+    expect(physical.copy).toBe(
+      "Pendant l'utilisation d'isotretinoin, de graves maux de tête ou une modification de la vision, des symptômes abdominaux graves, ou une éruption avec cloques ou desquamation méritent une évaluation clinique rapide.",
+    );
+    expect(mood.copy).toBe(
+      "Des changements touchant l'humeur, le comportement ou la sécurité personnelle, signalés pendant l'utilisation d'isotretinoin, méritent une évaluation clinique rapide et un examen de la sécurité personnelle.",
+    );
+    expect(mood.factors).toContain(
+      "Changement signalé touchant l'humeur, le comportement ou la sécurité personnelle",
+    );
+    expect(sexualSafety.copy).toBe(
+      "Une inquiétude concernant des pressions subies, le consentement ou la sécurité dans une situation sexuelle mérite un soutien confidentiel centré sur la personne. Un professionnel de santé qualifié ou un service spécialisé peut aider\u00a0; utilisez la voie de sécurité immédiate en cas de danger actuel.",
+    );
+    expect(sexualSafety.factors).toContain(
+      "Inquiétude concernant des pressions subies, le consentement ou la sécurité dans une situation sexuelle",
+    );
+  });
+
+  it("keeps reviewed French agreement and professional scope grammatical", () => {
+    const localized = localizeRiskLeaves(
+      [
+        ruleLeaf("glp1-pregnancy-procedure-review"),
+        ruleLeaf("anabolic-leg-symptom-review"),
+        ruleLeaf("psychedelic-aftereffect-review"),
+        ruleLeaf("stimulant-symptom-review"),
+        ruleLeaf("pregnancy-new-concern-review"),
+      ],
+      "fr",
+      adultProfile,
+    );
+    const byRuleId = new Map(localized.map((leaf) => [leaf.ruleId, leaf]));
+
+    expect.soft(byRuleId.get("glp1-pregnancy-procedure-review")?.copy).toBe(
+      "Une grossesse, un projet de grossesse, l'allaitement, une sédation profonde planifiée ou une anesthésie planifiée méritent un examen rapide avec le prescripteur ou l'équipe chargée de l'intervention.",
+    );
+    expect(byRuleId.get("glp1-pregnancy-procedure-review")?.factors).toContain(
+      "Grossesse, allaitement ou intervention planifiée signalés",
+    );
+    expect(byRuleId.get("anabolic-leg-symptom-review")?.copy).toBe(
+      "Un gonflement ou une douleur d'un seul côté de la jambe, signalés pendant l'utilisation d'un produit anabolisant, d'un SARM ou d'un produit de musculation, méritent une évaluation clinique rapide.",
+    );
+    expect.soft(byRuleId.get("anabolic-leg-symptom-review")?.factors).toContain(
+      "Gonflement ou douleur d'un seul côté de la jambe signalés",
+    );
+    expect(byRuleId.get("psychedelic-aftereffect-review")?.copy).toBe(
+      "Des changements perceptifs persistants, de la panique, de la confusion ou une difficulté à fonctionner ont été signalés après l'utilisation de psychédéliques ou de dissociatifs\u00a0; un professionnel de santé qualifié ou un professionnel de la santé mentale peut aider à les examiner sans présumer de leur cause.",
+    );
+    expect(byRuleId.get("stimulant-symptom-review")?.factors).toContain(
+      "Douleur thoracique, évanouissement, agitation grave ou surchauffe signalés",
+    );
+    expect(byRuleId.get("pregnancy-new-concern-review")?.factors).toContain(
+      "Une grossesse, un projet de grossesse, l'allaitement ou une grossesse récente peuvent être pertinents",
+    );
   });
 
   it("does not mutate a deeply frozen merged emergency leaf", () => {
@@ -1029,6 +1172,36 @@ describe("score presentation", () => {
     );
   });
 
+  it("states applicability and score-component exclusion without clinical ambiguity", () => {
+    const canonical = adultScore({
+      preventive_followup_status: null,
+      preventive_followup_action: null,
+      adherence_access_barriers: ["cost"],
+    });
+    const localized = localizePurityScore(canonical, "fr");
+    if (localized.kind !== "adult-score") {
+      throw new Error("Expected localized adult score");
+    }
+    const components = localized.categories.flatMap(
+      (category) => category.components,
+    );
+
+    expect(
+      components.find(
+        (component) => component.questionId === "preventive_followup_action",
+      )?.explanation,
+    ).toBe(
+      "Il reste à déterminer si le suivi préventif choisi s'applique à votre situation.",
+    );
+    expect(
+      components.find(
+        (component) => component.questionId === "adherence_missed_doses",
+      )?.explanation,
+    ).toBe(
+      "Un obstacle à l'accès aux médicaments ou à leur utilisation a été signalé\u00a0; ce composant relatif aux habitudes de prise est donc exclu du calcul.",
+    );
+  });
+
   it("localizes an adult score without changing numeric, machine, order, or source fields", () => {
     const canonical = deepFreeze(
       structuredClone(
@@ -1051,6 +1224,7 @@ describe("score presentation", () => {
     expect(localized.kind).toBe("adult-score");
     if (localized.kind !== "adult-score") throw new Error("Expected adult presentation");
     expect(localized.label).not.toBe(canonical.label);
+    expect(localized.label).toBe(PURITY_SCORE_LABEL_FR);
     expect({ ...localized, label: canonical.label }).toEqual({
       ...canonical,
       categories: localized.categories,
@@ -1257,6 +1431,30 @@ describe("action and protective-root presentation", () => {
     );
     expect(localized[0].reason).not.toMatch(
       /Chosen preventive follow-up|Medication-safety behaviour|You reported/i,
+    );
+  });
+
+  it("uses established stress-practice terms and keeps access barriers about scoring", () => {
+    const recovery = localizeActions(
+      [
+        actionById("habit-recovery", {
+          stress_recovery_practice: "never",
+        }),
+      ],
+      "fr",
+    )[0];
+    const access = buildActionPlan(
+      [],
+      adultScore({ adherence_access_barriers: ["cost"] }),
+    )[0];
+    expect(access.id).toBe("access-support");
+    const localizedAccess = localizeActions([access], "fr")[0];
+
+    expect(recovery.nextStep).toBe(
+      "Choisissez de vous ancrer, de vous décrocher des pensées difficiles, d'agir en accord avec vos valeurs, d'être bienveillant ou de faire de la place à ce que vous ressentez, puis pratiquez pendant quelques minutes aujourd'hui.",
+    );
+    expect(localizedAccess.reason).toBe(
+      "Comportements favorisant la sécurité des médicaments\u00a0: Un obstacle à l'accès aux médicaments ou à leur utilisation a été signalé\u00a0; ce composant relatif aux habitudes de prise est donc exclu du calcul.",
     );
   });
 
