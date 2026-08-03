@@ -28,7 +28,7 @@ test("localizes the active consent screen while preserving every entered profile
 
   expect(document.documentElement).toHaveAttribute("lang", "fr");
   expect(screen.getByRole("heading", { name: "Avant de commencer" })).toBeVisible();
-  expect(screen.getByRole("spinbutton", { name: "Quel âge avez-vous ?" })).toHaveValue(42);
+  expect(screen.getByRole("spinbutton", { name: "Quel âge avez-vous ?" })).toHaveValue(42);
   expect(screen.getByRole("combobox", { name: "Pays ou région" })).toHaveValue("CH");
   expect(
     screen.getByRole("checkbox", { name: "Je comprends et je souhaite continuer" }),
@@ -73,7 +73,7 @@ test("localizes every consent country and the child Deep fallback without changi
   expect(country).toContainHTML("Royaume-Uni");
   expect(country).toContainHTML("États-Unis");
   expect(country).toContainHTML("Autre pays ou région");
-  await user.type(screen.getByRole("spinbutton", { name: "Quel âge avez-vous ?" }), "12");
+  await user.type(screen.getByRole("spinbutton", { name: "Quel âge avez-vous ?" }), "12");
   await user.selectOptions(country, "CH");
   await user.click(
     screen.getByRole("checkbox", { name: "Je comprends et je souhaite continuer" }),
@@ -100,7 +100,12 @@ test("keeps the adolescent private route selected when consent changes to French
 
   await user.click(screen.getByRole("button", { name: "Français" }));
 
-  expect(screen.getByRole("radio", { name: "Répondre seul, en privé" })).toBeChecked();
+  expect(
+    screen.getByText(
+      "Le fonctionnement en local ne garantit pas à lui seul la confidentialité médicale. Les personnes à proximité peuvent toujours voir cet écran.",
+    ),
+  ).toBeVisible();
+  expect(screen.getByRole("radio", { name: "Répondre en privé, sans aide" })).toBeChecked();
   expect(screen.getByRole("combobox", { name: "Pays ou région" })).toHaveValue("GB");
-  expect(screen.getByRole("button", { name: "Commencer l'analyse Rapide" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Commencer l'analyse rapide" })).toBeEnabled();
 });

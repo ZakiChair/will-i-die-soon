@@ -76,3 +76,26 @@ test("localizes a live intermission through its exact domain key without changin
   expect(screen.getByRole("button", { name: "Continuer l'analyse" })).toBeVisible();
   expect(screen.queryByText(/preventive care/i)).not.toBeInTheDocument();
 });
+
+test("composes the French milestone around an invariant medicine name", async () => {
+  const user = userEvent.setup();
+  render(
+    <I18nProvider>
+      <LanguageSwitcher />
+      <Intermission
+        completedDomain="isotretinoin"
+        completed={10}
+        total={20}
+        onContinue={vi.fn()}
+      />
+    </I18nProvider>,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  const body = screen.getByText(/Isotretinoin/);
+  expect(body).toBeVisible();
+  expect(body.textContent).toBe(
+    "Vous avez terminé ce domaine\u00a0: Isotretinoin. Vos réponses sont toujours présentes dans cette session du navigateur.",
+  );
+});

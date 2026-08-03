@@ -92,6 +92,11 @@ function variableTokens(message: string): string[] {
   return [...message.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]).sort();
 }
 
+function humanTypographySegments(key: UiCopyKey, message: string): string[] {
+  if (key === "export.filename" || key.startsWith("unit.")) return [];
+  return message.split(/https?:\/\/\S+/gu);
+}
+
 describe("complete bilingual UI copy", () => {
   test("keeps exact English/French key parity with nonblank copy and matching variables", () => {
     const englishKeys = Object.keys(uiCopy.en).sort();
@@ -168,5 +173,65 @@ describe("complete bilingual UI copy", () => {
     expect(uiCopy.fr["adolescentSupport.adolescent_alcohol_support"]).toMatch(/^l'/);
     expect(uiCopy.fr["riskTree.noMissing"]).not.toMatch(/requise?/i);
     expect(uiCopy.fr["domain.isotretinoin"]).toBe("Isotretinoin");
+  });
+
+  test("preserves the exact safe meaning of local privacy and temporal eligibility copy", () => {
+    expect(uiCopy.fr["landing.privacy.local.body"]).toBe(
+      "Aucun compte, aucun traitement côté serveur, aucun outil d’analyse, aucun cookie ni stockage des réponses.",
+    );
+    expect(uiCopy.fr["minor.adolescent.body"]).toBe(
+      "Le fonctionnement en local ne garantit pas à lui seul la confidentialité médicale. Les personnes à proximité peuvent toujours voir cet écran.",
+    );
+    expect(uiCopy.fr["exclusionReason.not-due"]).toBe("Pas à échéance actuellement");
+  });
+
+  test("uses the approved concise French score-ledger language", () => {
+    expect(uiCopy.fr["score.readout"]).toBe(
+      "{score} / 100 · {coverage}\u202f% de couverture des réponses",
+    );
+    expect(uiCopy.fr["score.category.assessed"]).toBe(
+      "{earned} points sur {assessed} évalués",
+    );
+    expect(uiCopy.fr["score.category.excluded"]).toBe("hors calcul");
+    expect(uiCopy.fr["score.category.coverage"]).toBe(
+      "{coverage}\u202f% des composantes couvertes",
+    );
+    expect(uiCopy.fr["score.coverage"]).toBe(
+      "{coverage}\u202f% de couverture des réponses",
+    );
+  });
+
+  test("keeps French high punctuation and percentages inseparable from their preceding text", () => {
+    for (const [key, message] of Object.entries(uiCopy.fr) as Array<
+      [UiCopyKey, string]
+    >) {
+      for (const segment of humanTypographySegments(key, message)) {
+        for (const match of segment.matchAll(/[:;?]/gu)) {
+          expect(segment[match.index - 1], `${key} before ${match[0]}`).toBe("\u00a0");
+        }
+        for (const match of segment.matchAll(/%/gu)) {
+          expect(segment[match.index - 1], `${key} before %`).toBe("\u202f");
+        }
+        for (const match of segment.matchAll(/—/gu)) {
+          expect(segment[match.index - 1], `${key} before em dash`).toBe(" ");
+          expect(segment[match.index + 1], `${key} after em dash`).toBe(" ");
+        }
+      }
+    }
+  });
+
+  test("retains typed score-status corpus for composed presentation explanations", () => {
+    expect(uiCopyKeys.componentStatus).toEqual({
+      answered: "componentStatus.answered",
+      missing: "componentStatus.missing",
+      excluded: "componentStatus.excluded",
+    });
+    expect(uiCopyKeys.exclusionReason).toEqual({
+      "prescribed-nrt-quit-plan": "exclusionReason.prescribed-nrt-quit-plan",
+      "not-due": "exclusionReason.not-due",
+      "access-or-safety-barrier": "exclusionReason.access-or-safety-barrier",
+      "no-current-access": "exclusionReason.no-current-access",
+      "medication-not-applicable": "exclusionReason.medication-not-applicable",
+    });
   });
 });

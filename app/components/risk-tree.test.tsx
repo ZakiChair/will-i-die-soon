@@ -71,8 +71,10 @@ test("keeps the selected evidence leaf while localizing ledger and missing-quest
     screen.getByText(/Quel sexe vous a-t-on attribué à la naissance/),
   ).toBeVisible();
   expect(screen.queryByText(/sex assigned at birth/i)).not.toBeInTheDocument();
-  expect(screen.getByText("Éditeur : Official publisher")).toBeVisible();
-  expect(screen.getByText("Vérifié le : 2026-08-01")).toBeVisible();
+  const publisher = screen.getByText(/Official publisher/);
+  expect(publisher).toBeVisible();
+  expect(publisher.textContent).toBe("Éditeur\u00a0: Official publisher");
+  expect(screen.getByText("Vérifié le 2026-08-01")).toBeVisible();
   expect(screen.getByText("Ouvrir la source")).toBeVisible();
   expect(screen.getByRole("link", { name: "Official evidence title" })).toHaveAttribute(
     "href",
@@ -100,7 +102,7 @@ test("localizes empty branches and the protective fallback", async () => {
   expect(
     screen.getByText("Aucun facteur protecteur n'a été confirmé dans les réponses affichées."),
   ).toBeVisible();
-  expect(screen.getByText("Sélectionnez un signal indiqué pour examiner ses facteurs et ses sources."))
+  expect(screen.getByText("Sélectionnez un signal affiché pour examiner ses facteurs et ses sources."))
     .toBeVisible();
 });
 

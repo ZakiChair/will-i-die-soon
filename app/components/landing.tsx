@@ -35,7 +35,7 @@ const depths: ReadonlyArray<{
 ];
 
 export function Landing({ onStart }: LandingProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [motionAllowed, setMotionAllowed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
 
@@ -134,16 +134,22 @@ export function Landing({ onStart }: LandingProps) {
             <h2 id="depth-title">{t("landing.pace.title")}</h2>
           </div>
           <div className="depth-grid">
-            {depths.map((depth) => (
-              <article className="depth-card" key={depth.id}>
-                <p className="depth-card__eyebrow">{t(depth.detailKey)}</p>
-                <h3>{t(uiCopyKeys.depth[depth.id])}</h3>
-                <p>{t(depth.descriptionKey)}</p>
-                <button type="button" onClick={() => onStart(depth.id)}>
-                  {t("depth.choose", { depth: t(uiCopyKeys.depth[depth.id]) })}
-                </button>
-              </article>
-            ))}
+            {depths.map((depth) => {
+              const depthLabel = t(uiCopyKeys.depth[depth.id]);
+              const inlineDepth =
+                locale === "fr" ? depthLabel.toLocaleLowerCase("fr") : depthLabel;
+
+              return (
+                <article className="depth-card" key={depth.id}>
+                  <p className="depth-card__eyebrow">{t(depth.detailKey)}</p>
+                  <h3>{depthLabel}</h3>
+                  <p>{t(depth.descriptionKey)}</p>
+                  <button type="button" onClick={() => onStart(depth.id)}>
+                    {t("depth.choose", { depth: inlineDepth })}
+                  </button>
+                </article>
+              );
+            })}
           </div>
         </section>
 

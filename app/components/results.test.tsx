@@ -490,6 +490,19 @@ test("renders the complete adult result presentation in French while preserving 
     }),
   ).toBeVisible();
   expect(screen.getByText("Habitudes alimentaires")).toBeVisible();
+  const scoreReadout = screen.getByText(/\d+ \/ 100/);
+  expect(scoreReadout).toBeVisible();
+  expect(scoreReadout.textContent).toMatch(
+    /^\d+ \/ 100 · \d+\u202f% de couverture des réponses$/,
+  );
+  const categoryReadouts = screen.getAllByText(/\d+ points sur \d+ évalués/);
+  expect(
+    categoryReadouts.some((readout) =>
+      /\d+ points sur \d+ évalués · \d+\u202f% des composantes couvertes/.test(
+        readout.textContent ?? "",
+      ),
+    ),
+  ).toBe(true);
   expect(screen.getByRole("alert")).toHaveTextContent(/appelez maintenant le 144/i);
   expect(
     screen.getByRole("heading", { name: "Actions que vous pouvez choisir" }),

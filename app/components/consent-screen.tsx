@@ -15,7 +15,7 @@ export type ConsentScreenProps = {
 type MinorMode = "assisted" | "private";
 
 export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [ageInput, setAgeInput] = useState("");
   const [countryCode, setCountryCode] = useState("");
   const [minorMode, setMinorMode] = useState<MinorMode | null>(null);
@@ -43,6 +43,11 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
     accepted &&
     validMinorMode &&
     selectedDepthAvailable;
+  const selectedDepthLabel = t(uiCopyKeys.depth[selectedDepth]);
+  const inlineDepth =
+    locale === "fr"
+      ? selectedDepthLabel.toLocaleLowerCase("fr")
+      : selectedDepthLabel;
 
   function submitConsent(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -164,7 +169,7 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
 
           {selectedDepthAvailable ? (
             <button className="primary-action" type="submit" disabled={!canSubmit}>
-              {t("consent.start", { depth: t(uiCopyKeys.depth[selectedDepth]) })}
+              {t("consent.start", { depth: inlineDepth })}
             </button>
           ) : null}
         </form>

@@ -84,11 +84,16 @@ test("presents every landing section in French while keeping canonical depth val
   expect(screen.getByRole("heading", { name: "Approfondie" })).toBeVisible();
   expect(screen.getByRole("heading", { name: "Vos réponses restent dans cette session du navigateur." }))
     .toBeVisible();
+  expect(
+    screen.getByText(
+      "Aucun compte, aucun traitement côté serveur, aucun outil d’analyse, aucun cookie ni stockage des réponses.",
+    ),
+  ).toBeVisible();
   expect(document.body.textContent).not.toMatch(
     /Choose your pace|Private by design|Evidence first|Clear boundary/i,
   );
 
-  await user.click(screen.getByRole("button", { name: "Choisir l'analyse Rapide" }));
+  await user.click(screen.getByRole("button", { name: "Choisir l'analyse rapide" }));
   expect(onStart).toHaveBeenCalledWith("quick");
 });
 
