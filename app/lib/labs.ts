@@ -24,6 +24,7 @@ export type LabCandidate = {
   marker: LabMarker;
   value: number;
   unit: string;
+  rawLine?: string;
   rawTestName?: string;
   valueText?: string;
   rawUnit?: string;
@@ -43,13 +44,24 @@ export type NormalizedLabValue = LabCandidate & {
   displayValue: string;
 };
 
-export type ConfirmedLabValue = NormalizedLabValue & {
-  rawTestName: string;
-  valueText: string;
-  rawUnit: string;
-  rawRange: string;
-  collectionDate: string;
-  fastingStatus: FastingStatus;
+export type ReviewedLabObservation = {
+  readonly marker: LabMarker;
+  readonly valueText: string;
+  readonly value: number;
+  readonly unit: string;
+  readonly referenceRange: string;
+  readonly collectionDate: string;
+  readonly fastingStatus: FastingStatus;
+};
+
+export type ConfirmedLabValue = {
+  readonly source: Readonly<LabCandidate> | null;
+  readonly reviewed: ReviewedLabObservation;
+  readonly normalized: {
+    readonly value: number;
+    readonly unit: string;
+    readonly displayValue: string;
+  };
 };
 
 type MarkerSpec = {
@@ -137,8 +149,11 @@ const NUMBER_TEXT = "[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)";
 const OBSERVATION = new RegExp(
   `^\\s*(.+?)\\s*(?:=|:|\\s)\\s*(${NUMBER_TEXT})\\s+([^\\s()\\[\\]]+)\\s*(.*)$`,
 );
-const RANGE = new RegExp(
-  `(?:\\(|\\[)?\\s*(${NUMBER_TEXT})\\s*[-–—]\\s*(${NUMBER_TEXT})\\s*(?:\\)|\\])?`,
+const DELIMITED_RANGE = new RegExp(
+  `(\\(\\s*(${NUMBER_TEXT})\\s*[-–—]\\s*(${NUMBER_TEXT})\\s*\\)|\\[\\s*(${NUMBER_TEXT})\\s*[-–—]\\s*(${NUMBER_TEXT})\\s*\\])`,
+);
+const BARE_RANGE = new RegExp(
+  `(?<![\\d-])(${NUMBER_TEXT})\\s*[-–—]\\s*(${NUMBER_TEXT})(?![\\d-])`,
 );
 
 function canonicalName(value: string): string {
@@ -179,18 +194,42 @@ function reportContext(text: string) {
   const date = text.match(
     /\b(?:collection|collected|specimen)(?:\s+date)?\s*[:=]\s*(\d{4}-\d{2}-\d{2})\b/i,
   )?.[1];
-  const fastingHoursText = text.match(/\bfasting\s*[:=]?\s*(\d+(?:\.\d+)?)\s*hours?\b/i)?.[1];
-  const explicitlyNotFasting = /\b(?:not[ -]?fasting|non[ -]?fasting)\b/i.test(text);
-  const fastingMentioned = /\bfasting\b/i.test(text);
+  const fastingHoursText = text.match(
+    /(?:^|\n)\s*fasting(?:\s+duration)?\s*[:=]\s*(\d+(?:\.\d+)?)\s*hours?\s*(?:\n|$)/i,
+  )?.[1];
+  const fastingStatusText = text.match(
+    /(?:^|\n)\s*fasting(?:\s+status)?\s*[:=]\s*(yes|no|fasting|not[ -]?fasting|non[ -]?fasting|unknown|not stated)\s*(?:\n|$)/i,
+  )?.[1]?.toLowerCase();
+  const fastingStatus = fastingHoursText
+    ? ("fasting" as const)
+    : fastingStatusText === "yes" || fastingStatusText === "fasting"
+      ? ("fasting" as const)
+      : fastingStatusText === "no" || /^(?:not|non)[ -]?fasting$/.test(fastingStatusText ?? "")
+        ? ("not_fasting" as const)
+        : undefined;
 
   return {
     collectionDate: date,
-    fastingStatus: explicitlyNotFasting
-      ? ("not_fasting" as const)
-      : fastingMentioned
-        ? ("fasting" as const)
-        : undefined,
+    fastingStatus,
     fastingHours: fastingHoursText === undefined ? undefined : Number(fastingHoursText),
+  };
+}
+
+function parseRange(value: string) {
+  const delimited = value.match(DELIMITED_RANGE);
+  if (delimited) {
+    return {
+      rawRange: delimited[1],
+      referenceLow: Number(delimited[2] ?? delimited[4]),
+      referenceHigh: Number(delimited[3] ?? delimited[5]),
+    };
+  }
+  const bare = value.match(BARE_RANGE);
+  if (!bare) return {};
+  return {
+    rawRange: bare[0],
+    referenceLow: Number(bare[1]),
+    referenceHigh: Number(bare[2]),
   };
 }
 
@@ -221,7 +260,7 @@ export function parseLabCandidates(text: string): LabCandidate[] {
 
     const value = Number(valueText);
     if (!Number.isFinite(value)) continue;
-    const range = remainder.match(RANGE);
+    const range = parseRange(remainder);
     const printedFlag = remainder.match(/(?:^|\s)([HL])(?:\s|$)/i)?.[1]?.toUpperCase();
     const method = /\bcalc(?:ulated)?\b/i.test(rawName)
       ? ("calculated" as const)
@@ -231,14 +270,13 @@ export function parseLabCandidates(text: string): LabCandidate[] {
 
     candidates.push({
       marker: spec.marker,
+      rawLine: sourceLine,
       rawTestName: rawName.trim(),
       valueText,
       value,
       rawUnit,
       unit,
-      rawRange: range ? `${range[1]} - ${range[2]}` : undefined,
-      referenceLow: range ? Number(range[1]) : undefined,
-      referenceHigh: range ? Number(range[2]) : undefined,
+      ...range,
       printedFlag,
       method,
       ...context,
@@ -331,23 +369,41 @@ export function normalizeLabValue(candidate: LabCandidate): NormalizedLabValue {
 }
 
 async function extractPdfText(file: File): Promise<string> {
-  const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
-  pdfjs.GlobalWorkerOptions.workerSrc = "/lab-assets/pdf.worker.min.mjs";
-  const document = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  const pdfjs = await import("pdfjs-dist");
+  if (typeof Worker !== "undefined") {
+    pdfjs.GlobalWorkerOptions.workerSrc = "/lab-assets/pdf.worker.min.mjs";
+  }
+  const loadingTask = pdfjs.getDocument({ data: await file.arrayBuffer() });
+  const document = await loadingTask.promise;
   const pages: string[] = [];
   try {
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
       const content = await page.getTextContent();
-      pages.push(
-        content.items
-          .map((item) => ("str" in item ? item.str : ""))
-          .filter(Boolean)
-          .join(" "),
-      );
+      const lines: string[] = [];
+      let line: string[] = [];
+      let previousY: number | undefined;
+      const flushLine = () => {
+        const text = line.join(" ").replace(/\s+/g, " ").trim();
+        if (text) lines.push(text);
+        line = [];
+      };
+      for (const item of content.items) {
+        if (!("str" in item) || item.str === "") continue;
+        const y = item.transform[5];
+        if (previousY !== undefined && Math.abs(y - previousY) > 1) flushLine();
+        line.push(item.str);
+        previousY = y;
+        if (item.hasEOL) {
+          flushLine();
+          previousY = undefined;
+        }
+      }
+      flushLine();
+      pages.push(lines.join("\n"));
     }
   } finally {
-    await document.destroy();
+    await loadingTask.destroy();
   }
   return pages.join("\n");
 }

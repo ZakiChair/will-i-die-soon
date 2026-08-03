@@ -45,9 +45,11 @@ const LAB_ANSWER_IDS: Readonly<Record<LabMarker, string>> = {
 };
 
 function printedLabAnswer(value: ConfirmedLabValue): string {
-  const range = value.rawRange ? ` (${value.rawRange})` : "";
-  const flag = value.printedFlag ? ` ${value.printedFlag}` : "";
-  return `${value.valueText} ${value.rawUnit}${range}${flag}`;
+  const range = /^[[(]/.test(value.reviewed.referenceRange)
+    ? ` ${value.reviewed.referenceRange}`
+    : ` (${value.reviewed.referenceRange})`;
+  const flag = value.source?.printedFlag ? ` ${value.source.printedFlag}` : "";
+  return `${value.reviewed.valueText} ${value.reviewed.unit}${range}${flag}`;
 }
 
 const INTERMISSION_LIMITS: Readonly<Record<AnalysisDepth, number>> = {
@@ -95,6 +97,7 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
     completed: number;
   } | null>(null);
   const shownMilestones = useRef(new Set<string>());
+  const importedAnswerIds = useRef(new Set<string>());
   const intermissionCount = useRef(0);
   const questionHeading = useRef<HTMLHeadingElement>(null);
   const { answers, queue } = questionnaire;
@@ -141,6 +144,7 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
 
   function recordAnswer(value: NonNullable<AnswerMap[string]> | null) {
     if (!question) return;
+    importedAnswerIds.current.delete(question.id);
     const nextState = reconcileAssessmentState(depth, questionBank, profile, {
       ...answers,
       [question.id]: value,
@@ -152,19 +156,36 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
         return;
       }
       setConfirmedLabs([]);
+      importedAnswerIds.current.clear();
     }
     advanceAfterAnswer(question, nextState);
   }
 
   function finishLabImport(values: ConfirmedLabValue[]) {
     if (!question || question.id !== "has_recent_labs") return;
-    const importedAnswers = Object.fromEntries(
-      values.map((value) => [LAB_ANSWER_IDS[value.marker], printedLabAnswer(value)]),
+    const answersWithoutPriorImport = Object.fromEntries(
+      Object.entries(questionnaire.answers).filter(
+        ([id]) => !importedAnswerIds.current.has(id),
+      ),
     );
+    const baseState = reconcileAssessmentState(
+      depth,
+      questionBank,
+      profile,
+      answersWithoutPriorImport,
+    );
+    const budgetedQuestionIds = new Set(baseState.queue.map((item) => item.id));
+    const importedEntries = values
+      .map(
+        (value) => [LAB_ANSWER_IDS[value.reviewed.marker], printedLabAnswer(value)] as const,
+      )
+      .filter(([id]) => budgetedQuestionIds.has(id));
+    const importedAnswers = Object.fromEntries(importedEntries);
     const nextState = reconcileAssessmentState(depth, questionBank, profile, {
-      ...questionnaire.answers,
+      ...baseState.answers,
       ...importedAnswers,
     });
+    importedAnswerIds.current = new Set(importedEntries.map(([id]) => id));
     setConfirmedLabs(values);
     setQuestionnaire(nextState);
     setAwaitingLabImport(false);

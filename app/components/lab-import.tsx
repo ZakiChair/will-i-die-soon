@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   extractLabText,
   LAB_MARKERS,
@@ -22,15 +22,13 @@ export type LabImportProps = {
 type EditableLabRow = {
   id: string;
   selected: boolean;
-  marker: LabMarker | "";
-  rawTestName: string;
-  valueText: string;
-  rawUnit: string;
-  rawRange: string;
-  collectionDate: string;
-  fastingStatus: FastingStatus | "";
-  printedFlag?: string;
-  method?: "calculated" | "direct";
+  source?: LabCandidate;
+  reviewedMarker: LabMarker | "";
+  reviewedValueText: string;
+  reviewedUnit: string;
+  reviewedRange: string;
+  reviewedCollectionDate: string;
+  reviewedFastingStatus: FastingStatus | "";
 };
 
 const MARKER_LABELS: Readonly<Record<LabMarker, string>> = {
@@ -54,15 +52,13 @@ function candidateRow(candidate: LabCandidate, index: number): EditableLabRow {
   return {
     id: `candidate-${index}`,
     selected: false,
-    marker: candidate.marker,
-    rawTestName: candidate.rawTestName ?? MARKER_LABELS[candidate.marker],
-    valueText: candidate.valueText ?? String(candidate.value),
-    rawUnit: candidate.rawUnit ?? candidate.unit,
-    rawRange: candidate.rawRange ?? "",
-    collectionDate: candidate.collectionDate ?? "",
-    fastingStatus: candidate.fastingStatus ?? "",
-    printedFlag: candidate.printedFlag,
-    method: candidate.method,
+    source: candidate,
+    reviewedMarker: candidate.marker,
+    reviewedValueText: candidate.valueText ?? String(candidate.value),
+    reviewedUnit: candidate.rawUnit ?? candidate.unit,
+    reviewedRange: candidate.rawRange ?? "",
+    reviewedCollectionDate: candidate.collectionDate ?? "",
+    reviewedFastingStatus: candidate.fastingStatus ?? "",
   };
 }
 
@@ -70,13 +66,12 @@ function emptyRow(index: number): EditableLabRow {
   return {
     id: `manual-${index}`,
     selected: false,
-    marker: "",
-    rawTestName: "",
-    valueText: "",
-    rawUnit: "",
-    rawRange: "",
-    collectionDate: "",
-    fastingStatus: "",
+    reviewedMarker: "",
+    reviewedValueText: "",
+    reviewedUnit: "",
+    reviewedRange: "",
+    reviewedCollectionDate: "",
+    reviewedFastingStatus: "",
   };
 }
 
@@ -89,20 +84,25 @@ function numericValue(value: string): number | null {
 function isReady(row: EditableLabRow): boolean {
   return (
     row.selected &&
-    row.marker !== "" &&
-    numericValue(row.valueText) !== null &&
-    row.rawUnit.trim() !== "" &&
-    row.rawRange.trim() !== "" &&
-    row.collectionDate !== "" &&
-    row.fastingStatus !== ""
+    row.reviewedMarker !== "" &&
+    numericValue(row.reviewedValueText) !== null &&
+    row.reviewedUnit.trim() !== "" &&
+    row.reviewedRange.trim() !== "" &&
+    row.reviewedCollectionDate !== "" &&
+    row.reviewedFastingStatus !== ""
   );
 }
 
 export function LabImport({ onConfirm, onCancel }: LabImportProps) {
+  const heading = useRef<HTMLHeadingElement>(null);
   const [rows, setRows] = useState<EditableLabRow[]>([]);
   const [manualMode, setManualMode] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
 
   function updateRow(id: string, patch: Partial<EditableLabRow>) {
     setRows((current) =>
@@ -142,24 +142,38 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
 
   function confirmRows() {
     const confirmed = rows.filter(isReady).map((row): ConfirmedLabValue => {
-      const value = numericValue(row.valueText);
-      if (row.marker === "" || value === null || row.fastingStatus === "") {
+      const value = numericValue(row.reviewedValueText);
+      if (
+        row.reviewedMarker === "" ||
+        value === null ||
+        row.reviewedFastingStatus === ""
+      ) {
         throw new Error("Unreviewed laboratory row");
       }
-      const candidate: LabCandidate = {
-        marker: row.marker,
+      const source = row.source;
+      const reviewed = {
+        marker: row.reviewedMarker,
+        valueText: row.reviewedValueText.trim(),
         value,
-        unit: row.rawUnit.trim(),
-        rawTestName: row.rawTestName.trim() || MARKER_LABELS[row.marker],
-        valueText: row.valueText.trim(),
-        rawUnit: row.rawUnit.trim(),
-        rawRange: row.rawRange.trim(),
-        collectionDate: row.collectionDate,
-        fastingStatus: row.fastingStatus,
-        printedFlag: row.printedFlag,
-        method: row.method,
+        unit: row.reviewedUnit.trim(),
+        referenceRange: row.reviewedRange.trim(),
+        collectionDate: row.reviewedCollectionDate,
+        fastingStatus: row.reviewedFastingStatus,
       };
-      return normalizeLabValue(candidate) as ConfirmedLabValue;
+      const normalized = normalizeLabValue({
+        marker: reviewed.marker,
+        value: reviewed.value,
+        unit: reviewed.unit,
+      });
+      return {
+        source: source ?? null,
+        reviewed,
+        normalized: {
+          value: normalized.normalizedValue,
+          unit: normalized.normalizedUnit,
+          displayValue: normalized.displayValue,
+        },
+      };
     });
     if (confirmed.length > 0) onConfirm(confirmed);
   }
@@ -171,7 +185,9 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
   return (
     <section className="lab-import" aria-labelledby="lab-import-title">
       <p className="data-label">Optional report import</p>
-      <h1 id="lab-import-title">Bring in results without sending them away.</h1>
+      <h1 id="lab-import-title" ref={heading} tabIndex={-1}>
+        Bring in results without sending them away.
+      </h1>
       <p className="lab-import__privacy">
         <strong>Processed on this device.</strong> Your report and its contents are never
         uploaded. PDF and image tools load from this site only after you choose a file.
@@ -218,15 +234,15 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
                     updateRow(row.id, { selected: event.target.checked })
                   }
                 />
-                Include {row.marker ? MARKER_LABELS[row.marker] : "this result"}
+                Include {row.reviewedMarker ? MARKER_LABELS[row.reviewedMarker] : "this result"}
               </label>
               <label>
                 Marker
                 <select
-                  value={row.marker}
+                  value={row.reviewedMarker}
                   onChange={(event) =>
                     updateRow(row.id, {
-                      marker: event.target.value as LabMarker | "",
+                      reviewedMarker: event.target.value as LabMarker | "",
                     })
                   }
                 >
@@ -244,9 +260,9 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
                   type="number"
                   inputMode="decimal"
                   step="any"
-                  value={row.valueText}
+                  value={row.reviewedValueText}
                   onChange={(event) =>
-                    updateRow(row.id, { valueText: event.target.value })
+                    updateRow(row.id, { reviewedValueText: event.target.value })
                   }
                 />
               </label>
@@ -254,36 +270,40 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
                 Reported unit
                 <input
                   type="text"
-                  value={row.rawUnit}
-                  onChange={(event) => updateRow(row.id, { rawUnit: event.target.value })}
+                  value={row.reviewedUnit}
+                  onChange={(event) =>
+                    updateRow(row.id, { reviewedUnit: event.target.value })
+                  }
                 />
               </label>
               <label>
                 Laboratory reference range
                 <input
                   type="text"
-                  value={row.rawRange}
+                  value={row.reviewedRange}
                   placeholder="Copy the range or write Not printed"
-                  onChange={(event) => updateRow(row.id, { rawRange: event.target.value })}
+                  onChange={(event) =>
+                    updateRow(row.id, { reviewedRange: event.target.value })
+                  }
                 />
               </label>
               <label>
                 Collection date
                 <input
                   type="date"
-                  value={row.collectionDate}
+                  value={row.reviewedCollectionDate}
                   onChange={(event) =>
-                    updateRow(row.id, { collectionDate: event.target.value })
+                    updateRow(row.id, { reviewedCollectionDate: event.target.value })
                   }
                 />
               </label>
               <label>
                 Fasting status
                 <select
-                  value={row.fastingStatus}
+                  value={row.reviewedFastingStatus}
                   onChange={(event) =>
                     updateRow(row.id, {
-                      fastingStatus: event.target.value as FastingStatus | "",
+                      reviewedFastingStatus: event.target.value as FastingStatus | "",
                     })
                   }
                 >
@@ -293,8 +313,12 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
                   <option value="not_stated">Not stated or unsure</option>
                 </select>
               </label>
-              {row.printedFlag ? <p>Laboratory-printed flag: {row.printedFlag}</p> : null}
-              {row.method ? <p>Laboratory method note: {row.method}</p> : null}
+              {row.source?.printedFlag ? (
+                <p>Laboratory-printed flag: {row.source.printedFlag}</p>
+              ) : null}
+              {row.source?.method ? (
+                <p>Laboratory method note: {row.source.method}</p>
+              ) : null}
             </fieldset>
           ))}
           <button

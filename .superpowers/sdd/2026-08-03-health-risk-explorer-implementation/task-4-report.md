@@ -115,10 +115,10 @@ the assets. `public/lab-assets/README.md` records provenance and the network bou
   `lab_value_glucose`, `lab_value_creatinine`, `lab_value_egfr`, `lab_value_alt`,
   `lab_value_ast`, `lab_value_tsh`, `lab_value_hemoglobin`, `lab_value_ferritin`, and
   `lab_value_vitamin_d` answer IDs.
-- Answer strings preserve the printed value, unit, range, and optional printed flag.
-  Structured observations separately retain the normalized value/unit and report
-  context, and are passed as the second `onComplete` argument into page-local result
-  state.
+- Answer strings use the explicitly reviewed value, unit, and range plus the immutable
+  laboratory-printed flag. Structured observations separately retain source, reviewed,
+  and normalized data, and are passed as the second `onComplete` argument into page-local
+  result state.
 - Confirmed answers participate in normal reconciliation and are skipped as already
   answered. Full regression tests retain exact 20/50/150+ depth behavior, adaptive
   branch pruning, null skip semantics, intermission limits, Back behavior, and focus.
@@ -177,3 +177,73 @@ hand-authored code.
 - `npm audit --omit=dev` reports three high-severity production dependency groups rooted
   in the pre-existing pinned `next@16.2.6`; npm proposes `next@16.2.12`. Updating the
   framework is outside Task 4 and was not mixed into this commit.
+
+## Review round 1/5 hardening evidence
+
+### RED evidence
+
+- Added a generated, valid multi-row PDF fixture. Before the fix, PDF.js extraction
+  returned both observations on one space-joined line, so the expected row separator and
+  separate Glucose/AST candidates failed.
+- Added exact-source assertions for `rawLine` and delimited `rawRange`; the previous
+  parser discarded the line and stripped the printed delimiters.
+- Added a fasting-status table covering `yes`, `fasting`, `no`, `not fasting`, eight
+  hours, `unknown`, and `not stated`. The former substring check incorrectly classified
+  negative/unknown statements as fasting.
+- Added an ISO collection-date regression. The prior bare-range expression captured
+  `2026-07` from `2026-07-30` as a numeric reference range.
+- Added component/integration tests for immutable source fields after every reviewed
+  field is edited, import-heading focus, a 14-marker Quick import, and full-to-subset
+  re-import with a preserved manual answer. The initial component run had four failures:
+  edited values overwrote source evidence, the heading was not focused, Quick contained
+  34 questionnaire answers, and stale imported values remained.
+- A final contract test refinement initially produced three focused failures because the
+  confirmation object still mixed reviewed measurement keys, normalized keys, and source
+  metadata at its root. This RED result drove the explicit three-part object contract.
+
+### GREEN implementation
+
+- PDF extraction now reconstructs rows from PDF.js `hasEOL` and text-item y coordinates
+  before parsing. The worker remains same-origin in browsers, while Node-based tests use
+  PDF.js's supported package entry and worker behavior.
+- Candidates retain the exact source line and printed range token, including brackets or
+  parentheses. Numeric bounds remain separately available for structured use.
+- Fasting context is accepted only from explicit anchored report-context lines; negative
+  and unknown values remain negative/unknown rather than becoming fasting by substring.
+- Bare-range matching now uses digit/hyphen boundaries, preventing partial ISO-date
+  matches.
+- A confirmed observation has exactly three root concepts: `source` is the readonly
+  extracted `LabCandidate` (or `null` for manual entry), `reviewed` is the readonly user-
+  confirmed marker/value/unit/range/date/fasting record, and `normalized` contains only
+  normalized value, unit, and display value. There are no ambiguous root-level
+  measurement fields. Questionnaire answer display uses reviewed values without
+  rewriting source provenance.
+- Import reconciliation tracks which questionnaire answers came from the prior import,
+  removes only those on re-import, preserves manual answers, and pre-fills only lab
+  questions present in the current depth's queue. All confirmed observations still reach
+  the structured handoff, so Quick stays at exactly 20 questionnaire answers.
+- The import heading receives programmatic focus on entry.
+- The four direct lab dependencies are now exact pins:
+  `@tesseract.js-data/eng@1.0.0`, `decimal.js@10.6.0`,
+  `pdfjs-dist@6.2.108`, and `tesseract.js@7.0.0`.
+
+### Final verification for review round 1/5
+
+- `npm test -- app/lib/labs.test.ts app/components/lab-import.test.tsx` — exit 0;
+  2 files and 60 tests passed.
+- `npm test` — exit 0; 5 files and 96 tests passed.
+- `npm run lint` — exit 0 with no findings.
+- Changed-file TypeScript check with Vitest and jest-dom types — exit 0.
+  The repository-wide check has one unrelated baseline error:
+  `worker/index.ts(5,11): Cannot find name 'Fetcher'`.
+- `npm run build` — exit 0; all five vinext stages completed.
+- Privacy scan — no `fetch`, XHR, API route, browser storage, or IndexedDB use in the
+  changed application files. Runtime tests continue to observe zero report-data network
+  calls and zero persistent-storage writes.
+- Provenance check — all six vendored runtime assets byte-match the files from the locked
+  npm packages. SHA-256 prefixes/full hashes are:
+  `0613f414…18cb3` (PDF worker), `576b7df7…2c6d` (OCR worker),
+  `eef5f8b2…8680` (LSTM core), `861a536c…59b3` (relaxed-SIMD LSTM core),
+  `c58b46a4…47b38` (SIMD LSTM core), and `ed350f37…246a8` (English data).
+- `npm audit --omit=dev` still reports only the three pre-existing high-severity groups
+  rooted in `next@16.2.6`; no Task 4 dependency added a new audit finding.

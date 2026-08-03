@@ -13,6 +13,45 @@ function localTextFile(contents: string) {
   return file;
 }
 
+const fullMarkerReport = [
+  "Collection date: 2026-07-30",
+  "Fasting: no",
+  "CBC",
+  "Glucose 100 mg/dL (70 - 99)",
+  "Total Cholesterol 200 mg/dL (0 - 199)",
+  "HDL-C 40 mg/dL (40 - 60)",
+  "LDL Chol Calc 100 mg/dL (0 - 99)",
+  "Triglycerides 150 mg/dL (0 - 149)",
+  "HbA1c 5.7 % (4.0 - 5.6)",
+  "Creatinine, Serum 1.00 mg/dL (0.5 - 1.2)",
+  "eGFR 90 mL/min/1.73m² (60 - 120)",
+  "ALT 60 U/L (0 - 40)",
+  "AST 48 U/L (0 - 40)",
+  "TSH 2.0 μIU/mL (0.4 - 4.0)",
+  "Hgb 13.2 g/dL (12.0 - 16.0)",
+  "Ferritin 30 ng/mL (15 - 150)",
+  "25-Hydroxyvitamin D 20 ng/mL (20 - 50)",
+].join("\n");
+
+async function selectEveryParsedRow(user: ReturnType<typeof userEvent.setup>) {
+  const checkboxes = await screen.findAllByRole("checkbox", { name: /include/i });
+  for (const checkbox of checkboxes) await user.click(checkbox);
+  await user.click(screen.getByRole("button", { name: /confirm selected results/i }));
+}
+
+async function completeFromCurrentQuestion(
+  user: ReturnType<typeof userEvent.setup>,
+  onComplete: ReturnType<typeof vi.fn>,
+) {
+  for (let step = 0; step < 220 && onComplete.mock.calls.length === 0; step += 1) {
+    const intermission = screen.queryByRole("button", {
+      name: /continue assessment/i,
+    });
+    if (intermission) await user.click(intermission);
+    else await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+  }
+}
+
 test("states local processing and keeps manual entry available before file selection", () => {
   render(<LabImport onConfirm={vi.fn()} onCancel={vi.fn()} />);
 
@@ -37,7 +76,7 @@ test("parses a local text file without fetch and does not confirm extracted data
   );
 
   expect(await screen.findByDisplayValue("5.7")).toBeVisible();
-  expect(screen.getByDisplayValue("4.0 - 5.6")).toBeVisible();
+  expect(screen.getByDisplayValue("(4.0 - 5.6)")).toBeVisible();
   expect(screen.getByRole("combobox", { name: /marker/i })).toHaveValue("hba1c");
   expect(onConfirm).not.toHaveBeenCalled();
   expect(fetchSpy).not.toHaveBeenCalled();
@@ -68,17 +107,89 @@ test("requires an explicit row check plus marker, value, unit, date, fasting sta
 
   expect(onConfirm).toHaveBeenCalledOnce();
   expect(onConfirm.mock.calls[0][0]).toEqual([
-    expect.objectContaining({
-      marker: "hba1c",
-      value: 5.7,
-      unit: "%",
-      rawRange: "4.0 - 5.6",
-      collectionDate: "2026-07-30",
-      fastingStatus: "not_stated",
-      normalizedValue: 38.801,
-      normalizedUnit: "mmol/mol",
-    }),
+    {
+      source: expect.objectContaining({
+        marker: "hba1c",
+        value: 5.7,
+        unit: "%",
+        rawRange: "(4.0 - 5.6)",
+      }),
+      reviewed: expect.objectContaining({
+        marker: "hba1c",
+        value: 5.7,
+        unit: "%",
+        collectionDate: "2026-07-30",
+        fastingStatus: "not_stated",
+        referenceRange: "(4.0 - 5.6)",
+      }),
+      normalized: {
+        value: 38.801,
+        unit: "mmol/mol",
+        displayValue: "39",
+      },
+    },
   ]);
+});
+
+test("keeps immutable extracted source fields beside edited reviewed fields", async () => {
+  const user = userEvent.setup();
+  const onConfirm = vi.fn();
+  const rawLine = "LDL Chol Calc = 100 mg/dL  [ 0  –  99 ] H";
+  render(<LabImport onConfirm={onConfirm} onCancel={vi.fn()} />);
+
+  await user.upload(
+    screen.getByLabelText(/choose a lab report/i),
+    localTextFile(
+      `Collection date: 2026-07-30\nFasting: 10 hours\n${rawLine}`,
+    ),
+  );
+  await screen.findByDisplayValue("100");
+  await user.selectOptions(screen.getByLabelText(/marker/i), "ast");
+  await user.clear(screen.getByLabelText(/reported value/i));
+  await user.type(screen.getByLabelText(/reported value/i), "48");
+  await user.clear(screen.getByLabelText(/reported unit/i));
+  await user.type(screen.getByLabelText(/reported unit/i), "U/L");
+  await user.clear(screen.getByLabelText(/laboratory reference range/i));
+  await user.type(screen.getByLabelText(/laboratory reference range/i), "Not printed");
+  await user.clear(screen.getByLabelText(/collection date/i));
+  await user.type(screen.getByLabelText(/collection date/i), "2026-08-01");
+  await user.selectOptions(screen.getByLabelText(/fasting status/i), "not_fasting");
+  await user.click(screen.getByRole("checkbox", { name: /include ast/i }));
+  await user.click(screen.getByRole("button", { name: /confirm selected results/i }));
+
+  expect(onConfirm.mock.calls[0][0][0]).toEqual({
+      source: {
+        marker: "ldl_cholesterol",
+        value: 100,
+        unit: "mg/dL",
+        rawLine,
+        rawTestName: "LDL Chol Calc",
+        valueText: "100",
+        rawUnit: "mg/dL",
+        rawRange: "[ 0  –  99 ]",
+        referenceLow: 0,
+        referenceHigh: 99,
+        printedFlag: "H",
+        method: "calculated",
+        collectionDate: "2026-07-30",
+        fastingStatus: "fasting",
+        fastingHours: 10,
+      },
+      reviewed: {
+        marker: "ast",
+        valueText: "48",
+        value: 48,
+        unit: "U/L",
+        referenceRange: "Not printed",
+        collectionDate: "2026-08-01",
+        fastingStatus: "not_fasting",
+      },
+      normalized: {
+        value: 0.8,
+        unit: "µkat/L",
+        displayValue: "0.8",
+      },
+    });
 });
 
 test("opens the manual grid after unsupported or failed extraction", async () => {
@@ -161,6 +272,9 @@ test("recent-labs yes reaches import and confirmed rows survive the in-memory co
   expect(
     screen.getByRole("heading", { name: /bring in results without sending them away/i }),
   ).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: /bring in results without sending them away/i }),
+  ).toHaveFocus();
 
   await user.upload(
     screen.getByLabelText(/choose a lab report/i),
@@ -188,14 +302,90 @@ test("recent-labs yes reaches import and confirmed rows survive the in-memory co
     }),
   );
   expect(onComplete.mock.calls[0][1]).toEqual([
-    expect.objectContaining({
-      marker: "hba1c",
-      value: 5.7,
-      rawUnit: "%",
-      normalizedValue: 38.801,
-      normalizedUnit: "mmol/mol",
-    }),
+    {
+      source: expect.objectContaining({ marker: "hba1c", value: 5.7, rawUnit: "%" }),
+      reviewed: expect.objectContaining({ marker: "hba1c", value: 5.7, unit: "%" }),
+      normalized: expect.objectContaining({ value: 38.801, unit: "mmol/mol" }),
+    },
   ]);
   expect(storageSpy).not.toHaveBeenCalled();
   storageSpy.mockRestore();
+});
+
+test("a full-marker Quick import keeps 20 answers while handing off every structured observation", async () => {
+  const user = userEvent.setup();
+  const onComplete = vi.fn();
+  render(
+    <Assessment
+      depth="quick"
+      profile={{ age: 35, countryCode: "CH" }}
+      onComplete={onComplete}
+    />,
+  );
+
+  await moveToRecentLabs(user);
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.upload(screen.getByLabelText(/choose a lab report/i), localTextFile(fullMarkerReport));
+  await selectEveryParsedRow(user);
+  await completeFromCurrentQuestion(user, onComplete);
+
+  expect(onComplete).toHaveBeenCalledOnce();
+  const [answers, confirmedLabs] = onComplete.mock.calls[0];
+  expect(Object.keys(answers)).toHaveLength(20);
+  expect(Object.keys(answers).filter((id) => id.startsWith("lab_value_"))).toEqual([]);
+  expect(confirmedLabs).toHaveLength(14);
+  expect(
+    new Set(
+      confirmedLabs.map(
+        (value: { reviewed: { marker: string } }) => value.reviewed.marker,
+      ),
+    ).size,
+  ).toBe(14);
+});
+
+test("a subset re-import removes only stale imported mappings and preserves manual answers", async () => {
+  const user = userEvent.setup();
+  const onComplete = vi.fn();
+  render(
+    <Assessment
+      depth="detailed"
+      profile={{ age: 35, countryCode: "CH" }}
+      onComplete={onComplete}
+    />,
+  );
+
+  await moveToRecentLabs(user);
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.upload(screen.getByLabelText(/choose a lab report/i), localTextFile(fullMarkerReport));
+  await selectEveryParsedRow(user);
+  const intermission = screen.queryByRole("button", { name: /continue assessment/i });
+  if (intermission) await user.click(intermission);
+  await user.click(screen.getByRole("button", { name: /back/i }));
+  expect(
+    screen.getByRole("heading", {
+      name: /blood-test results from the past twelve months/i,
+    }),
+  ).toBeVisible();
+
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.upload(
+    screen.getByLabelText(/choose a lab report/i),
+    localTextFile(
+      "Collection date: 2026-07-30\nFasting: no\nAST 48 U/L (0 - 40)",
+    ),
+  );
+  await selectEveryParsedRow(user);
+  await completeFromCurrentQuestion(user, onComplete);
+
+  const [answers, confirmedLabs] = onComplete.mock.calls[0];
+  expect(answers.sex_assigned_at_birth).toBeNull();
+  expect(answers.lab_value_ast).toBe("48 U/L (0 - 40)");
+  expect(answers.lab_value_glucose).toBeNull();
+  expect(confirmedLabs).toEqual([
+    expect.objectContaining({
+      reviewed: expect.objectContaining({ marker: "ast", value: 48 }),
+    }),
+  ]);
 });

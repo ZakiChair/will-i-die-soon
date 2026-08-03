@@ -17,6 +17,41 @@ vi.mock("tesseract.js", () => ({
   OEM: { LSTM_ONLY: 1 },
 }));
 
+function multiRowPdfFixture(): Uint8Array {
+  const stream = [
+    "BT",
+    "/F1 12 Tf",
+    "72 720 Td",
+    "(Glucose 100 mg/dL \(70 - 99\)) Tj",
+    "0 -24 Td",
+    "(AST 48 U/L \(0 - 40\)) Tj",
+    "ET",
+  ].join("\n");
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${new TextEncoder().encode(stream).length} >>\nstream\n${stream}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (const [index, object] of objects.entries()) {
+    offsets.push(new TextEncoder().encode(pdf).length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  }
+  const xrefOffset = new TextEncoder().encode(pdf).length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  pdf += offsets
+    .slice(1)
+    .map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
+    .join("");
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`;
+  pdf += `startxref\n${xrefOffset}\n%%EOF\n`;
+  return new TextEncoder().encode(pdf);
+}
+
 describe("parseLabCandidates", () => {
   test.each([
     ["Glucose 100 mg/dL (70 - 99)", "glucose", 100, "mg/dL"],
@@ -49,10 +84,11 @@ describe("parseLabCandidates", () => {
 
     expect(candidate).toEqual(
       expect.objectContaining({
+        rawLine: "LDL Chol Calc = 100 mg/dL (0 - 99) H",
         rawTestName: "LDL Chol Calc",
         valueText: "100",
         rawUnit: "mg/dL",
-        rawRange: "0 - 99",
+        rawRange: "(0 - 99)",
         referenceLow: 0,
         referenceHigh: 99,
         printedFlag: "H",
@@ -62,6 +98,59 @@ describe("parseLabCandidates", () => {
         method: "calculated",
       }),
     );
+  });
+
+  test("keeps an exact delimited range and source line instead of reconstructing it", () => {
+    const rawLine = "LDL Chol Calc = 100 mg/dL  [ 0  –  99 ] H";
+    const [candidate] = parseLabCandidates(
+      `Collection date: 2026-07-30\nFasting: 10 hours\n${rawLine}`,
+    );
+
+    expect(candidate).toEqual(
+      expect.objectContaining({
+        rawLine,
+        rawTestName: "LDL Chol Calc",
+        valueText: "100",
+        rawUnit: "mg/dL",
+        rawRange: "[ 0  –  99 ]",
+        referenceLow: 0,
+        referenceHigh: 99,
+        printedFlag: "H",
+        method: "calculated",
+        collectionDate: "2026-07-30",
+        fastingStatus: "fasting",
+        fastingHours: 10,
+      }),
+    );
+  });
+
+  test.each([
+    ["Fasting: yes", "fasting", undefined],
+    ["Fasting status: fasting", "fasting", undefined],
+    ["Fasting: no", "not_fasting", undefined],
+    ["Fasting status: not fasting", "not_fasting", undefined],
+    ["Fasting: 8 hours", "fasting", 8],
+    ["Fasting: unknown", undefined, undefined],
+    ["Fasting: not stated", undefined, undefined],
+  ] as const)(
+    "parses only an explicit fasting status from %s",
+    (contextLine, fastingStatus, fastingHours) => {
+      const [candidate] = parseLabCandidates(`${contextLine}\nAST 48 U/L`);
+
+      expect(candidate.fastingStatus).toBe(fastingStatus);
+      expect(candidate.fastingHours).toBe(fastingHours);
+    },
+  );
+
+  test("does not capture an ISO date substring as a laboratory range", () => {
+    const [candidate] = parseLabCandidates(
+      "Collection date: 2026-07-30\nAST 48 U/L 2026-07-30 H",
+    );
+
+    expect(candidate.rawRange).toBeUndefined();
+    expect(candidate.referenceLow).toBeUndefined();
+    expect(candidate.referenceHigh).toBeUndefined();
+    expect(candidate.collectionDate).toBe("2026-07-30");
   });
 
   test.each([
@@ -128,6 +217,31 @@ describe("extractLabText", () => {
     const file = new File(["data"], "labs.csv", { type: "text/csv" });
 
     await expect(extractLabText(file)).rejects.toThrow(/unsupported/i);
+  });
+
+  test("reconstructs genuine PDF rows before parsing separate markers", async () => {
+    const canvas = await import("@napi-rs/canvas");
+    Object.defineProperties(globalThis, {
+      DOMMatrix: { configurable: true, value: canvas.DOMMatrix },
+      ImageData: { configurable: true, value: canvas.ImageData },
+      Path2D: { configurable: true, value: canvas.Path2D },
+    });
+    const bytes = multiRowPdfFixture();
+    const file = new File([bytes.buffer as ArrayBuffer], "multi-row-labs.pdf", {
+      type: "application/pdf",
+    });
+    Object.defineProperty(file, "arrayBuffer", {
+      // Array-like avoids jsdom/Node cross-realm ArrayBuffer identity checks in PDF.js.
+      value: vi.fn().mockResolvedValue(Array.from(bytes)),
+    });
+
+    const text = await extractLabText(file);
+
+    expect(text).toContain("Glucose 100 mg/dL (70 - 99)\nAST 48 U/L (0 - 40)");
+    expect(parseLabCandidates(text).map((candidate) => candidate.marker)).toEqual([
+      "glucose",
+      "ast",
+    ]);
   });
 
   test("uses only same-origin OCR assets and disables persistent language-data caching", async () => {
