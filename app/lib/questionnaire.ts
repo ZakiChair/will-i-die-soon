@@ -180,6 +180,18 @@ function pruneIneligibleAnswers(
   return stableAnswers;
 }
 
+function isExpressAdult(context: ProfileContext): boolean {
+  return Number.isFinite(context.age) && context.age >= 18;
+}
+
+function assertExpressAdult(depth: AnalysisDepth, context: ProfileContext): void {
+  if (depth === "express" && !isExpressAdult(context)) {
+    throw new RangeError(
+      "Express assessment is available only to adults with all nine eligible questions.",
+    );
+  }
+}
+
 export function getAvailableDepths(
   bank: ReadonlyArray<Question>,
   context: ProfileContext,
@@ -191,7 +203,8 @@ export function getAvailableDepths(
     (depth) => {
       if (depth === "express") {
         const eligibleIds = new Set(eligible.map((question) => question.id));
-        return EXPRESS_QUESTION_IDS.every((id) => eligibleIds.has(id));
+        return isExpressAdult(context)
+          && EXPRESS_QUESTION_IDS.every((id) => eligibleIds.has(id));
       }
       const depthEligible = eligible.filter((question) => question.tiers.includes(depth));
       const availableCount =
@@ -209,6 +222,7 @@ export function buildAssessmentQueue(
   context: ProfileContext,
   answers: AnswerMap,
 ): Question[] {
+  assertExpressAdult(depth, context);
   const stableAnswers = pruneIneligibleAnswers(bank, context, answers);
   const eligible = orderQuestions(
     getEligibleQuestions(bank, context, stableAnswers).filter((question) =>
@@ -288,6 +302,7 @@ export function reconcileAssessmentState(
   context: ProfileContext,
   answers: AnswerMap,
 ): QuestionnaireState {
+  assertExpressAdult(depth, context);
   const stableAnswers = pruneIneligibleAnswers(bank, context, answers);
   const eligible = orderQuestions(
     getEligibleQuestions(bank, context, stableAnswers).filter((question) =>

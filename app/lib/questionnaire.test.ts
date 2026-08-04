@@ -394,6 +394,47 @@ describe("questionnaire selection", () => {
     );
   });
 
+  test.each([
+    ["NaN", Number.NaN],
+    ["positive infinity", Number.POSITIVE_INFINITY],
+    ["negative infinity", Number.NEGATIVE_INFINITY],
+    ["younger than 18", 17.999],
+  ])("fails closed for an Express profile age that is %s", (_label, age) => {
+    const invalidAdult = { ...adult, age };
+
+    expect(getAvailableDepths(questionBank, invalidAdult, {})).not.toContain("express");
+    expect(() => buildAssessmentQueue("express", questionBank, invalidAdult, {})).toThrow(
+      RangeError,
+    );
+    expect(() =>
+      reconcileAssessmentState("express", questionBank, invalidAdult, {}),
+    ).toThrow(RangeError);
+  });
+
+  test.each(expressIds)(
+    "rejects an Express queue when required question %s is missing",
+    (missingId) => {
+      const incompleteBank = questionBank.filter(({ id }) => id !== missingId);
+
+      expect(getAvailableDepths(incompleteBank, adult, {})).not.toContain("express");
+      expect(() => buildAssessmentQueue("express", incompleteBank, adult, {})).toThrow(
+        RangeError,
+      );
+      expect(() =>
+        reconcileAssessmentState("express", incompleteBank, adult, {}),
+      ).toThrow(RangeError);
+    },
+  );
+
+  test("keeps every canonical Express question unconditional", () => {
+    const expressQuestions = expressIds.map((id) =>
+      questionBank.find((question) => question.id === id),
+    );
+
+    expect(expressQuestions).not.toContain(undefined);
+    expect(expressQuestions.every((question) => question?.condition === undefined)).toBe(true);
+  });
+
   test("groups queues after selection without changing budgets or selected IDs", () => {
     const pillarOrder = new Map(HEALTH_PILLARS.map((pillar, index) => [pillar, index]));
 
