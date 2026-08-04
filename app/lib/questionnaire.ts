@@ -7,6 +7,7 @@ import type {
   Question,
   QuestionnaireState,
 } from "./types";
+import { groupQuestionsByPillar } from "./health-pillars";
 
 const DEPTH_LIMITS: Readonly<Record<AnalysisDepth, number>> = {
   quick: 20,
@@ -200,7 +201,7 @@ export function buildAssessmentQueue(
     );
   }
 
-  return selectAssessmentQuestions(depth, eligible, stableAnswers);
+  return groupQuestionsByPillar(selectAssessmentQuestions(depth, eligible, stableAnswers));
 }
 
 function selectAssessmentQuestions(
@@ -265,7 +266,7 @@ export function reconcileAssessmentState(
   }
 
   return {
-    queue: selectAssessmentQuestions(depth, eligible, stableAnswers),
+    queue: groupQuestionsByPillar(selectAssessmentQuestions(depth, eligible, stableAnswers)),
     answers: stableAnswers,
   };
 }

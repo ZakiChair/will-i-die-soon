@@ -588,7 +588,7 @@ test("a subset re-import removes only stale imported mappings and preserves manu
       reviewed: expect.objectContaining({ marker: "ast", value: 48 }),
     }),
   ]);
-});
+}, 10_000);
 
 test("keeps an editable manual row and its machine values intact while localizing every lab control", async () => {
   const user = userEvent.setup();

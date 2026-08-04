@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
 
 import { questionBank } from "../data/questions";
+import { HEALTH_PILLARS, healthPillarForQuestion } from "./health-pillars";
 import * as questionnaireModule from "./questionnaire";
 import {
   buildAssessmentQueue,
@@ -27,6 +28,46 @@ const medicationBehaviorIds = [
   "adherence_access_barriers",
   "interaction_shared_list",
 ] as const;
+
+function selectedIdsBeforePillarGrouping(
+  depth: AnalysisDepth,
+  bank: ReadonlyArray<Question>,
+  context: ProfileContext,
+  answers: AnswerMap,
+): string[] {
+  const compare = (left: Question, right: Question) =>
+    left.priority - right.priority || left.id.localeCompare(right.id);
+  const eligible = getEligibleQuestions(bank, context, answers)
+    .filter((question) => question.tiers.includes(depth));
+  const ordered = [
+    ...eligible.filter((question) => question.tiers.includes("quick")).sort(compare),
+    ...eligible.filter((question) => !question.tiers.includes("quick")).sort(compare),
+  ];
+
+  if (depth === "deep") {
+    const selected = new Set([
+      ...ordered.filter((question) => question.condition === undefined).slice(0, 150),
+      ...ordered.filter((question) => question.condition !== undefined).slice(0, 50),
+    ].map((question) => question.id));
+    return ordered.filter((question) => selected.has(question.id)).map((question) => question.id);
+  }
+
+  const selected = new Set<string>();
+  const target = Math.min(ordered.length, depth === "quick" ? 20 : 50);
+  for (const question of ordered) {
+    if (selected.size >= target) break;
+    if (Object.hasOwn(answers, question.id)) selected.add(question.id);
+  }
+  for (const question of ordered) {
+    if (selected.size >= target) break;
+    if (question.condition !== undefined) selected.add(question.id);
+  }
+  for (const question of ordered) {
+    if (selected.size >= target) break;
+    selected.add(question.id);
+  }
+  return ordered.filter((question) => selected.has(question.id)).map((question) => question.id);
+}
 
 const expectedDomains: ReadonlyArray<HealthDomain> = [
   "demographics",
@@ -316,6 +357,41 @@ describe("question bank invariants", () => {
 });
 
 describe("questionnaire selection", () => {
+  test("groups queues after selection without changing budgets or selected IDs", () => {
+    const pillarOrder = new Map(HEALTH_PILLARS.map((pillar, index) => [pillar, index]));
+
+    for (const depth of ["quick", "detailed", "deep"] as const) {
+      const queue = buildAssessmentQueue(depth, questionBank, adult, {});
+      const expectedCount = depth === "quick" ? 20 : depth === "detailed" ? 50 : 150;
+
+      expect(queue).toHaveLength(expectedCount);
+      expect(queue.map(({ id }) => id).sort()).toEqual(
+        selectedIdsBeforePillarGrouping(depth, questionBank, adult, {}).sort(),
+      );
+      expect(queue.map((question) => pillarOrder.get(healthPillarForQuestion(question))!))
+        .toEqual([...queue]
+          .map((question) => pillarOrder.get(healthPillarForQuestion(question))!)
+          .sort((left, right) => left - right));
+    }
+
+    const reconciled = reconcileAssessmentState("detailed", questionBank, adult, {
+      current_medications: true,
+    });
+    expect(reconciled.queue).toHaveLength(50);
+    expect(reconciled.queue.map(({ id }) => id).sort()).toEqual(
+      selectedIdsBeforePillarGrouping(
+        "detailed",
+        questionBank,
+        adult,
+        reconciled.answers,
+      ).sort(),
+    );
+    expect(reconciled.queue.map((question) => pillarOrder.get(healthPillarForQuestion(question))!))
+      .toEqual([...reconciled.queue]
+        .map((question) => pillarOrder.get(healthPillarForQuestion(question))!)
+        .sort((left, right) => left - right));
+  });
+
   test("builds the promised deterministic queue size for each depth", () => {
     expect(buildAssessmentQueue("quick", questionBank, adult, {})).toHaveLength(20);
     expect(buildAssessmentQueue("detailed", questionBank, adult, {})).toHaveLength(50);

@@ -190,7 +190,7 @@ test("interrupts immediately for a confirmed red flag and lets the user correct 
   await user.click(screen.getByRole("radio", { name: "No" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
   expect(screen.queryByRole("heading", { name: /immediate action/i })).not.toBeInTheDocument();
-  expect(screen.getByText(/Question 7 of 20/)).toBeVisible();
+  expect(screen.getByText(/Question 5 of 20/)).toBeVisible();
 });
 
 test("keeps a live urgent interruption and the triggering answer while switching it to French", async () => {
@@ -314,9 +314,10 @@ test("Enter advances only after a valid answer and Back restores that answer", a
 
   expect(screen.getByText("Question 2 of 20")).toBeVisible();
   expect(
-    screen.getByRole("spinbutton", { name: /current height/i }),
-  ).toHaveAccessibleDescription("cm");
-  expect(screen.getByText("cm")).toBeVisible();
+    screen.getByRole("group", {
+      name: /did a parent or sibling have a heart attack or stroke/i,
+    }),
+  ).toBeVisible();
   await user.click(screen.getByRole("button", { name: /back/i }));
 
   expect(screen.getByText("Question 1 of 20")).toBeVisible();
