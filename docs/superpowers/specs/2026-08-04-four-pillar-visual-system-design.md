@@ -1,7 +1,7 @@
 # Four-pillar visual system
 
 Date: 2026-08-04
-Status: implemented; private deployment pending
+Status: implemented and privately deployed
 
 ## Outcome
 

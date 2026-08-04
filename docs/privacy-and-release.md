@@ -1,6 +1,6 @@
 # Privacy and release record
 
-Audit date: **2026-08-04**. Release state: **fully verified source candidate for a private research prototype; private Sites deployment remains pending**.
+Audit date: **2026-08-04**. Release state: **the first owner-only Sites deployment succeeded; redeployment of this final documentation commit remains pending under Task 7 Step 5**.
 
 ## Data boundary
 
@@ -80,11 +80,15 @@ On exact source HEAD `cbaf5b591d18a95f2f7f3668bfe3e580cdfd45e1`, the fresh pinne
 
 Isolated-Chrome QA first exercised the broad production flow on `fd921df9b73757edc14dd982a26963e29c959259`, then rechecked the mobile file-input containment fix on `4892de5cf8e41b046e1446c6a226345f4b1e8bf3`. It covered desktop/mobile English and French, Quick's exact 20-question route, all four chapter introductions and result branches, evidence selection and keyboard operation, local laboratory import, reduced motion, print, and the local-only network/storage/cookie boundary. Lighthouse `13.4.1` scored Accessibility, Best Practices, and SEO at 100/100/100 for both desktop and mobile. The final focused Chrome run on exact HEAD `cbaf5b591d18a95f2f7f3668bfe3e580cdfd45e1` confirmed four passive progress labels, exactly one `aria-current` and one progressbar, Back retaining `1/20`, the localized French progress label, no horizontal overflow, terminal poster-error unmounting, and 37 localhost GETs with no POST, `Set-Cookie`, storage, console errors, or page errors. Independent final spec review is Ready after focus/poster corrections; independent final quality review is Ready after rail/media/foundation/progress corrections. Neither review has an open finding.
 
-## Sites state and exact private-deployment prerequisites
+## Sites state and first private-deployment record
 
-The checked-in Sites configuration names project `appgprj_6a70dd6389a88191986c131c5d0eb343` with `d1: null` and `r2: null`. The controller independently confirmed a custom **owner-only** access state: **1 allowed owner, 0 allowed groups, 0 external visitors**. No credential is stored here. This source-state task did not push, save a Sites version, change access, or deploy, and it does not claim a production URL or completed deployment.
+Immediately before the first deployment, the active Sites project used custom access with exactly one allowed account: a non-external owner. It had zero allowed groups, zero tenant/workspace group IDs, and zero external visitors; the access-policy revision was 1 and there was no earlier live URL or saved version. No credential is stored in this repository or this record.
 
-Before any private deployment, the owner/controller must complete all of the following against the exact final commit:
+The reviewed remote Sites source branch `main` was pushed and independently verified at `696e500611b4827ba44e5d44e52f7f0a4bce4aca`; temporary transport references were removed. The official package archive was validated, and the privately deployed saved version was **version 1** with that exact source commit. The owner-only deployment succeeded at **2026-08-04T10:41:29.202972+00:00** and is available at **https://will-i-die-soon-health-map.zaki-chair.chatgpt.site**. The private deployment method accepted the owner-only access policy.
+
+This is the first deployment evidence, not a claim that version 1 contains this documentation commit. Because this record changes the source SHA, exact-final-documentation redeployment remains pending until **Task 7 Step 5**. Final browser and network product gates remain part of Task 7 Step 6.
+
+For the final documented commit, the owner/controller must complete all of the following:
 
 1. Re-run TypeScript with incremental output disabled, affected and full tests, lint, production build, production audit, diff check, first-party scans, public-asset audit, and the production-like PDF/image network check; confirm no `.tsbuildinfo` or credential entered source.
 2. Confirm the canonical request-host metadata and response security headers in the production-like runtime, including a hostile-header fallback case and the actual private HTTPS host.

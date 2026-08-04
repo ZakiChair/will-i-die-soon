@@ -884,22 +884,22 @@ Expected: clean worktree.
 - Preserve exactly: `.openai/hosting.json` keys `project_id`, `d1`, and `r2`
 
 **Interfaces:**
-- Consumes: clean, reviewed Task 6 HEAD and existing Sites project `appgprj_6a70dd6389a88191986c131c5d0eb343`.
+- Consumes: clean, reviewed Task 6 HEAD and the existing Sites project.
 - Produces: an owner-only Sites URL whose final deployed version matches the final documented commit.
 
-- [ ] **Step 1: Reconfirm access before any deployment.**
+- [x] **Step 1: Reconfirm access before any deployment.**
 
 Call `sites_get_site` and require custom/private access with exactly the owner allowed, zero groups, and zero external visitors. Stop if access is public or broader than owner-only. Do not call the public deployment method.
 
-- [ ] **Step 2: Push the reviewed commit with an ephemeral Sites credential.**
+- [x] **Step 2: Push the reviewed commit with an ephemeral Sites credential.**
 
 Create a source-repository credential, use its token only through a per-command HTTP authorization header, and push exact `HEAD` to the returned branch. Do not persist the token in remotes, config, shell history, logs, or files. Confirm the pushed SHA equals `git rev-parse HEAD`.
 
-- [ ] **Step 3: Package, save, and privately deploy the first exact version.**
+- [x] **Step 3: Package, save, and privately deploy the first exact version.**
 
 Run the bundled `sites` `package-site.sh` against the project into a `mktemp -d` archive, save the version with the exact commit SHA, call `sites_deploy_private_site_version`, and poll `sites_get_deployment_status` until success or a concrete failure. Open the returned URL in Codex and verify owner authentication/access.
 
-- [ ] **Step 4: Record deployment evidence and create the final documentation commit.**
+- [x] **Step 4: Record deployment evidence and create the final documentation commit.**
 
 Record the private URL, deployed version/commit, owner-only access result, verification date, and browser gates in `docs/privacy-and-release.md`. Change the design status to `implemented and privately deployed`. Check every completed plan box using `apply_patch`. Commit only these documents:
 
@@ -907,6 +907,8 @@ Record the private URL, deployed version/commit, owner-only access result, verif
 git add docs/privacy-and-release.md docs/superpowers/specs/2026-08-04-four-pillar-visual-system-design.md docs/superpowers/plans/2026-08-04-four-pillar-visual-system.md
 git commit -m "docs: record private four-pillar deployment"
 ```
+
+The first owner-only deployment succeeded on 2026-08-04T10:41:29.202972+00:00 at `https://will-i-die-soon-health-map.zaki-chair.chatgpt.site`. It saved version 1 from source commit `696e500611b4827ba44e5d44e52f7f0a4bce4aca` after the official package archive was validated. Immediately before deployment, custom access allowed exactly one non-external owner, with zero groups, zero tenant/workspace group IDs, and zero external visitors; no credential is stored in these documents. This documentation commit changes the source SHA, so exact-final-documentation redeployment remains pending until Step 5.
 
 - [ ] **Step 5: Reverify and deploy the final documented commit.**
 
