@@ -921,13 +921,13 @@ git status --short
 
 Expected: documentation commit succeeds and the tracked worktree is clean.
 
-- [ ] **Step 6: Reconfirm owner-only access and deploy the exact commit.**
+- [x] **Step 6: Reconfirm owner-only access and deploy the exact commit.**
 
 Use `sites:sites-hosting`. Before packaging, query the current site and require custom/private access with exactly the owner allowed, zero groups, and zero external visitors. Stop if access is public or broader than owner-only. Package the project with the official Sites package script into a fresh `mktemp -d` directory, save the exact `git rev-parse HEAD` as a new version, deploy it with the private deployment method, and poll to terminal success.
 
 Do not call a public deployment method. Do not write access credentials or ephemeral tokens into the repository.
 
-- [ ] **Step 7: Verify the deployed URL and close the release.**
+- [x] **Step 7: Verify the deployed URL and close the release.**
 
 Open the owner-authenticated deployed URL and repeat at minimum the 1365 × 800 French dense prompt, 390 × 844 mobile prompt, locale/draft/focus check, and owner-only access check. Confirm the deployed version source SHA exactly equals local `HEAD` at packaging time.
 
@@ -945,19 +945,19 @@ Expected: owner-only deployment reaches terminal success, deployed source matche
 
 ## Final verification checklist
 
-- [ ] Exactly eight curated IDs have exact non-empty EN/FR titles and details.
-- [ ] Every uncurated question falls back to its complete localized prompt as title.
-- [ ] Canonical English/French question data and exports are unchanged.
-- [ ] No question ID, queue, branching, answer, risk, score, or lab behavior changed.
-- [ ] Dense prompt detail is visible and programmatically describes the answer group.
-- [ ] Ordinary prompts have neither a detail node nor a dangling `aria-describedby`.
-- [ ] Locale switching preserves the live draft and leaves focus on the language button.
-- [ ] New-question navigation focuses the short title.
-- [ ] Desktop rail/question split, gap, sheet padding, chapter stacking, and type clamps match the approved spec exactly.
-- [ ] The urgent interruption retains its previous heading scale and safety behavior.
-- [ ] 1365 × 800 French worst case shows the first full response without initial scrolling.
-- [ ] 390 × 844 and 320 × 720 have no horizontal overflow.
-- [ ] 200% zoom, keyboard, reduced motion, and print checks pass.
-- [ ] Typecheck, lint, full tests, build, and production audit pass on Node 24.13.0.
-- [ ] Independent review has no unresolved Critical or Important findings.
-- [ ] Final Sites deployment is private, owner-only, terminal-successful, and matches the final source SHA.
+- [x] Exactly eight curated IDs have exact non-empty EN/FR titles and details.
+- [x] Every uncurated question falls back to its complete localized prompt as title.
+- [x] Canonical English/French question data and exports are unchanged.
+- [x] No question ID, queue, branching, answer, risk, score, or lab behavior changed.
+- [x] Dense prompt detail is visible and programmatically describes the answer group.
+- [x] Ordinary prompts have neither a detail node nor a dangling `aria-describedby`.
+- [x] Locale switching preserves the live draft and leaves focus on the language button.
+- [x] New-question navigation focuses the short title.
+- [x] Desktop rail/question split, gap, sheet padding, chapter stacking, and type clamps match the approved spec exactly.
+- [x] The urgent interruption retains its previous heading scale and safety behavior.
+- [x] 1365 × 800 French worst case shows the first full response without initial scrolling.
+- [x] 390 × 844 and 320 × 720 have no horizontal overflow.
+- [x] 200% zoom, keyboard, reduced motion, and print checks pass.
+- [x] Typecheck, lint, full tests, build, and production audit pass on Node 24.13.0.
+- [x] Independent review has no unresolved Critical or Important findings.
+- [x] Final Sites deployment is private, owner-only, terminal-successful, and matches the final source SHA.
