@@ -1,3 +1,4 @@
+import type { HealthPillar } from "../lib/health-pillars";
 import type { Locale } from "./types";
 
 const en = {
@@ -111,6 +112,8 @@ const en = {
   "assessment.header": "In-memory assessment / {depth}",
   "assessment.progress.aria": "Assessment progress",
   "assessment.progress": "{completed} of {total}",
+  "assessment.pillar.aria": "Assessment chapters",
+  "assessment.pillar.position": "{current} / 04 · {pillar}",
   "assessment.map": "Your living map",
   "assessment.domain": "Current domain: {domain}",
   "assessment.question": "Question {current} of {total}",
@@ -160,9 +163,9 @@ const en = {
   "unit.alcohol_detail_typical_amount": "standard drinks",
   "unit.cannabis_detail_frequency": "days / 30 days",
 
-  "intermission.eyebrow": "Milestone · {completed} of {total}",
-  "intermission.title": "A moment to let the map settle.",
-  "intermission.body": "You have completed the {domain} section. Your answers are still here in this browser session.",
+  "intermission.eyebrow": "Chapter {current} / 04",
+  "intermission.title": "Next: {pillar}",
+  "intermission.body": "A short pause before the next chapter. Your answers are still only in this browser session.",
   "intermission.continue": "Continue assessment",
 
   "labMarker.glucose": "Glucose",
@@ -225,6 +228,14 @@ const en = {
   "canopyBranch.heart": "Heart",
   "canopyBranch.habits": "Habits",
   "canopyBranch.care": "Care",
+  "pillar.cardio-energy": "Cardio, VO₂ max & cellular energy",
+  "pillar.strength-neural": "Strength, nervous system & recovery",
+  "pillar.sleep-circadian": "Sleep & circadian rhythm",
+  "pillar.nutrition-metabolic": "Nutrition & metabolic health",
+  "pillar.cardio-energy.short": "Cardio & energy",
+  "pillar.strength-neural.short": "Strength & recovery",
+  "pillar.sleep-circadian.short": "Sleep",
+  "pillar.nutrition-metabolic.short": "Nutrition & metabolism",
 
   "evidenceTier.validated-estimate": "Validated estimate",
   "evidenceTier.authoritative-safety": "Authoritative safety",
@@ -461,6 +472,8 @@ const fr = {
   "assessment.header": "Analyse en mémoire / {depth}",
   "assessment.progress.aria": "Progression de l'analyse",
   "assessment.progress": "{completed} sur {total}",
+  "assessment.pillar.aria": "Chapitres de l'analyse",
+  "assessment.pillar.position": "{current} / 04 · {pillar}",
   "assessment.map": "Votre carte vivante",
   "assessment.domain": "Domaine actuel : {domain}",
   "assessment.question": "Question {current} sur {total}",
@@ -510,9 +523,9 @@ const fr = {
   "unit.alcohol_detail_typical_amount": "verres standard",
   "unit.cannabis_detail_frequency": "jours / 30 jours",
 
-  "intermission.eyebrow": "Étape · {completed} sur {total}",
-  "intermission.title": "Un moment pour laisser la carte se poser.",
-  "intermission.body": "Vous avez terminé ce domaine : {domain}. Vos réponses sont toujours présentes dans cette session du navigateur.",
+  "intermission.eyebrow": "Chapitre {current} / 04",
+  "intermission.title": "À suivre : {pillar}",
+  "intermission.body": "Une courte pause avant le prochain chapitre. Vos réponses restent uniquement dans cette session du navigateur.",
   "intermission.continue": "Continuer l'analyse",
 
   "labMarker.glucose": "Glucose",
@@ -575,6 +588,14 @@ const fr = {
   "canopyBranch.heart": "Cœur",
   "canopyBranch.habits": "Habitudes",
   "canopyBranch.care": "Soins",
+  "pillar.cardio-energy": "Cardio, VO₂ max et énergie cellulaire",
+  "pillar.strength-neural": "Force, système nerveux et récupération",
+  "pillar.sleep-circadian": "Sommeil et rythme circadien",
+  "pillar.nutrition-metabolic": "Alimentation et santé métabolique",
+  "pillar.cardio-energy.short": "Cardio et énergie",
+  "pillar.strength-neural.short": "Force et récupération",
+  "pillar.sleep-circadian.short": "Sommeil",
+  "pillar.nutrition-metabolic.short": "Nutrition et métabolisme",
 
   "evidenceTier.validated-estimate": "Estimation validée",
   "evidenceTier.authoritative-safety": "Consignes de sécurité faisant autorité",
@@ -792,6 +813,18 @@ export const uiCopyKeys = {
     habits: "canopyBranch.habits",
     care: "canopyBranch.care",
   },
+  pillar: {
+    "cardio-energy": "pillar.cardio-energy",
+    "strength-neural": "pillar.strength-neural",
+    "sleep-circadian": "pillar.sleep-circadian",
+    "nutrition-metabolic": "pillar.nutrition-metabolic",
+  } satisfies Readonly<Record<HealthPillar, UiCopyKey>>,
+  pillarShort: {
+    "cardio-energy": "pillar.cardio-energy.short",
+    "strength-neural": "pillar.strength-neural.short",
+    "sleep-circadian": "pillar.sleep-circadian.short",
+    "nutrition-metabolic": "pillar.nutrition-metabolic.short",
+  } satisfies Readonly<Record<HealthPillar, UiCopyKey>>,
   evidenceTier: {
     "validated-estimate": "evidenceTier.validated-estimate",
     "authoritative-safety": "evidenceTier.authoritative-safety",

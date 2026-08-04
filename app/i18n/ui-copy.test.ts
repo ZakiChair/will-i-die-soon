@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import { questionBank } from "../data/questions";
 import { riskRules } from "../data/rules";
 import { LAB_MARKERS } from "../lib/labs";
+import { HEALTH_PILLARS } from "../lib/health-pillars";
 import type { HealthDomain } from "../lib/types";
 import { protectiveRootLabelsFr } from "./score-copy-fr";
 import { uiCopy, uiCopyKeys, type UiCopyKey } from "./ui-copy";
@@ -64,6 +65,8 @@ const expectedDynamicKeys = {
   labMarker: LAB_MARKERS,
   fasting: ["fasting", "not_fasting", "not_stated"],
   canopyBranch: ["sleep", "heart", "habits", "care"],
+  pillar: HEALTH_PILLARS,
+  pillarShort: HEALTH_PILLARS,
   evidenceTier: [
     "validated-estimate",
     "authoritative-safety",
@@ -173,6 +176,41 @@ describe("complete bilingual UI copy", () => {
     expect(uiCopy.fr["adolescentSupport.adolescent_alcohol_support"]).toMatch(/^l'/);
     expect(uiCopy.fr["riskTree.noMissing"]).not.toMatch(/requise?/i);
     expect(uiCopy.fr["domain.isotretinoin"]).toBe("Isotretinoin");
+  });
+
+  test("provides the approved long and short chapter labels in both languages", () => {
+    expect(uiCopy.en["pillar.cardio-energy"]).toBe(
+      "Cardio, VO₂ max & cellular energy",
+    );
+    expect(uiCopy.en["pillar.strength-neural"]).toBe(
+      "Strength, nervous system & recovery",
+    );
+    expect(uiCopy.en["pillar.sleep-circadian"]).toBe("Sleep & circadian rhythm");
+    expect(uiCopy.en["pillar.nutrition-metabolic"]).toBe(
+      "Nutrition & metabolic health",
+    );
+    expect(uiCopy.fr["pillar.cardio-energy"]).toBe(
+      "Cardio, VO₂ max et énergie cellulaire",
+    );
+    expect(uiCopy.fr["pillar.strength-neural"]).toBe(
+      "Force, système nerveux et récupération",
+    );
+    expect(uiCopy.fr["pillar.sleep-circadian"]).toBe("Sommeil et rythme circadien");
+    expect(uiCopy.fr["pillar.nutrition-metabolic"]).toBe(
+      "Alimentation et santé métabolique",
+    );
+    expect(uiCopy.en["pillar.cardio-energy.short"]).toBe("Cardio & energy");
+    expect(uiCopy.en["pillar.strength-neural.short"]).toBe("Strength & recovery");
+    expect(uiCopy.en["pillar.sleep-circadian.short"]).toBe("Sleep");
+    expect(uiCopy.en["pillar.nutrition-metabolic.short"]).toBe(
+      "Nutrition & metabolism",
+    );
+    expect(uiCopy.fr["pillar.cardio-energy.short"]).toBe("Cardio et énergie");
+    expect(uiCopy.fr["pillar.strength-neural.short"]).toBe("Force et récupération");
+    expect(uiCopy.fr["pillar.sleep-circadian.short"]).toBe("Sommeil");
+    expect(uiCopy.fr["pillar.nutrition-metabolic.short"]).toBe(
+      "Nutrition et métabolisme",
+    );
   });
 
   test("preserves the exact safe meaning of local privacy and temporal eligibility copy", () => {

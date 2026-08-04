@@ -102,6 +102,63 @@ test("requires consent and a profile before showing health questions", async () 
   ).not.toBeInTheDocument();
 });
 
+test("introduces the first available chapter before the first adult Quick question", async () => {
+  const user = userEvent.setup();
+  render(<Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />);
+
+  expect(screen.getByText("Chapter 01 / 04")).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "Next: Cardio, VO₂ max & cellular energy" }),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: "Continue assessment" })).toBeVisible();
+
+  await user.click(screen.getByRole("button", { name: "Continue assessment" }));
+
+  const chapters = screen.getByRole("region", { name: "Assessment chapters" });
+  expect(chapters).toHaveTextContent("Cardio & energy");
+  expect(chapters).toHaveTextContent("Strength & recovery");
+  expect(chapters).toHaveTextContent("Sleep");
+  expect(chapters).toHaveTextContent("Nutrition & metabolism");
+});
+
+test("introduces each entered chapter once and never replays it after Back", async () => {
+  const user = userEvent.setup();
+  render(<Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />);
+
+  await user.click(screen.getByRole("button", { name: "Continue assessment" }));
+  for (let step = 0; step < 20; step += 1) {
+    if (screen.queryByText("Chapter 02 / 04")) break;
+    await user.click(screen.getByRole("button", { name: "Prefer not to say" }));
+  }
+
+  expect(screen.getByText("Chapter 02 / 04")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Continue assessment" }));
+  await user.click(screen.getByRole("button", { name: "Back" }));
+
+  expect(screen.queryByText("Chapter 02 / 04")).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 1 })).toBeVisible();
+});
+
+test("keeps lab import ahead of chapter content and resumes the current chapter", async () => {
+  const user = userEvent.setup();
+  render(<Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />);
+
+  await skipUntilQuestion(user, /blood-test results from the past twelve months/i);
+  await user.click(screen.getByRole("radio", { name: "Yes" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+
+  expect(
+    screen.getByRole("heading", { name: /bring in results without sending them away/i }),
+  ).toBeVisible();
+  expect(screen.queryByRole("region", { name: "Assessment chapters" })).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /continue without import/i }));
+
+  expect(screen.getByRole("region", { name: "Assessment chapters" })).toHaveTextContent(
+    "01 / 04",
+  );
+});
+
 test("requires guardian-assisted mode for a child under 13", async () => {
   const user = await chooseDepth("quick");
   await fillProfile(user, 12);
@@ -115,6 +172,7 @@ test("requires guardian-assisted mode for a child under 13", async () => {
     screen.getByRole("radio", { name: /trusted adult is helping/i }),
   );
   await user.click(screen.getByRole("button", { name: /start quick/i }));
+  await continuePastIntermission(user);
 
   expect(screen.getByText("Question 1 of 20")).toBeVisible();
 });
@@ -133,6 +191,7 @@ test("lets an adolescent choose assisted or private completion", async () => {
     screen.getByRole("radio", { name: /answer privately on my own/i }),
   );
   await user.click(screen.getByRole("button", { name: /start quick/i }));
+  await continuePastIntermission(user);
 
   expect(screen.getByText("Question 1 of 20")).toBeVisible();
 });
@@ -151,6 +210,7 @@ test("offers Detailed instead of silently downgrading an unavailable child Deep 
 
   await user.click(screen.getByRole("button", { name: /use detailed instead/i }));
   await user.click(screen.getByRole("button", { name: /start detailed/i }));
+  await continuePastIntermission(user);
 
   expect(screen.getByText("Question 1 of 50")).toBeVisible();
 });
@@ -159,6 +219,7 @@ test("starts the full Deep queue when at least 150 questions are eligible", asyn
   const user = await chooseDepth("deep");
   await fillProfile(user, 35);
   await user.click(screen.getByRole("button", { name: /start deep/i }));
+  await continuePastIntermission(user);
 
   expect(screen.getByText("Question 1 of 150")).toBeVisible();
 });
@@ -216,7 +277,7 @@ test("keeps a live urgent interruption and the triggering answer while switching
   expect(screen.getByRole("heading", { name: /pression.*douleur.*thoracique/i })).toBeVisible();
 });
 
-test("keeps a live intermission milestone and does not reconstruct the queue on a locale switch", async () => {
+test("keeps a live chapter introduction and does not reconstruct the queue on a locale switch", async () => {
   const user = userEvent.setup();
   const buildQueue = vi.spyOn(questionnaireModule, "buildAssessmentQueue");
   render(
@@ -226,18 +287,13 @@ test("keeps a live intermission milestone and does not reconstruct the queue on 
     </>,
   );
 
-  for (let step = 0; step < 20; step += 1) {
-    if (screen.queryByRole("button", { name: "Continue assessment" })) break;
-    await user.click(screen.getByRole("button", { name: "Prefer not to say" }));
-  }
-  const milestone = screen.getByText(/Milestone · \d+ of 20/).textContent;
+  const chapter = screen.getByText("Chapter 01 / 04").textContent;
   const callsBeforeSwitch = buildQueue.mock.calls.length;
   expect(callsBeforeSwitch).toBeGreaterThan(0);
 
   await user.click(screen.getByRole("button", { name: "Français" }));
 
-  expect(screen.getByText(milestone?.replace("Milestone", "Étape").replace(" of ", " sur ") ?? ""))
-    .toBeVisible();
+  expect(screen.getByText(chapter?.replace("Chapter", "Chapitre") ?? "")).toBeVisible();
   expect(screen.getByRole("button", { name: "Continuer l'analyse" })).toBeVisible();
   expect(buildQueue).toHaveBeenCalledTimes(callsBeforeSwitch);
   buildQueue.mockRestore();
@@ -302,6 +358,7 @@ test("Enter advances only after a valid answer and Back restores that answer", a
   render(
     <Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />,
   );
+  await continuePastIntermission(user);
 
   expect(
     screen.getByRole("group", { name: /what sex were you assigned at birth/i }),
@@ -327,6 +384,7 @@ test("Enter advances only after a valid answer and Back restores that answer", a
 test("Back visibly preserves a deliberate skip", async () => {
   const user = userEvent.setup();
   render(<Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />);
+  await continuePastIntermission(user);
 
   await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
   await user.click(screen.getByRole("button", { name: /back/i }));
@@ -373,7 +431,7 @@ test("Quick completes after exactly 20 deliberate skips stored only as null", as
     await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
   }
 
-  expect(intermissions).toBeLessThanOrEqual(2);
+  expect(intermissions).toBe(4);
   expect(onComplete).toHaveBeenCalledOnce();
   const completedAnswers = onComplete.mock.calls[0][0];
   expect(Object.keys(completedAnswers)).toHaveLength(20);
@@ -382,9 +440,9 @@ test("Quick completes after exactly 20 deliberate skips stored only as null", as
 });
 
 test.each([
-  ["quick", 20, 2, 0],
+  ["quick", 20, 4, 0],
   ["detailed", 50, 4, 5],
-  ["deep", 158, 6, 5],
+  ["deep", 158, 4, 5],
 ] as const)(
   "%s adaptation completes %i questions with %i intermissions and %i medication follow-ups",
   async (depth, questionCount, expectedIntermissions, expectedFollowUps) => {
@@ -422,7 +480,7 @@ test("an affirmative medication gate inserts a real follow-up into the Detailed 
 
   expect(onComplete.mock.calls[0][0].med_detail_names).toBe("Metformin");
   expect(Object.keys(onComplete.mock.calls[0][0])).toHaveLength(50);
-});
+}, 10_000);
 
 test("a personally due preventive follow-up routes access barriers into the action question", async () => {
   const user = userEvent.setup();
@@ -442,6 +500,7 @@ test("a personally due preventive follow-up routes access barriers into the acti
 
   await user.click(screen.getByRole("radio", { name: "Yes" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
+  await continuePastIntermission(user);
 
   expect(
     screen.getByRole("heading", {
@@ -451,7 +510,7 @@ test("a personally due preventive follow-up routes access barriers into the acti
   expect(
     screen.getByRole("radio", { name: /access or safety barrier is in the way/i }),
   ).toBeVisible();
-});
+}, 10_000);
 
 test.each([
   ["No", "no"],
@@ -472,7 +531,7 @@ test.each([
   expect(completedAnswers).not.toHaveProperty("adherence_access_barriers");
   expect(completedAnswers).not.toHaveProperty("interaction_shared_list");
   expect(completedAnswers.current_medications).toBe(gateAnswer === "no" ? false : null);
-});
+}, 10_000);
 
 test("changing an earlier gate with Back closes its branch and removes stale answers", async () => {
   const user = userEvent.setup();

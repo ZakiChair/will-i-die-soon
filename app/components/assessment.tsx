@@ -6,6 +6,7 @@ import { useI18n } from "../i18n/context";
 import { localizeRiskLeaves } from "../i18n/presentation";
 import { localizeQuestion } from "../i18n/questions-fr";
 import { uiCopyKeys } from "../i18n/ui-copy";
+import { healthPillarForQuestion, type HealthPillar } from "../lib/health-pillars";
 import {
   buildAssessmentQueue,
   getNextQuestion,
@@ -16,7 +17,6 @@ import { evaluateRisks } from "../lib/risk-engine";
 import type {
   AnalysisDepth,
   AnswerMap,
-  HealthDomain,
   ProfileContext,
   Question,
   QuestionnaireState,
@@ -26,6 +26,7 @@ import { Intermission } from "./intermission";
 import { LabImport } from "./lab-import";
 import { LivingCanopy } from "./living-canopy";
 import { QuestionControl } from "./question-control";
+import { PillarProgress } from "./pillar-progress";
 import type { ConfirmedLabValue, LabMarker } from "../lib/labs";
 
 export type AssessmentProps = {
@@ -58,32 +59,7 @@ function printedLabAnswer(value: ConfirmedLabValue): string {
   return `${value.reviewed.valueText} ${value.reviewed.unit}${range}`;
 }
 
-const INTERMISSION_LIMITS: Readonly<Record<AnalysisDepth, number>> = {
-  quick: 2,
-  detailed: 4,
-  deep: 6,
-};
-
-function milestoneIndices(queue: ReadonlyArray<Question>, depth: AnalysisDepth) {
-  const candidates = queue
-    .slice(0, -1)
-    .map((question, index) =>
-      question.domain !== queue[index + 1].domain ? index + 1 : null,
-    )
-    .filter((index): index is number => index !== null);
-  const count = Math.min(INTERMISSION_LIMITS[depth], candidates.length);
-  const selected = new Set<number>();
-
-  for (let milestone = 1; milestone <= count; milestone += 1) {
-    const target = (queue.length * milestone) / (count + 1);
-    const closest = candidates
-      .filter((candidate) => !selected.has(candidate))
-      .sort((left, right) => Math.abs(left - target) - Math.abs(right - target))[0];
-    if (closest !== undefined) selected.add(closest);
-  }
-
-  return selected;
-}
+type PillarIntro = { readonly pillar: HealthPillar; readonly completed: number };
 
 export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   const { locale, t } = useI18n();
@@ -100,13 +76,14 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   const [awaitingLabImport, setAwaitingLabImport] = useState(false);
   const [confirmedLabs, setConfirmedLabs] = useState<ConfirmedLabValue[]>([]);
   const [urgentLeaf, setUrgentLeaf] = useState<RiskLeaf | null>(null);
-  const [intermission, setIntermission] = useState<{
-    completedDomain: HealthDomain;
-    completed: number;
-  } | null>(null);
-  const shownMilestones = useRef(new Set<string>());
+  const firstPillar = initialQueue[0] ? healthPillarForQuestion(initialQueue[0]) : null;
+  const [intermission, setIntermission] = useState<PillarIntro | null>(() =>
+    firstPillar ? { pillar: firstPillar, completed: 0 } : null,
+  );
+  const introducedPillars = useRef(
+    new Set<HealthPillar>(firstPillar ? [firstPillar] : []),
+  );
   const importedAnswerIds = useRef(new Set<string>());
-  const intermissionCount = useRef(0);
   const questionHeading = useRef<HTMLHeadingElement>(null);
   const urgentHeading = useRef<HTMLHeadingElement>(null);
   const { answers, queue } = questionnaire;
@@ -148,16 +125,12 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
     const completed = nextState.queue.findIndex(
       (candidate) => candidate.id === answeredQuestion.id,
     ) + 1;
-    const milestoneKey = answeredQuestion.id;
     setCurrentIndex(nextState.queue.indexOf(nextQuestion));
-    if (
-      milestoneIndices(nextState.queue, depth).has(completed) &&
-      intermissionCount.current < INTERMISSION_LIMITS[depth] &&
-      !shownMilestones.current.has(milestoneKey)
-    ) {
-      shownMilestones.current.add(milestoneKey);
-      intermissionCount.current += 1;
-      setIntermission({ completedDomain: answeredQuestion.domain, completed });
+    const nextPillar = healthPillarForQuestion(nextQuestion);
+    const answeredPillar = healthPillarForQuestion(answeredQuestion);
+    if (nextPillar !== answeredPillar && !introducedPillars.current.has(nextPillar)) {
+      introducedPillars.current.add(nextPillar);
+      setIntermission({ pillar: nextPillar, completed });
     }
   }
 
@@ -269,7 +242,7 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
     return (
       <section className="journey assessment assessment--intermission">
         <Intermission
-          completedDomain={intermission.completedDomain}
+          pillar={intermission.pillar}
           completed={intermission.completed}
           total={queue.length}
           onContinue={() => setIntermission(null)}
@@ -291,6 +264,13 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
       <div className="assessment__layout">
         <aside className="assessment__rail" aria-label={t("assessment.progress.aria")}>
           <p className="data-label">{t("assessment.map")}</p>
+          {question ? (
+            <PillarProgress
+              currentPillar={healthPillarForQuestion(question)}
+              completedQuestions={currentIndex}
+              totalQuestions={queue.length}
+            />
+          ) : null}
           <progress value={currentIndex} max={queue.length}>
             {t("assessment.progress", { completed: currentIndex, total: queue.length })}
           </progress>

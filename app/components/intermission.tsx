@@ -3,57 +3,35 @@
 import Image from "next/image";
 import { useI18n } from "../i18n/context";
 import { uiCopyKeys } from "../i18n/ui-copy";
-import type { HealthDomain } from "../lib/types";
+import { HEALTH_PILLARS, type HealthPillar } from "../lib/health-pillars";
 
 export type IntermissionProps = {
-  completedDomain: HealthDomain;
+  pillar: HealthPillar;
   completed: number;
   total: number;
   onContinue: () => void;
 };
 
-const SLEEP_DOMAINS: ReadonlySet<HealthDomain> = new Set([
-  "sleep",
-  "circadian-rhythm",
-  "stress",
-  "mood",
-  "anxiety",
-  "cognition",
-  "social-connection",
-]);
-
-const METABOLISM_DOMAINS: ReadonlySet<HealthDomain> = new Set([
-  "measurements",
-  "diet",
-  "hydration",
-  "movement",
-  "sedentary-time",
-  "blood-pressure",
-  "blood-testing",
-  "lab-values",
-]);
-
-function artworkFor(domain: HealthDomain) {
-  if (SLEEP_DOMAINS.has(domain)) {
-    return { id: "sleep", src: "/media/sleep-intermission.webp" } as const;
+function artworkFor(pillar: HealthPillar) {
+  switch (pillar) {
+    case "cardio-energy":
+      return { id: "cardio", src: "/media/canopy-hero.webp" } as const;
+    case "strength-neural":
+      return { id: "recovery", src: "/media/recovery-intermission.webp" } as const;
+    case "sleep-circadian":
+      return { id: "sleep", src: "/media/sleep-intermission.webp" } as const;
+    case "nutrition-metabolic":
+      return { id: "metabolism", src: "/media/metabolism-intermission.webp" } as const;
   }
-  if (METABOLISM_DOMAINS.has(domain)) {
-    return {
-      id: "metabolism",
-      src: "/media/metabolism-intermission.webp",
-    } as const;
-  }
-  return { id: "recovery", src: "/media/recovery-intermission.webp" } as const;
 }
 
 export function Intermission({
-  completedDomain,
-  completed,
-  total,
+  pillar,
   onContinue,
 }: IntermissionProps) {
   const { t } = useI18n();
-  const artwork = artworkFor(completedDomain);
+  const artwork = artworkFor(pillar);
+  const current = HEALTH_PILLARS.indexOf(pillar) + 1;
 
   return (
     <section
@@ -76,10 +54,10 @@ export function Intermission({
       </div>
       <div className="intermission__panel">
         <p className="data-label">
-          {t("intermission.eyebrow", { completed, total })}
+          {t("intermission.eyebrow", { current: String(current).padStart(2, "0") })}
         </p>
-        <h1 id="intermission-title">{t("intermission.title")}</h1>
-        <p>{t("intermission.body", { domain: t(uiCopyKeys.domain[completedDomain]) })}</p>
+        <h1 id="intermission-title">{t("intermission.title", { pillar: t(uiCopyKeys.pillar[pillar]) })}</h1>
+        <p>{t("intermission.body")}</p>
         <button className="primary-action" type="button" onClick={onContinue} autoFocus>
           {t("intermission.continue")}
         </button>

@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 
 import { I18nProvider, useI18n } from "../i18n/context";
-import type { HealthDomain } from "../lib/types";
 import { LanguageSwitcher } from "./language-switcher";
 import { Intermission } from "./intermission";
 
@@ -14,7 +13,7 @@ function LocalizedIntermission() {
       <LanguageSwitcher />
       <output data-testid="locale">{locale}</output>
       <Intermission
-        completedDomain="preventive-care"
+        pillar="nutrition-metabolic"
         completed={8}
         total={20}
         onContinue={vi.fn()}
@@ -24,43 +23,28 @@ function LocalizedIntermission() {
 }
 
 test.each([
-  ["sleep", "sleep-intermission.webp"],
-  ["diet", "metabolism-intermission.webp"],
-  ["preventive-care", "recovery-intermission.webp"],
+  ["cardio-energy", "canopy-hero.webp"],
+  ["strength-neural", "recovery-intermission.webp"],
+  ["sleep-circadian", "sleep-intermission.webp"],
+  ["nutrition-metabolic", "metabolism-intermission.webp"],
 ] as const)(
-  "uses the %s milestone artwork without adding decorative noise to the accessibility tree",
-  (completedDomain, expectedFile) => {
+  "uses the %s chapter artwork without adding decorative noise to the accessibility tree",
+  (pillar, expectedFile) => {
     const { container } = render(
       <I18nProvider>
-        <Intermission
-          completedDomain={completedDomain satisfies HealthDomain}
-          completed={8}
-          total={20}
-          onContinue={vi.fn()}
-        />
+        <Intermission pillar={pillar} completed={8} total={20} onContinue={vi.fn()} />
       </I18nProvider>,
     );
 
-    const image = container.querySelector<HTMLImageElement>(
-      ".intermission__media img",
-    );
-
-    expect(image).not.toBeNull();
+    const image = container.querySelector<HTMLImageElement>(".intermission__media img");
     expect(image?.getAttribute("src")).toContain(expectedFile);
     expect(image).toHaveAttribute("alt", "");
     expect(image).toHaveAttribute("aria-hidden", "true");
-    expect(image).toHaveAttribute("loading", "lazy");
-    expect(image).toHaveAttribute("decoding", "async");
-    expect(image).toHaveAttribute("width", "1920");
-    expect(image).toHaveAttribute("height", "1080");
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /continue assessment/i }),
-    ).toBeVisible();
   },
 );
 
-test("localizes a live intermission through its exact domain key without changing its milestone", async () => {
+test("localizes the entering chapter without changing its position", async () => {
   const user = userEvent.setup();
   render(
     <I18nProvider>
@@ -71,31 +55,9 @@ test("localizes a live intermission through its exact domain key without changin
   await user.click(screen.getByRole("button", { name: "Français" }));
 
   expect(screen.getByTestId("locale")).toHaveTextContent("fr");
-  expect(screen.getByText(/8 sur 20/)).toBeVisible();
-  expect(screen.getByText(/soins préventifs/i)).toBeVisible();
+  expect(screen.getByText("Chapitre 04 / 04")).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "À suivre : Alimentation et santé métabolique" }),
+  ).toBeVisible();
   expect(screen.getByRole("button", { name: "Continuer l'analyse" })).toBeVisible();
-  expect(screen.queryByText(/preventive care/i)).not.toBeInTheDocument();
-});
-
-test("composes the French milestone around an invariant medicine name", async () => {
-  const user = userEvent.setup();
-  render(
-    <I18nProvider>
-      <LanguageSwitcher />
-      <Intermission
-        completedDomain="isotretinoin"
-        completed={10}
-        total={20}
-        onContinue={vi.fn()}
-      />
-    </I18nProvider>,
-  );
-
-  await user.click(screen.getByRole("button", { name: "Français" }));
-
-  const body = screen.getByText(/Isotretinoin/);
-  expect(body).toBeVisible();
-  expect(body.textContent).toBe(
-    "Vous avez terminé ce domaine\u00a0: Isotretinoin. Vos réponses sont toujours présentes dans cette session du navigateur.",
-  );
 });

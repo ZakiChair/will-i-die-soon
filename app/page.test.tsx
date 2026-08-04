@@ -8,6 +8,11 @@ afterEach(() => {
   document.documentElement.lang = "en";
 });
 
+async function continuePastChapterIntro(user: ReturnType<typeof userEvent.setup>) {
+  const button = screen.queryByRole("button", { name: "Continue assessment" });
+  if (button) await user.click(button);
+}
+
 test("localizes the active consent screen while preserving every entered profile field", async () => {
   const user = userEvent.setup();
 
@@ -46,6 +51,7 @@ test("keeps a Detailed question draft and canonical answer across an English-to-
     screen.getByRole("checkbox", { name: "I understand and want to continue" }),
   );
   await user.click(screen.getByRole("button", { name: "Start Detailed assessment" }));
+  await continuePastChapterIntro(user);
 
   expect(screen.getByRole("heading", { name: "What sex were you assigned at birth?" }))
     .toBeVisible();
