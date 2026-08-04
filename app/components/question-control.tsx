@@ -13,6 +13,7 @@ export type QuestionControlProps = {
   onBack: () => void;
   canGoBack: boolean;
   questionDescriptionId?: string;
+  skipLabelKey?: UiCopyKey;
 };
 
 function initialValue(question: Question, answer: AnswerValue | undefined) {
@@ -36,6 +37,7 @@ export function QuestionControl({
   onBack,
   canGoBack,
   questionDescriptionId,
+  skipLabelKey,
 }: QuestionControlProps) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<string | string[]>(() =>
@@ -222,7 +224,7 @@ export function QuestionControl({
           aria-pressed={answer === null}
           onClick={() => onAnswer(null)}
         >
-          {t("question.skip")}
+          {t(skipLabelKey ?? "question.skip")}
         </button>
         <button type="submit">{t("question.continue")}</button>
       </div>

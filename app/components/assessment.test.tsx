@@ -490,6 +490,29 @@ test("Quick completes after exactly 20 deliberate skips stored only as null", as
   expect(Object.values(completedAnswers)).not.toContain(undefined);
 });
 
+test("runs nine Express questions without an intermission", async () => {
+  const user = userEvent.setup();
+  const onComplete = vi.fn();
+  render(<Assessment depth="express" profile={adultProfile} onComplete={onComplete} />);
+
+  expect(
+    screen.queryByRole("button", { name: "Continue assessment" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText("Question 1 of 9")).toBeVisible();
+  expect(screen.getByRole("progressbar")).toHaveAttribute("max", "9");
+
+  for (let answered = 0; answered < 9; answered += 1) {
+    await user.click(
+      screen.getByRole("button", {
+        name: "I don't know or prefer not to answer",
+      }),
+    );
+  }
+
+  expect(onComplete).toHaveBeenCalledOnce();
+  expect(Object.values(onComplete.mock.calls[0][0])).toEqual(Array(9).fill(null));
+});
+
 test.each([
   ["quick", 20, 4, 0],
   ["detailed", 50, 4, 5],

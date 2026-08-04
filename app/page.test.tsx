@@ -115,3 +115,29 @@ test("keeps the adolescent private route selected when consent changes to French
   expect(screen.getByRole("combobox", { name: "Pays ou région" })).toHaveValue("GB");
   expect(screen.getByRole("button", { name: "Commencer l'analyse rapide" })).toBeEnabled();
 });
+
+test("redirects a minor Express route to Quick from consent", async () => {
+  const user = userEvent.setup();
+  render(<Home />);
+
+  await user.click(screen.getByRole("button", { name: "Choose Express" }));
+  await user.type(screen.getByRole("spinbutton", { name: "How old are you?" }), "17");
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Country or region" }),
+    "CH",
+  );
+  await user.click(screen.getByRole("radio", { name: "Answer privately on my own" }));
+  await user.click(
+    screen.getByRole("checkbox", { name: "I understand and want to continue" }),
+  );
+
+  expect(
+    screen.getByText("Express is for adults aged 18 or older. Choose Quick to continue."),
+  ).toBeVisible();
+
+  await user.click(screen.getByRole("button", { name: "Use Quick instead" }));
+  await user.click(screen.getByRole("button", { name: "Start Quick assessment" }));
+  await continuePastChapterIntro(user);
+
+  expect(screen.getByText("Question 1 of 20")).toBeVisible();
+});

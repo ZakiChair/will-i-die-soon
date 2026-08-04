@@ -158,6 +158,15 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
             </div>
           ) : null}
 
+          {profile && selectedDepth === "express" && !selectedDepthAvailable ? (
+            <div className="depth-unavailable" role="status">
+              <p>{t("consent.express.unavailable")}</p>
+              <button type="button" onClick={() => setSelectedDepth("quick")}>
+                {t("consent.express.useQuick")}
+              </button>
+            </div>
+          ) : null}
+
           <label className="consent-check">
             <input
               type="checkbox"

@@ -114,6 +114,32 @@ test("localizes a number unit while retaining its canonical numeric answer", asy
   expect(onAnswer).toHaveBeenCalledWith(3.5);
 });
 
+test("uses the Express skip label in French while preserving the null answer", async () => {
+  const user = userEvent.setup();
+  const onAnswer = vi.fn();
+  render(
+    <I18nProvider>
+      <LanguageSwitcher />
+      <QuestionControl
+        question={requiredQuestion("reported_vo2_max_ml_kg_min")}
+        onAnswer={onAnswer}
+        onBack={vi.fn()}
+        canGoBack={false}
+        skipLabelKey="question.skip.express"
+      />
+    </I18nProvider>,
+  );
+
+  await chooseFrench(user);
+  await user.click(
+    screen.getByRole("button", {
+      name: "Je ne sais pas ou je préfère ne pas répondre",
+    }),
+  );
+
+  expect(onAnswer).toHaveBeenCalledWith(null);
+});
+
 test("localizes scale accessibility copy without changing the selected number", async () => {
   const user = userEvent.setup();
   const onAnswer = renderControl("sleep_refreshed");

@@ -5,8 +5,7 @@ import { useState } from "react";
 import { useDecorativeMotion } from "../hooks/use-decorative-motion";
 import { useI18n } from "../i18n/context";
 import { type UiCopyKey, uiCopyKeys } from "../i18n/ui-copy";
-
-export type AnalysisDepth = "quick" | "detailed" | "deep";
+import type { AnalysisDepth } from "../lib/types";
 
 type LandingProps = {
   onStart: (depth: AnalysisDepth) => void;
@@ -17,6 +16,11 @@ const depths: ReadonlyArray<{
   detailKey: UiCopyKey;
   descriptionKey: UiCopyKey;
 }> = [
+  {
+    id: "express",
+    detailKey: "depth.express.detail",
+    descriptionKey: "depth.express.description",
+  },
   {
     id: "quick",
     detailKey: "depth.quick.detail",
@@ -137,7 +141,7 @@ export function Landing({ onStart }: LandingProps) {
                 locale === "fr" ? depthLabel.toLocaleLowerCase("fr") : depthLabel;
 
               return (
-                <article className="depth-card" key={depth.id}>
+                <article className={`depth-card depth-card--${depth.id}`} key={depth.id}>
                   <p className="depth-card__eyebrow">{t(depth.detailKey)}</p>
                   <h3>{depthLabel}</h3>
                   <p>{t(depth.descriptionKey)}</p>

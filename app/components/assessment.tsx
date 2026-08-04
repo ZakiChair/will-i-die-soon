@@ -67,6 +67,7 @@ type PillarIntro = { readonly pillar: HealthPillar; readonly completed: number }
 
 export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   const { locale, t } = useI18n();
+  const isExpress = depth === "express";
   const initialQueue = useMemo(
     () => buildAssessmentQueue(depth, questionBank, profile, {}),
     [depth, profile],
@@ -81,7 +82,7 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   const [urgentLeaf, setUrgentLeaf] = useState<RiskLeaf | null>(null);
   const firstPillar = initialQueue[0] ? healthPillarForQuestion(initialQueue[0]) : null;
   const [intermission, setIntermission] = useState<PillarIntro | null>(() =>
-    firstPillar ? { pillar: firstPillar, completed: 0 } : null,
+    !isExpress && firstPillar ? { pillar: firstPillar, completed: 0 } : null,
   );
   const introducedPillars = useRef(
     new Set<HealthPillar>(firstPillar ? [firstPillar] : []),
@@ -132,7 +133,11 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
     setCurrentIndex(nextState.queue.indexOf(nextQuestion));
     const nextPillar = healthPillarForQuestion(nextQuestion);
     const answeredPillar = healthPillarForQuestion(answeredQuestion);
-    if (nextPillar !== answeredPillar && !introducedPillars.current.has(nextPillar)) {
+    if (
+      !isExpress &&
+      nextPillar !== answeredPillar &&
+      !introducedPillars.current.has(nextPillar)
+    ) {
       introducedPillars.current.add(nextPillar);
       setIntermission({ pillar: nextPillar, completed });
     }
@@ -310,6 +315,7 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
               onAnswer={recordAnswer}
               canGoBack={currentIndex > 0}
               onBack={() => setCurrentIndex((index) => Math.max(0, index - 1))}
+              skipLabelKey={isExpress ? "question.skip.express" : undefined}
             />
           ) : null}
         </article>

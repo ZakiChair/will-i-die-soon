@@ -64,6 +64,26 @@ test("starts the quick exploration from the landing action", async () => {
   expect(onStart).toHaveBeenCalledWith("quick");
 });
 
+test("offers Express first as the nine-question adult route", async () => {
+  const onStart = vi.fn();
+  const user = userEvent.setup();
+
+  render(<Landing onStart={onStart} />);
+
+  const depthHeadings = screen.getAllByRole("heading", { level: 3 });
+  expect(depthHeadings.map((heading) => heading.textContent)).toEqual([
+    "Express",
+    "Quick",
+    "Detailed",
+    "Deep",
+  ]);
+  expect(screen.getByText(/9 targeted questions.*under 1 minute/i)).toBeVisible();
+
+  await user.click(screen.getByRole("button", { name: "Choose Express" }));
+
+  expect(onStart).toHaveBeenCalledWith("express");
+});
+
 test("keeps the canopy as non-interactive decorative media", () => {
   const { container } = render(<Landing onStart={vi.fn()} />);
 

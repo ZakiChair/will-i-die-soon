@@ -159,6 +159,26 @@ describe("complete bilingual UI copy", () => {
   });
 
   test("preserves canonical English result copy and natural calibrated French support wording", () => {
+    expect(uiCopy.en["depth.express"]).toBe("Express");
+    expect(uiCopy.en["depth.express.detail"]).toBe(
+      "9 targeted questions · under 1 minute",
+    );
+    expect(uiCopy.en["depth.express.description"]).toBe(
+      "VO₂ max, strength, sleep, and nutrition for adults.",
+    );
+    expect(uiCopy.en["consent.express.unavailable"]).toBe(
+      "Express is for adults aged 18 or older. Choose Quick to continue.",
+    );
+    expect(uiCopy.en["consent.express.useQuick"]).toBe("Use Quick instead");
+    expect(uiCopy.en["question.skip.express"]).toBe(
+      "I don't know or prefer not to answer",
+    );
+    expect(uiCopy.fr["question.skip.express"]).toBe(
+      "Je ne sais pas ou je préfère ne pas répondre",
+    );
+    expect(uiCopy.en["unit.reported_vo2_max_ml_kg_min"]).toBe("ml/kg/min");
+    expect(uiCopy.en["unit.squat_one_rep_max_kg"]).toBe("kg");
+    expect(uiCopy.en["unit.deadlift_one_rep_max_kg"]).toBe("kg");
     expect(uiCopy.en["results.urgent.eyebrow"]).toBe("Immediate signals first");
     expect(uiCopy.en["results.urgent.title"]).toBe("Act on these immediate signals now");
     expect(uiCopy.en["assessment.progress"]).toBe("{completed} of {total}");
