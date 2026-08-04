@@ -1,7 +1,7 @@
 # Express assessment design
 
 Date: 2026-08-04  
-Status: approved for implementation
+Status: implemented; release verification complete
 
 ## Outcome
 

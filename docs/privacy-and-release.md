@@ -14,7 +14,7 @@ Ordinary evidence links are external HTTPS navigation initiated by the user. The
 
 The ordered presentation pillars are `cardio-energy`, `strength-neural`, `sleep-circadian`, and `nutrition-metabolic`: **Cardio, VO₂ max & cellular energy**, **Strength, nervous system & recovery**, **Sleep & circadian rhythm**, and **Nutrition & metabolic health**. Their French labels are **Cardio, VO₂ max et énergie cellulaire**, **Force, système nerveux et récupération**, **Sommeil et rythme circadien**, and **Alimentation et santé métabolique**.
 
-This layer only groups already-selected questions and evaluated evidence leaves. Its closed guards cover 243 questions, 47 domains, 54 risk rules, 88 conditional questions, and 98 gate edges; risk-rule distribution is 12/23/2/17 in pillar order. Quick remains exactly 20 questions, Detailed exactly 50, and Deep remains 150–200 after selection and active branches. The grouping does not change clinical rules, evidence tiers, scoring, exports, laboratory parsing, or the underlying risk conditions. It does not directly measure VO₂ max or mitochondrial function, diagnose disease, predict an exact disease probability, or estimate time to death.
+This layer only groups already-selected questions and evaluated evidence leaves. Its closed guards cover 246 questions, 47 domains, 54 risk rules, 88 conditional questions, and 98 gate edges; risk-rule distribution is 12/23/2/17 in pillar order. Express remains exactly 9 adult-only targeted questions; Quick remains exactly 20 questions, Detailed exactly 50, and Deep remains 150–200 after selection and active branches. The grouping does not change clinical rules, evidence tiers, scoring, exports, laboratory parsing, or the underlying risk conditions. Express reports a user-entered measured or device-estimated VO₂ max, but the app does not measure or estimate it itself. It does not directly measure VO₂ max or mitochondrial function, diagnose disease, predict an exact disease probability, or estimate time to death.
 
 ## Lifecycle and clearing
 
@@ -56,7 +56,7 @@ Generated artwork contains no medical labels, numerical claims, or factual diagr
 
 ## React and bundle audit
 
-Route and leaf components are stable top-level definitions with direct imports. The only intentional dynamic imports are the heavy `pdfjs-dist` and `tesseract.js` parsers. Assessment selection/branching is derived in memory; only `queue[currentIndex]` is rendered, so the 243-question bank is never mounted as one large form.
+Route and leaf components are stable top-level definitions with direct imports. The only intentional dynamic imports are the heavy `pdfjs-dist` and `tesseract.js` parsers. Assessment selection/branching is derived in memory; only `queue[currentIndex]` is rendered, so the 246-question bank is never mounted as one large form.
 
 Effects are limited to browser/DOM or external-event synchronization: assessment-only `beforeunload`, focus transfer, reduced-motion/media-query and visibility listeners, and the document language attribute. Risk evaluation, score, localization, action plan, and export report are derived during render (memoized where appropriate), not mirrored into effect-managed state.
 
