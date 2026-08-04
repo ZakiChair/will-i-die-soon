@@ -1,7 +1,7 @@
 # Question typography hierarchy design
 
 Date: 2026-08-04  
-Status: approved for implementation
+Status: implemented; private deployment pending
 
 ## Product context
 

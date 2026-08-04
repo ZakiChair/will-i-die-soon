@@ -46,7 +46,7 @@
 - Consumes: `Locale` and the already localized full prompt.
 - Guarantees: every supported pair is complete; all unsupported or invalid cases fall back to `{ title: completePrompt }`; no input object is mutated.
 
-- [ ] **Step 1: Write the failing catalog tests.**
+- [x] **Step 1: Write the failing catalog tests.**
 
 Create `app/i18n/question-prompt-presentation.test.ts` with a fixture lookup and an exact expected table. The test data must contain the following sixteen entries, without paraphrasing:
 
@@ -186,7 +186,7 @@ describe("question prompt presentation", () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused RED suite.**
+- [x] **Step 2: Run the focused RED suite.**
 
 ```bash
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
@@ -199,7 +199,7 @@ npx vitest run app/i18n/question-prompt-presentation.test.ts --maxWorkers=1 --te
 
 Expected: FAIL because `app/i18n/question-prompt-presentation.ts` does not exist.
 
-- [ ] **Step 3: Implement the typed resolver.**
+- [x] **Step 3: Implement the typed resolver.**
 
 Create `app/i18n/question-prompt-presentation.ts` with this public shape and the exact `expected` copy above moved into its production catalog:
 
@@ -339,7 +339,7 @@ export function getQuestionPromptPresentation(
 }
 ```
 
-- [ ] **Step 4: Run GREEN and prove the canonical boundary.**
+- [x] **Step 4: Run GREEN and prove the canonical boundary.**
 
 ```bash
 npx vitest run app/i18n/question-prompt-presentation.test.ts app/i18n/questions-fr.test.ts app/lib/export.test.ts --maxWorkers=1 --testTimeout=20000 --reporter=default
@@ -348,7 +348,7 @@ git diff -- app/lib/types.ts app/data/questions app/i18n/questions-fr.ts app/i18
 
 Expected: all selected tests PASS and the final `git diff` produces no output.
 
-- [ ] **Step 5: Commit the pure presentation layer.**
+- [x] **Step 5: Commit the pure presentation layer.**
 
 ```bash
 git add app/i18n/question-prompt-presentation.ts app/i18n/question-prompt-presentation.test.ts
@@ -370,7 +370,7 @@ git commit -m "feat: add bilingual question prompt presentations"
 - Extends: `QuestionControlProps` with optional `questionDescriptionId?: string`.
 - Guarantees: a visible detail owns one stable DOM ID; an ordinary prompt renders no detail node; the `fieldset` never receives a dangling description reference.
 
-- [ ] **Step 1: Write failing component and ARIA tests.**
+- [x] **Step 1: Write failing component and ARIA tests.**
 
 Create `app/components/question-prompt.test.tsx`:
 
@@ -459,7 +459,7 @@ test("omits aria-describedby when a question has no presentation detail", () => 
 });
 ```
 
-- [ ] **Step 2: Run the focused RED suite.**
+- [x] **Step 2: Run the focused RED suite.**
 
 ```bash
 npx vitest run app/components/question-prompt.test.tsx app/components/question-control.test.tsx --maxWorkers=1 --testTimeout=20000 --reporter=default
@@ -467,7 +467,7 @@ npx vitest run app/components/question-prompt.test.tsx app/components/question-c
 
 Expected: FAIL because `QuestionPrompt` and `questionDescriptionId` do not exist.
 
-- [ ] **Step 3: Implement `QuestionPrompt`.**
+- [x] **Step 3: Implement `QuestionPrompt`.**
 
 Create `app/components/question-prompt.tsx`:
 
@@ -514,7 +514,7 @@ export function QuestionPrompt({
 }
 ```
 
-- [ ] **Step 4: Extend `QuestionControl` without changing any answer behavior.**
+- [x] **Step 4: Extend `QuestionControl` without changing any answer behavior.**
 
 Add `questionDescriptionId?: string` to `QuestionControlProps`, destructure it, and change only the existing fieldset opening tag:
 
@@ -527,7 +527,7 @@ Add `questionDescriptionId?: string` to `QuestionControlProps`, destructure it, 
 
 Import `QUESTION_PROMPT_TITLE_ID` from `./question-prompt`; do not alter the numeric input's unit-level `aria-describedby`, form keyboard handling, draft initialization, answer commits, or button behavior.
 
-- [ ] **Step 5: Run GREEN and the existing control behavior suite.**
+- [x] **Step 5: Run GREEN and the existing control behavior suite.**
 
 ```bash
 npx vitest run app/components/question-prompt.test.tsx app/components/question-control.test.tsx --maxWorkers=1 --testTimeout=20000 --reporter=default
@@ -535,7 +535,7 @@ npx vitest run app/components/question-prompt.test.tsx app/components/question-c
 
 Expected: PASS, including existing canonical boolean, single, multi, number, scale, and text answer tests.
 
-- [ ] **Step 6: Commit the semantic component boundary.**
+- [x] **Step 6: Commit the semantic component boundary.**
 
 ```bash
 git add app/components/question-prompt.tsx app/components/question-prompt.test.tsx app/components/question-control.tsx app/components/question-control.test.tsx
@@ -555,7 +555,7 @@ git commit -m "feat: render accessible question prompt details"
 - Passes: the optional detail ID into `QuestionControl` only when a non-blank detail exists.
 - Preserves: queue construction, question index, draft component identity, urgent rendering, lab import, pillar intermissions, and locale-switch focus.
 
-- [ ] **Step 1: Write the failing bilingual integration test.**
+- [x] **Step 1: Write the failing bilingual integration test.**
 
 Append this test to `app/components/assessment.test.tsx`:
 
@@ -602,7 +602,7 @@ test("shows dense prompt criteria in both languages without losing draft or lang
 });
 ```
 
-- [ ] **Step 2: Run the focused RED suite.**
+- [x] **Step 2: Run the focused RED suite.**
 
 ```bash
 npx vitest run app/components/assessment.test.tsx --maxWorkers=1 --testTimeout=20000 --reporter=default
@@ -610,7 +610,7 @@ npx vitest run app/components/assessment.test.tsx --maxWorkers=1 --testTimeout=2
 
 Expected: the new test FAILS because the full prompt is still inside the `h1` and no visible description exists.
 
-- [ ] **Step 3: Resolve presentation after localization.**
+- [x] **Step 3: Resolve presentation after localization.**
 
 In `app/components/assessment.tsx`, import the resolver and component constants:
 
@@ -636,7 +636,7 @@ const promptPresentation = presentedQuestion
 
 Do not memoize this object and do not add `locale` to the question-focus effect dependency list.
 
-- [ ] **Step 4: Replace only the ordinary assessment heading.**
+- [x] **Step 4: Replace only the ordinary assessment heading.**
 
 Replace the current ordinary `<h1 id="question-title">` with:
 
@@ -661,7 +661,7 @@ questionDescriptionId={
 
 Retain `key={question.id}` exactly. Do not place a locale-dependent key on `QuestionPrompt`, `QuestionControl`, `article`, or `section`.
 
-- [ ] **Step 5: Run GREEN plus urgent, lab, intermission, and locale regressions.**
+- [x] **Step 5: Run GREEN plus urgent, lab, intermission, and locale regressions.**
 
 ```bash
 npx vitest run app/components/assessment.test.tsx app/components/question-control.test.tsx app/i18n/question-prompt-presentation.test.ts --maxWorkers=1 --testTimeout=20000 --reporter=default
@@ -669,7 +669,7 @@ npx vitest run app/components/assessment.test.tsx app/components/question-contro
 
 Expected: PASS. The selected `No` becomes checked `Non`, the French language button retains focus, new-question navigation focuses the question title, and urgent/lab/intermission flows remain unchanged.
 
-- [ ] **Step 6: Commit the assessment integration.**
+- [x] **Step 6: Commit the assessment integration.**
 
 ```bash
 git add app/components/assessment.tsx app/components/assessment.test.tsx
@@ -689,7 +689,7 @@ git commit -m "feat: integrate responsive question hierarchy"
 - Changes: only ordinary assessment layout proportions, question-sheet padding, and passive pillar chapter stacking.
 - Preserves: `.safety-screen h1`, controls, reduced-motion rules, print rules, and all non-assessment layouts.
 
-- [ ] **Step 1: Replace the obsolete CSS test with failing exact contracts.**
+- [x] **Step 1: Replace the obsolete CSS test with failing exact contracts.**
 
 Replace `uses the smaller question-heading scale at desktop and mobile widths` in `app/globals.test.ts` with:
 
@@ -728,7 +728,7 @@ test("gives the question more room while keeping the chapter rail passive", () =
 
 In the existing pillar-rail test, replace the mobile-only chapter-column assertion with a base assertion for `grid-template-columns: 1fr`. Keep the mobile layout assertion for the overall assessment at `max-width: 850px`.
 
-- [ ] **Step 2: Run the CSS RED suite.**
+- [x] **Step 2: Run the CSS RED suite.**
 
 ```bash
 npx vitest run app/globals.test.ts --maxWorkers=1 --testTimeout=20000 --reporter=default
@@ -736,7 +736,7 @@ npx vitest run app/globals.test.ts --maxWorkers=1 --testTimeout=20000 --reporter
 
 Expected: FAIL on the old `.72fr / 1.28fr` grid, 100 px gap, two-column chapter rail, 64 px sheet padding, and old heading clamps.
 
-- [ ] **Step 3: Apply the approved desktop proportions.**
+- [x] **Step 3: Apply the approved desktop proportions.**
 
 Change only these declarations:
 
@@ -767,7 +767,7 @@ Change only these declarations:
 }
 ```
 
-- [ ] **Step 4: Scope the title and detail styles.**
+- [x] **Step 4: Scope the title and detail styles.**
 
 Preserve the current generic question-heading declarations for the urgent screen by moving them to `.safety-screen h1`. Add the ordinary-question styles after them so the two surfaces are independent:
 
@@ -806,7 +806,7 @@ Preserve the current generic question-heading declarations for the urgent screen
 
 The later existing `.safety-screen h1 { margin-bottom: ... }` rule may remain; it intentionally preserves the urgent screen's narrower bottom-margin override.
 
-- [ ] **Step 5: Apply the mobile type scale without changing targets.**
+- [x] **Step 5: Apply the mobile type scale without changing targets.**
 
 In `@media (max-width: 560px)`, replace `.question-sheet h1` with:
 
@@ -826,7 +826,7 @@ In `@media (max-width: 560px)`, replace `.question-sheet h1` with:
 
 Keep `.question-sheet { min-height: 0; padding: 24px 18px 38px; }`, the 54 px answer-option height, and the one-column response/action adaptations unchanged.
 
-- [ ] **Step 6: Run GREEN and commit the visual system.**
+- [x] **Step 6: Run GREEN and commit the visual system.**
 
 ```bash
 npx vitest run app/globals.test.ts app/components/question-prompt.test.tsx app/components/assessment.test.tsx --maxWorkers=1 --testTimeout=20000 --reporter=default
@@ -851,7 +851,7 @@ Expected: all selected tests PASS; the urgent heading still has the old scale an
 - Consumes: the existing build scripts, local browser tooling, and Sites private-hosting workflow.
 - Does not produce: public access, analytics, remote media, new credentials in tracked files, or changes to clinical logic.
 
-- [ ] **Step 1: Run the full release matrix on Node 24.13.0.**
+- [x] **Step 1: Run the full release matrix on Node 24.13.0.**
 
 ```bash
 export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
@@ -870,7 +870,7 @@ test ! -e tsconfig.tsbuildinfo
 
 Expected: typecheck, lint, the complete Vitest suite, and Vinext build PASS; the production audit reports zero vulnerabilities; no incremental TypeScript artifact remains.
 
-- [ ] **Step 2: Start the production build and verify the worst desktop case.**
+- [x] **Step 2: Start the production build and verify the worst desktop case.**
 
 Start the production server from the built artifact in a PTY and wait for its ready message:
 
@@ -890,7 +890,7 @@ Record in the ignored evidence directory:
 
 Pass criteria: title, full detail, and the complete first response target all fit in the initial viewport; title computes between 34 and 44 px; detail computes between 16 and 18 px; horizontal scroll width equals client width.
 
-- [ ] **Step 3: Verify ordinary, mobile, zoom, focus, motion, and print cases.**
+- [x] **Step 3: Verify ordinary, mobile, zoom, focus, motion, and print cases.**
 
 Run these browser checkpoints against the same production server:
 
@@ -905,11 +905,11 @@ Run these browser checkpoints against the same production server:
 
 Save screenshots and concise observed measurements in `.superpowers/verification/question-typography-hierarchy/`; keep that evidence ignored.
 
-- [ ] **Step 4: Run an independent specification and code-quality review.**
+- [x] **Step 4: Run an independent specification and code-quality review.**
 
 Use `superpowers:requesting-code-review` with the approved design spec, this plan, the base commit `0574c9450fd80f61f9618cca3f560773e3bb3f09`, and current `HEAD`. Resolve every Critical or Important finding with a new focused failing test, implementation, and rerun of the affected suite. Re-run the full release matrix after any code change.
 
-- [ ] **Step 5: Record verified implementation status and commit.**
+- [x] **Step 5: Record verified implementation status and commit.**
 
 Change the design spec status to `implemented; private deployment pending`. Check completed plan boxes through Task 5 Step 5. Add a short section to `docs/privacy-and-release.md` stating that the presentation layer affects display only and leaves question/risk/export contracts unchanged.
 

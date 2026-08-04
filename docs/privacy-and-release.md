@@ -80,6 +80,10 @@ On exact source HEAD `cbaf5b591d18a95f2f7f3668bfe3e580cdfd45e1`, the fresh pinne
 
 Isolated-Chrome QA first exercised the broad production flow on `fd921df9b73757edc14dd982a26963e29c959259`, then rechecked the mobile file-input containment fix on `4892de5cf8e41b046e1446c6a226345f4b1e8bf3`. It covered desktop/mobile English and French, Quick's exact 20-question route, all four chapter introductions and result branches, evidence selection and keyboard operation, local laboratory import, reduced motion, print, and the local-only network/storage/cookie boundary. Lighthouse `13.4.1` scored Accessibility, Best Practices, and SEO at 100/100/100 for both desktop and mobile. The final focused Chrome run on exact HEAD `cbaf5b591d18a95f2f7f3668bfe3e580cdfd45e1` confirmed four passive progress labels, exactly one `aria-current` and one progressbar, Back retaining `1/20`, the localized French progress label, no horizontal overflow, terminal poster-error unmounting, and 37 localhost GETs with no POST, `Set-Cookie`, storage, console errors, or page errors. Independent final spec review is Ready after focus/poster corrections; independent final quality review is Ready after rail/media/foundation/progress corrections. Neither review has an open finding.
 
+### Question-prompt presentation boundary
+
+The bilingual short-title and detail catalog changes display and accessible description only. Canonical English/French questions, question IDs, answer and queue behavior, branching, risk and score calculations, laboratory handling, and raw/localized export contracts remain unchanged. Curated entries are guarded against canonical-copy drift and otherwise fall back to the complete localized prompt.
+
 ## Sites state and private-deployment record
 
 Immediately before the first deployment, the active Sites project used custom access with exactly one allowed account: a non-external owner. It had zero allowed groups, zero tenant/workspace group IDs, and zero external visitors; the access-policy revision was 1 and there was no earlier live URL or saved version. No credential is stored in this repository or this record.
