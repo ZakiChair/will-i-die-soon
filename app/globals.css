@@ -433,6 +433,7 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
 .lab-import__source { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; margin: 28px 0; }
 .lab-import__source label { grid-column: 1 / -1; font-weight: 750; }
 .lab-import__source input { min-height: 50px; border: 1px solid var(--ink); background: var(--paper); padding: 10px; }
+.lab-import__source input[type="file"] { width: 100%; min-width: 0; }
 .lab-import button { min-height: 48px; border: 1px solid var(--deep-water); color: var(--deep-water); background: transparent; padding: 10px 14px; font-weight: 700; }
 .lab-import button[type="submit"] { margin-left: 10px; color: var(--paper); background: var(--deep-water); }
 .lab-import [role="alert"] { padding: 15px; border: 1px solid var(--living-coral); background: rgb(255 111 97 / 7%); line-height: 1.55; }

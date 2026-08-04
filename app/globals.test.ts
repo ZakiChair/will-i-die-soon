@@ -81,6 +81,15 @@ describe("global interaction styles", () => {
     expect(css).toMatch(/@media print[\s\S]+\.landing__canopy-media,\s*\.intermission__media\s*\{[^}]*display:\s*none/s);
   });
 
+  test("contains the lab report file control within the import card", () => {
+    const fileInputRule = css.match(
+      /\.lab-import__source input\[type="file"\]\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+
+    expect(fileInputRule).toMatch(/width:\s*100%/);
+    expect(fileInputRule).toMatch(/min-width:\s*0/);
+  });
+
   test("crops decorative artwork responsively and removes video under reduced motion", () => {
     expect(css).toMatch(
       /\.landing__canopy-media\s+(?:img|> img)[^{]*\{[^}]*object-fit:\s*cover/s,
