@@ -58,10 +58,23 @@ describe("global interaction styles", () => {
     ).toBeGreaterThanOrEqual(3);
   });
 
-  test("retains focus-visible targeting and reduced-motion behavior", () => {
+  test("retains focus-visible targeting and reduced-motion behavior without canopy controls", () => {
     expect(css).toMatch(/button:focus-visible/);
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
-    expect(css).toMatch(/\.canopy__leaf:focus-visible[^}]+transform:\s*none/s);
+    expect(css).not.toMatch(/\.canopy__leaf/);
+  });
+
+  test("uses the botanical motif with readable and dense content surfaces", () => {
+    expect(css).toMatch(/--motif-canopy:\s*url\("\/media\/canopy-hero\.webp"\)/);
+    expect(css).toMatch(/--motif-wash:\s*rgb\(244 247 245 \/ 92%\)/);
+    expect(css).toMatch(/--motif-wash-dense:\s*rgb\(244 247 245 \/ 96%\)/);
+    expect(css).toMatch(/--surface-readable:\s*rgb\(255 255 255 \/ 88%\)/);
+    expect(css).toMatch(/body\s*\{[\s\S]*var\(--motif-canopy\)[^;]+no-repeat/s);
+    expect(css).toMatch(/\.consent__body[^{]*\{[^}]*background:\s*var\(--surface-readable\)/s);
+    expect(css).toMatch(/\.question-sheet[^{]*\{[^}]*background:\s*var\(--surface-readable\)/s);
+    expect(css).toMatch(/\.lab-import[^{]*\{[^}]*background:\s*var\(--motif-wash-dense\)/s);
+    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]+background-size:\s*100% 760px, auto 760px, 100% 100%/s);
+    expect(css).toMatch(/@media print[\s\S]+body\s*\{[^}]*background:\s*white[^}]*background-image:\s*none/s);
   });
 
   test("crops decorative artwork responsively and removes video under reduced motion", () => {

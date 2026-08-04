@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useI18n } from "../i18n/context";
 import { type UiCopyKey, uiCopyKeys } from "../i18n/ui-copy";
-import { LivingCanopy } from "./living-canopy";
 
 export type AnalysisDepth = "quick" | "detailed" | "deep";
 
@@ -120,11 +119,6 @@ export function Landing({ onStart }: LandingProps) {
                 </video>
               ) : null}
             </div>
-            <LivingCanopy
-              progress={0.28}
-              tone="calm"
-              reducedMotion={!motionAllowed}
-            />
           </div>
         </section>
 

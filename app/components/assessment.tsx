@@ -24,7 +24,6 @@ import type {
 } from "../lib/types";
 import { Intermission } from "./intermission";
 import { LabImport } from "./lab-import";
-import { LivingCanopy } from "./living-canopy";
 import { QuestionControl } from "./question-control";
 import { PillarProgress } from "./pillar-progress";
 import type { ConfirmedLabValue, LabMarker } from "../lib/labs";
@@ -72,7 +71,6 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
     answers: {},
   }));
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [reducedMotion, setReducedMotion] = useState(false);
   const [awaitingLabImport, setAwaitingLabImport] = useState(false);
   const [confirmedLabs, setConfirmedLabs] = useState<ConfirmedLabValue[]>([]);
   const [urgentLeaf, setUrgentLeaf] = useState<RiskLeaf | null>(null);
@@ -102,15 +100,6 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   useEffect(() => {
     if (urgentLeaf) urgentHeading.current?.focus();
   }, [urgentLeaf]);
-
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const updatePreference = () => setReducedMotion(media.matches);
-    updatePreference();
-    media.addEventListener("change", updatePreference);
-    return () => media.removeEventListener("change", updatePreference);
-  }, []);
 
   function advanceAfterAnswer(
     answeredQuestion: Question,
@@ -274,11 +263,6 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
           <progress value={currentIndex} max={queue.length}>
             {t("assessment.progress", { completed: currentIndex, total: queue.length })}
           </progress>
-          <LivingCanopy
-            progress={currentIndex / queue.length}
-            tone="calm"
-            reducedMotion={reducedMotion}
-          />
         </aside>
         <article className="question-sheet">
           <p className="assessment__progress" aria-live="polite">

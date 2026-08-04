@@ -64,6 +64,16 @@ test("starts the quick exploration from the landing action", async () => {
   expect(onStart).toHaveBeenCalledWith("quick");
 });
 
+test("keeps the canopy as non-interactive decorative media", () => {
+  const { container } = render(<Landing onStart={vi.fn()} />);
+
+  expect(screen.queryByRole("button", { name: /sleep|heart|habits|care/i })).not.toBeInTheDocument();
+  expect(container.querySelector(".canopy__leaf[aria-pressed]")).not.toBeInTheDocument();
+  expect(container.querySelectorAll(".canopy__branch, .canopy__trunk")).toHaveLength(0);
+  expect(container.querySelector(".landing__canopy-media img")).toBeInTheDocument();
+  expect(container.querySelectorAll(".landing__canopy-media [tabindex], .landing__canopy-media button, .landing__canopy-media a")).toHaveLength(0);
+});
+
 test("presents every landing section in French while keeping canonical depth values", async () => {
   const onStart = vi.fn();
   const user = userEvent.setup();

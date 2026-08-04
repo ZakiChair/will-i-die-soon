@@ -114,6 +114,8 @@ test("introduces the first available chapter before the first adult Quick questi
 
   await user.click(screen.getByRole("button", { name: "Continue assessment" }));
 
+  expect(screen.queryByRole("button", { name: /sleep|heart|habits|care/i })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Prefer not to say" })).toBeVisible();
   const chapters = screen.getByRole("region", { name: "Assessment chapters" });
   expect(chapters).toHaveTextContent("Cardio & energy");
   expect(chapters).toHaveTextContent("Strength & recovery");

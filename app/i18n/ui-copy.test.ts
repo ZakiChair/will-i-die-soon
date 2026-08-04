@@ -64,7 +64,6 @@ const expectedDynamicKeys = {
   domain: HEALTH_DOMAINS,
   labMarker: LAB_MARKERS,
   fasting: ["fasting", "not_fasting", "not_stated"],
-  canopyBranch: ["sleep", "heart", "habits", "care"],
   pillar: HEALTH_PILLARS,
   pillarShort: HEALTH_PILLARS,
   evidenceTier: [
@@ -101,6 +100,14 @@ function humanTypographySegments(key: UiCopyKey, message: string): string[] {
 }
 
 describe("complete bilingual UI copy", () => {
+  test("removes the dead decorative canopy copy and branch map", () => {
+    expect(uiCopy.en).not.toHaveProperty("canopy.aria");
+    expect(uiCopy.en).not.toHaveProperty("canopy.caption");
+    expect(uiCopy.fr).not.toHaveProperty("canopy.aria");
+    expect(uiCopy.fr).not.toHaveProperty("canopy.caption");
+    expect(uiCopyKeys).not.toHaveProperty("canopyBranch");
+  });
+
   test("keeps exact English/French key parity with nonblank copy and matching variables", () => {
     const englishKeys = Object.keys(uiCopy.en).sort();
     const frenchKeys = Object.keys(uiCopy.fr).sort();

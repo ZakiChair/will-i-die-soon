@@ -222,12 +222,6 @@ const en = {
   "lab.confirm": "Confirm selected results",
   "lab.cancel": "Continue without import",
 
-  "canopy.aria": "Canopy domains",
-  "canopy.caption": "A living map of connected health signals",
-  "canopyBranch.sleep": "Sleep",
-  "canopyBranch.heart": "Heart",
-  "canopyBranch.habits": "Habits",
-  "canopyBranch.care": "Care",
   "pillar.cardio-energy": "Cardio, VO₂ max & cellular energy",
   "pillar.strength-neural": "Strength, nervous system & recovery",
   "pillar.sleep-circadian": "Sleep & circadian rhythm",
@@ -582,12 +576,6 @@ const fr = {
   "lab.confirm": "Confirmer les résultats sélectionnés",
   "lab.cancel": "Continuer sans importation",
 
-  "canopy.aria": "Domaines de la canopée",
-  "canopy.caption": "Une carte vivante de signaux de santé reliés",
-  "canopyBranch.sleep": "Sommeil",
-  "canopyBranch.heart": "Cœur",
-  "canopyBranch.habits": "Habitudes",
-  "canopyBranch.care": "Soins",
   "pillar.cardio-energy": "Cardio, VO₂ max et énergie cellulaire",
   "pillar.strength-neural": "Force, système nerveux et récupération",
   "pillar.sleep-circadian": "Sommeil et rythme circadien",
@@ -806,12 +794,6 @@ export const uiCopyKeys = {
     fasting: "fasting.fasting",
     not_fasting: "fasting.not_fasting",
     not_stated: "fasting.not_stated",
-  },
-  canopyBranch: {
-    sleep: "canopyBranch.sleep",
-    heart: "canopyBranch.heart",
-    habits: "canopyBranch.habits",
-    care: "canopyBranch.care",
   },
   pillar: {
     "cardio-energy": "pillar.cardio-energy",
