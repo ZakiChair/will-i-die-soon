@@ -1,6 +1,6 @@
 # Privacy and release record
 
-Audit date: **2026-08-04**. Release state: **the first owner-only Sites deployment succeeded; redeployment of this final documentation commit remains pending under Task 7 Step 5**.
+Audit date: **2026-08-04**. Release state: **active private owner-only release**. Version 2 is the final verified deployed-product baseline; this documentation-only closure will be privately published next and its exact SHA/version attestation will be appended to the ignored Task 7 evidence report without another tracked documentation mutation.
 
 ## Data boundary
 
@@ -80,21 +80,14 @@ On exact source HEAD `cbaf5b591d18a95f2f7f3668bfe3e580cdfd45e1`, the fresh pinne
 
 Isolated-Chrome QA first exercised the broad production flow on `fd921df9b73757edc14dd982a26963e29c959259`, then rechecked the mobile file-input containment fix on `4892de5cf8e41b046e1446c6a226345f4b1e8bf3`. It covered desktop/mobile English and French, Quick's exact 20-question route, all four chapter introductions and result branches, evidence selection and keyboard operation, local laboratory import, reduced motion, print, and the local-only network/storage/cookie boundary. Lighthouse `13.4.1` scored Accessibility, Best Practices, and SEO at 100/100/100 for both desktop and mobile. The final focused Chrome run on exact HEAD `cbaf5b591d18a95f2f7f3668bfe3e580cdfd45e1` confirmed four passive progress labels, exactly one `aria-current` and one progressbar, Back retaining `1/20`, the localized French progress label, no horizontal overflow, terminal poster-error unmounting, and 37 localhost GETs with no POST, `Set-Cookie`, storage, console errors, or page errors. Independent final spec review is Ready after focus/poster corrections; independent final quality review is Ready after rail/media/foundation/progress corrections. Neither review has an open finding.
 
-## Sites state and first private-deployment record
+## Sites state and private-deployment record
 
 Immediately before the first deployment, the active Sites project used custom access with exactly one allowed account: a non-external owner. It had zero allowed groups, zero tenant/workspace group IDs, and zero external visitors; the access-policy revision was 1 and there was no earlier live URL or saved version. No credential is stored in this repository or this record.
 
-The reviewed remote Sites source branch `main` was pushed and independently verified at `696e500611b4827ba44e5d44e52f7f0a4bce4aca`; temporary transport references were removed. The official package archive was validated, and the privately deployed saved version was **version 1** with that exact source commit. The owner-only deployment succeeded at **2026-08-04T10:41:29.202972+00:00** and is available at **https://will-i-die-soon-health-map.zaki-chair.chatgpt.site**. The private deployment method accepted the owner-only access policy.
+The reviewed remote Sites source branch `main` was first pushed and independently verified at `696e500611b4827ba44e5d44e52f7f0a4bce4aca`. The official package archive was validated, and the first owner-only deployment saved **version 1** from that exact source commit. It succeeded at **2026-08-04T10:41:29.202972+00:00** and is available at **https://will-i-die-soon-health-map.zaki-chair.chatgpt.site**.
 
-This is the first deployment evidence, not a claim that version 1 contains this documentation commit. Because this record changes the source SHA, exact-final-documentation redeployment remains pending until **Task 7 Step 5**. Final browser and network product gates remain part of Task 7 Step 6.
+The final verified deployed-product baseline then saved and privately deployed **version 2** from exact local and remote source `e2666f09f736cc35a28e387257f492660085ba03` at the same URL. Deployment reached terminal success; the exact source match and final deployed-product QA passed. At the final recheck, custom access allowed exactly one non-external owner, with zero allowed groups, tenant/workspace group IDs, or external visitors. The current release remains in that owner-only state; no credential is stored in this repository or record.
 
-For the final documented commit, the owner/controller must complete all of the following:
-
-1. Re-run TypeScript with incremental output disabled, affected and full tests, lint, production build, production audit, diff check, first-party scans, public-asset audit, and the production-like PDF/image network check; confirm no `.tsbuildinfo` or credential entered source.
-2. Confirm the canonical request-host metadata and response security headers in the production-like runtime, including a hostile-header fallback case and the actual private HTTPS host.
-3. Reconfirm access immediately before deployment: exactly the intended owner is allowed; groups and external visitors remain zero. Do not use a public or link-access path.
-4. Push the exact verified commit to the Sites source repository, save a version for that exact commit, and privately deploy that saved version. Do not rebuild from an uncommitted or different source state.
-5. Poll deployment to terminal success; verify the deployed source identity, owner-only access from both allowed and disallowed sessions, canonical/OG/favicon URLs, response headers, EN/FR journeys, reduced motion, print/JSON, restart clearing, and zero outbound answer/parser-fallback requests.
-6. Record the private URL, commit, saved version, access evidence, deployment status, browser/network evidence, and any platform-log retention decision in an owner-controlled release record without exposing credentials.
+Task 7 Steps 5 and 6 are complete for version 2: the exact source was reverified, saved, and privately deployed, then the authenticated owner session passed metadata/header, English/French, four-pillar, evidence-selection, reduced-motion, print/JSON, clearing, and local-only request checks. The closure commit containing this documentation is deliberately documentation-only and changes the source SHA. It will be published immediately as the next exact owner-only saved version. After terminal success, the controller will append that version and exact SHA match to the ignored Task 7 evidence report, avoiding a further tracked mutation that would itself require redeployment.
 
 Public access, a public wellness edition, and regulated medical modules remain separate release decisions and require new review. A disclaimer alone does not satisfy those gates.

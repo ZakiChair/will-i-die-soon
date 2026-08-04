@@ -20,7 +20,7 @@
 - No new runtime dependency, backend, analytics, cookie, browser storage, remote media, remote OCR/PDF worker, or answer upload.
 - Question typography remains `clamp(1.9rem, 3.4vw, 3.75rem)` and mobile `clamp(1.7rem, 7.4vw, 2.6rem)`.
 - Decorative media carries no interaction or semantic information. Motion is muted, inline, nonessential, visibility-gated, and absent under `prefers-reduced-motion`.
-- Use the pinned `/Users/zakichair/.nvm/versions/node/v24.13.0/bin` toolchain for installs, tests, lint, build, and audits.
+- Use Node `v24.13.0` for installs, tests, lint, build, and audits; expose its bin directory through `$NVM_BIN`.
 - Hosting remains private and owner-only. Never call the public Sites deployment method without a separate user approval.
 
 ---
@@ -117,7 +117,7 @@ Also assert every question override names a real question and differs from its d
 Run:
 
 ```bash
-export PATH=/Users/zakichair/.nvm/versions/node/v24.13.0/bin:$PATH
+export PATH="$NVM_BIN:$PATH"
 npx vitest run app/lib/health-pillars.test.ts
 ```
 
@@ -813,7 +813,7 @@ Document the four-pillar presentation layer, the 243/47/54 exhaustive mapping te
 - [x] **Step 2: Run the exact full verification matrix under Node 24.**
 
 ```bash
-export PATH=/Users/zakichair/.nvm/versions/node/v24.13.0/bin:$PATH
+export PATH="$NVM_BIN:$PATH"
 node --version
 npm --version
 npm ci
@@ -908,14 +908,14 @@ git add docs/privacy-and-release.md docs/superpowers/specs/2026-08-04-four-pilla
 git commit -m "docs: record private four-pillar deployment"
 ```
 
-The first owner-only deployment succeeded on 2026-08-04T10:41:29.202972+00:00 at `https://will-i-die-soon-health-map.zaki-chair.chatgpt.site`. It saved version 1 from source commit `696e500611b4827ba44e5d44e52f7f0a4bce4aca` after the official package archive was validated. Immediately before deployment, custom access allowed exactly one non-external owner, with zero groups, zero tenant/workspace group IDs, and zero external visitors; no credential is stored in these documents. This documentation commit changes the source SHA, so exact-final-documentation redeployment remains pending until Step 5.
+The first owner-only deployment succeeded on 2026-08-04T10:41:29.202972+00:00 at `https://will-i-die-soon-health-map.zaki-chair.chatgpt.site`. It saved version 1 from source commit `696e500611b4827ba44e5d44e52f7f0a4bce4aca` after the official package archive was validated. Immediately before deployment, custom access allowed exactly one non-external owner, with zero groups, zero tenant/workspace group IDs, and zero external visitors; no credential is stored in these documents. Version 2 was subsequently saved and privately deployed at the same URL from exact local and remote source `e2666f09f736cc35a28e387257f492660085ba03`; terminal success, exact-source matching, owner-only access, and deployed-product QA all passed.
 
-- [ ] **Step 5: Reverify and deploy the final documented commit.**
+- [x] **Step 5: Reverify and deploy the final documented commit.**
 
 Because Step 4 changes the source SHA, rerun on exact final HEAD:
 
 ```bash
-export PATH=/Users/zakichair/.nvm/versions/node/v24.13.0/bin:$PATH
+export PATH="$NVM_BIN:$PATH"
 npx tsc --noEmit --incremental false --pretty false
 npm run lint
 npm test -- --run
@@ -925,11 +925,13 @@ git diff --check
 git status --short
 ```
 
-Push the final SHA with a fresh ephemeral credential, package/save it, and deploy it privately again. Poll to success. Confirm the final Sites version commit equals local `HEAD` and access remains owner-only.
+The final verified product source `e2666f09f736cc35a28e387257f492660085ba03` was pushed with a fresh ephemeral credential, packaged/saved as version 2, and privately deployed to terminal success. The final Sites version commit matched local `HEAD` at verification, and access remained owner-only.
 
-- [ ] **Step 6: Verify the deployed product, then run branch completion handoff.**
+- [x] **Step 6: Verify the deployed product, then run branch completion handoff.**
 
-On the final URL, repeat landing metadata/security headers, EN/FR switch, first pillar intro, reduced motion, no storage/cookies, no obsolete canopy controls, four result pillars, evidence selection, and local-only runtime request checks. Then invoke `superpowers:finishing-a-development-branch` and present its exact three branch options to the user without auto-merging.
+On the version 2 URL, the authenticated owner session passed landing metadata/security headers, the EN/FR switch, first-pillar introduction, reduced motion, no storage/cookies, no obsolete canopy controls, four result pillars, evidence selection, and local-only runtime request checks. Branch-completion handoff was then performed.
+
+This tracked closure is documentation-only and therefore changes the source SHA after the version 2 attestation. It will be privately published immediately as the next exact owner-only saved version. Its observed SHA/version match belongs in the ignored Task 7 report, so no further tracked documentation mutation creates another redeployment cycle.
 
 ---
 
@@ -941,4 +943,4 @@ On the final URL, repeat landing metadata/security headers, EN/FR switch, first 
 - [x] Questionnaire budgets and clinical/export contracts remain unchanged.
 - [x] All new copy is complete in EN/FR.
 - [x] The generated artwork and both motion moments have static/reduced-motion fallbacks.
-- [ ] Final private deployment matches the final documented commit SHA.
+- [x] Final deployed-product attestation matched the exact final source SHA: version 2 / `e2666f09f736cc35a28e387257f492660085ba03`.
