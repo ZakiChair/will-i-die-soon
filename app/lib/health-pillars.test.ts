@@ -69,10 +69,31 @@ test("keeps every conditional gate in the same or an earlier pillar", () => {
       }
     }
   }
-  expect(questionBank).toHaveLength(243);
+  expect(questionBank).toHaveLength(246);
   expect(conditionalQuestions).toBe(88);
   expect(gateEdges).toBe(98);
   expect(violations).toEqual([]);
+});
+
+test("maps adult Express performance questions to their intended pillars", () => {
+  const byId = new Map(questionBank.map((question) => [question.id, question]));
+
+  expect(healthPillarForQuestion(byId.get("reported_vo2_max_ml_kg_min")!)).toBe(
+    "cardio-energy",
+  );
+  expect(healthPillarForQuestion(byId.get("squat_one_rep_max_kg")!)).toBe(
+    "strength-neural",
+  );
+  expect(healthPillarForQuestion(byId.get("deadlift_one_rep_max_kg")!)).toBe(
+    "strength-neural",
+  );
+  for (const id of [
+    "reported_vo2_max_ml_kg_min",
+    "squat_one_rep_max_kg",
+    "deadlift_one_rep_max_kg",
+  ]) {
+    expect(byId.get(id)).toMatchObject({ id, minAge: 18 });
+  }
 });
 
 test("groups without changing IDs and preserves order inside each pillar", () => {

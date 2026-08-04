@@ -23,6 +23,17 @@ import type {
 const adult = { age: 35, countryCode: "CH" };
 const child = { age: 12, countryCode: "CH", assistedMinor: true };
 const adolescent = { age: 15, countryCode: "CH" };
+const expressIds = [
+  "reported_vo2_max_ml_kg_min",
+  "squat_one_rep_max_kg",
+  "deadlift_one_rep_max_kg",
+  "usual_sleep_hours",
+  "sleep_refreshed",
+  "height_cm",
+  "weight_kg",
+  "plant_food_frequency",
+  "diet_ultra_processed",
+] as const;
 const medicationBehaviorIds = [
   "adherence_missed_doses",
   "adherence_access_barriers",
@@ -357,6 +368,32 @@ describe("question bank invariants", () => {
 });
 
 describe("questionnaire selection", () => {
+  test("builds the exact adult Express queue and keeps it stable after answers", () => {
+    const initial = buildAssessmentQueue("express", questionBank, adult, {});
+    expect(initial.map(({ id }) => id)).toEqual(expressIds);
+
+    const reconciled = reconcileAssessmentState(
+      "express",
+      questionBank,
+      adult,
+      { reported_vo2_max_ml_kg_min: 48, weight_kg: 80 },
+    );
+    expect(reconciled.queue.map(({ id }) => id)).toEqual(expressIds);
+    expect(reconciled.answers).toMatchObject({
+      reported_vo2_max_ml_kg_min: 48,
+      weight_kg: 80,
+    });
+  });
+
+  test("offers Express only to adults and refuses a short minor queue", () => {
+    expect(getAvailableDepths(questionBank, adult, {})[0]).toBe("express");
+    expect(getAvailableDepths(questionBank, child, {})).not.toContain("express");
+    expect(getAvailableDepths(questionBank, adolescent, {})).not.toContain("express");
+    expect(() => buildAssessmentQueue("express", questionBank, child, {})).toThrow(
+      /Express assessment is available only to adults/i,
+    );
+  });
+
   test("groups queues after selection without changing budgets or selected IDs", () => {
     const pillarOrder = new Map(HEALTH_PILLARS.map((pillar, index) => [pillar, index]));
 
@@ -566,6 +603,7 @@ describe("questionnaire selection", () => {
       "detailed",
     ]);
     expect(getAvailableDepths(questionBank, adult, {})).toEqual([
+      "express",
       "quick",
       "detailed",
       "deep",

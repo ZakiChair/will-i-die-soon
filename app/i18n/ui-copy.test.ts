@@ -59,7 +59,7 @@ const HEALTH_DOMAINS = [
 ] as const satisfies ReadonlyArray<HealthDomain>;
 
 const expectedDynamicKeys = {
-  depth: ["quick", "detailed", "deep"],
+  depth: ["express", "quick", "detailed", "deep"],
   country: ["CH", "GB", "US", "OTHER"],
   domain: HEALTH_DOMAINS,
   labMarker: LAB_MARKERS,

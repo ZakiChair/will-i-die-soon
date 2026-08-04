@@ -1,4 +1,4 @@
-export type AnalysisDepth = "quick" | "detailed" | "deep";
+export type AnalysisDepth = "express" | "quick" | "detailed" | "deep";
 
 export type HealthDomain =
   | "demographics"

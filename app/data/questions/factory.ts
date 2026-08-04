@@ -16,6 +16,7 @@ export function defineQuestions(seeds: ReadonlyArray<QuestionSeed>): Question[] 
 }
 
 export const allDepths = ["quick", "detailed", "deep"] as const;
+export const expressAndAllDepths = ["express", ...allDepths] as const;
 
 export const yesNoOptions = [
   { value: "yes", label: "Yes" },

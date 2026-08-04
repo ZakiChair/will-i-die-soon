@@ -62,6 +62,9 @@ export const DEFAULT_PILLAR_BY_DOMAIN = {
 } as const satisfies Record<HealthDomain, HealthPillar>;
 
 export const QUESTION_PILLAR_OVERRIDES = {
+  reported_vo2_max_ml_kg_min: "cardio-energy",
+  squat_one_rep_max_kg: "strength-neural",
+  deadlift_one_rep_max_kg: "strength-neural",
   family_diabetes: "nutrition-metabolic",
   diagnosed_high_cholesterol: "nutrition-metabolic",
   pain_interference: "strength-neural",

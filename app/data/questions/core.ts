@@ -1,4 +1,4 @@
-import { allDepths, defineQuestions } from "./factory";
+import { allDepths, defineQuestions, expressAndAllDepths } from "./factory";
 
 export const coreQuestions = defineQuestions([
   {
@@ -24,7 +24,7 @@ export const coreQuestions = defineQuestions([
     why: "Height combines with weight for transparent body-size context, without diagnosing health.",
     answerType: "number",
     priority: 2,
-    tiers: allDepths,
+    tiers: expressAndAllDepths,
   },
   {
     id: "weight_kg",
@@ -34,7 +34,7 @@ export const coreQuestions = defineQuestions([
     answerType: "number",
     sensitive: true,
     priority: 3,
-    tiers: allDepths,
+    tiers: expressAndAllDepths,
   },
   {
     id: "family_early_cvd",
@@ -92,7 +92,7 @@ export const coreQuestions = defineQuestions([
     why: "Plant-food frequency is a useful, modifiable marker of overall dietary pattern.",
     answerType: "number",
     priority: 8,
-    tiers: allDepths,
+    tiers: expressAndAllDepths,
     consumers: ["nutrition-pattern", "purity-score"],
   },
   {
@@ -112,7 +112,7 @@ export const coreQuestions = defineQuestions([
     why: "Sleep duration helps route questions about recovery, schedule, and daytime function.",
     answerType: "number",
     priority: 10,
-    tiers: allDepths,
+    tiers: expressAndAllDepths,
     consumers: ["sleep-pattern", "purity-score"],
   },
   {

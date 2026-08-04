@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { questionBank } from "../data/questions";
 import type { Question } from "../lib/types";
 import { frQuestionTranslations, localizeQuestion } from "./questions-fr";
+import { questionUnitKeys } from "./ui-copy";
 
 function nonPresentationFields(question: Question): Record<string, unknown> {
   return Object.fromEntries(
@@ -12,8 +13,8 @@ function nonPresentationFields(question: Question): Record<string, unknown> {
 }
 
 describe("French question translations", () => {
-  it("covers the audited 243-question bank with every canonical option value", () => {
-    expect(questionBank).toHaveLength(243);
+  it("covers the audited 246-question bank with every canonical option value", () => {
+    expect(questionBank).toHaveLength(246);
     expect(Object.keys(frQuestionTranslations).sort()).toEqual(
       questionBank.map(({ id }) => id).sort(),
     );
@@ -27,6 +28,14 @@ describe("French question translations", () => {
         (question.options ?? []).map(({ value }) => value).sort(),
       );
     }
+  });
+
+  it("keeps unit keys for every numeric Express performance question", () => {
+    expect(questionUnitKeys).toMatchObject({
+      reported_vo2_max_ml_kg_min: "unit.reported_vo2_max_ml_kg_min",
+      squat_one_rep_max_kg: "unit.squat_one_rep_max_kg",
+      deadlift_one_rep_max_kg: "unit.deadlift_one_rep_max_kg",
+    });
   });
 
   it("returns the canonical question unchanged for English", () => {

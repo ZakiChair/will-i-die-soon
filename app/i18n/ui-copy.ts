@@ -7,6 +7,7 @@ const en = {
   "language.french": "Français",
   "language.current": "Current language: {language}",
 
+  "depth.express": "Express",
   "depth.quick": "Quick",
   "depth.detailed": "Detailed",
   "depth.deep": "Deep",
@@ -139,6 +140,9 @@ const en = {
 
   "unit.height_cm": "cm",
   "unit.weight_kg": "kg",
+  "unit.reported_vo2_max_ml_kg_min": "mL/kg/min",
+  "unit.squat_one_rep_max_kg": "kg",
+  "unit.deadlift_one_rep_max_kg": "kg",
   "unit.plant_food_frequency": "portions / day",
   "unit.weekly_moderate_activity_minutes": "minutes / week",
   "unit.usual_sleep_hours": "hours / day",
@@ -364,6 +368,7 @@ const fr = {
   "language.french": "Français",
   "language.current": "Langue actuelle : {language}",
 
+  "depth.express": "Express",
   "depth.quick": "Rapide",
   "depth.detailed": "Détaillée",
   "depth.deep": "Approfondie",
@@ -496,6 +501,9 @@ const fr = {
 
   "unit.height_cm": "cm",
   "unit.weight_kg": "kg",
+  "unit.reported_vo2_max_ml_kg_min": "mL/kg/min",
+  "unit.squat_one_rep_max_kg": "kg",
+  "unit.deadlift_one_rep_max_kg": "kg",
   "unit.plant_food_frequency": "portions / jour",
   "unit.weekly_moderate_activity_minutes": "minutes / semaine",
   "unit.usual_sleep_hours": "heures / jour",
@@ -721,6 +729,7 @@ export type UiCopyKey = keyof typeof uiCopy.en;
 
 export const uiCopyKeys = {
   depth: {
+    express: "depth.express",
     quick: "depth.quick",
     detailed: "depth.detailed",
     deep: "depth.deep",
@@ -855,6 +864,9 @@ export const uiCopyKeys = {
 export const questionUnitKeys = {
   height_cm: "unit.height_cm",
   weight_kg: "unit.weight_kg",
+  reported_vo2_max_ml_kg_min: "unit.reported_vo2_max_ml_kg_min",
+  squat_one_rep_max_kg: "unit.squat_one_rep_max_kg",
+  deadlift_one_rep_max_kg: "unit.deadlift_one_rep_max_kg",
   plant_food_frequency: "unit.plant_food_frequency",
   weekly_moderate_activity_minutes: "unit.weekly_moderate_activity_minutes",
   usual_sleep_hours: "unit.usual_sleep_hours",

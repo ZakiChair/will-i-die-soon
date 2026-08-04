@@ -9,19 +9,38 @@ import type {
 } from "./types";
 import { groupQuestionsByPillar } from "./health-pillars";
 
+export const EXPRESS_QUESTION_IDS = [
+  "reported_vo2_max_ml_kg_min",
+  "squat_one_rep_max_kg",
+  "deadlift_one_rep_max_kg",
+  "usual_sleep_hours",
+  "sleep_refreshed",
+  "height_cm",
+  "weight_kg",
+  "plant_food_frequency",
+  "diet_ultra_processed",
+] as const;
+
 const DEPTH_LIMITS: Readonly<Record<AnalysisDepth, number>> = {
+  express: 9,
   quick: 20,
   detailed: 50,
   deep: 200,
 };
 
 const DEPTH_MINIMUMS: Readonly<Record<AnalysisDepth, number>> = {
+  express: 9,
   quick: 20,
   detailed: 50,
   deep: 150,
 };
 
-const DEPTH_ORDER: ReadonlyArray<AnalysisDepth> = ["quick", "detailed", "deep"];
+const DEPTH_ORDER: ReadonlyArray<AnalysisDepth> = [
+  "express",
+  "quick",
+  "detailed",
+  "deep",
+];
 
 function valuesEqual(left: AnswerValue | undefined, right: AnswerValue): boolean {
   if (Array.isArray(left) || Array.isArray(right)) {
@@ -170,6 +189,10 @@ export function getAvailableDepths(
 
   return DEPTH_ORDER.filter(
     (depth) => {
+      if (depth === "express") {
+        const eligibleIds = new Set(eligible.map((question) => question.id));
+        return EXPRESS_QUESTION_IDS.every((id) => eligibleIds.has(id));
+      }
       const depthEligible = eligible.filter((question) => question.tiers.includes(depth));
       const availableCount =
         depth === "deep"
@@ -209,6 +232,21 @@ function selectAssessmentQuestions(
   eligible: ReadonlyArray<Question>,
   answers: AnswerMap,
 ): Question[] {
+  if (depth === "express") {
+    const questionsById = new Map(eligible.map((question) => [question.id, question]));
+    const selected: Question[] = [];
+    for (const id of EXPRESS_QUESTION_IDS) {
+      const question = questionsById.get(id);
+      if (!question) {
+        throw new RangeError(
+          "Express assessment is available only to adults with all nine eligible questions.",
+        );
+      }
+      selected.push(question);
+    }
+    return selected;
+  }
+
   if (depth === "deep") {
     const base = eligible
       .filter((question) => question.condition === undefined)
