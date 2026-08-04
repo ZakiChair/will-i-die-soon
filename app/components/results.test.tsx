@@ -42,12 +42,13 @@ const source = {
 
 function riskLeaf(
   id: string,
+  ruleId: string,
   title: string,
   urgency: RiskLeaf["urgency"],
 ): RiskLeaf {
   return {
     id,
-    ruleId: id,
+    ruleId,
     rulesetVersion: "risk-rules-v1",
     group:
       urgency === "urgent"
@@ -126,29 +127,30 @@ async function readBlob(blob: Blob) {
   return JSON.parse(text) as Record<string, unknown>;
 }
 
-test("the risk canopy is complete semantic navigation with an adjacent evidence panel", async () => {
+test("the health signal pillars are complete semantic navigation with an adjacent evidence panel", async () => {
   const user = userEvent.setup();
   render(
     <RiskTree
       leaves={[
-        riskLeaf("urgent", "Immediate breathing signal", "urgent"),
-        riskLeaf("review", "Follow-up conversation", "prompt-review"),
-        riskLeaf("longer", "Longer-term sleep pattern", "long-term"),
+        riskLeaf("urgent", "urgent-breathing", "Immediate breathing signal", "urgent"),
+        riskLeaf("review", "low-mood-support", "Follow-up conversation", "prompt-review"),
+        riskLeaf("longer", "adult-short-sleep", "Longer-term sleep pattern", "long-term"),
       ]}
       protectiveRoots={["Reliable social support", "Morning light"]}
     />,
   );
 
-  const navigation = screen.getByRole("navigation", { name: /living risk canopy/i });
+  const navigation = screen.getByRole("navigation", { name: /health signal pillars/i });
   expect(within(navigation).getByText("You today")).toBeVisible();
-  expect(within(navigation).getByText("Urgent signals")).toBeVisible();
-  expect(within(navigation).getByText("Medical review")).toBeVisible();
-  expect(within(navigation).getByText("Longer-term domains")).toBeVisible();
+  expect(within(navigation).getByText("Cardio, VO₂ max & cellular energy")).toBeVisible();
+  expect(within(navigation).getByText("Strength, nervous system & recovery")).toBeVisible();
+  expect(within(navigation).getByText("Sleep & circadian rhythm")).toBeVisible();
+  expect(within(navigation).getByText("Nutrition & metabolic health")).toBeVisible();
   expect(within(navigation).getByText("Protective roots")).toBeVisible();
-  expect(within(navigation).getAllByRole("list").length).toBeGreaterThanOrEqual(5);
+  expect(within(navigation).getAllByRole("listitem", { name: /pillar/i })).toHaveLength(4);
 
   const reviewButton = within(navigation).getByRole("button", {
-    name: "Follow-up conversation",
+    name: /Follow-up conversation/,
   });
   await user.click(reviewButton);
 
@@ -184,6 +186,35 @@ test("urgent findings render before the adult habits score without changing its 
   ).toBeTruthy();
   expect(screen.getByText(/100 \/ 100 · 100% answer coverage/i)).toBeVisible();
   expect(document.body.textContent).not.toMatch(/your disease probability|\byou will (?:live|die)\b/i);
+});
+
+test("urgent-chest remains in the urgent summary and Cardio with its canonical evidence source", async () => {
+  const user = userEvent.setup();
+  render(
+    <Results
+      answers={{ urgent_chest_discomfort_now: true }}
+      assessmentDepth="quick"
+      confirmedLabs={[]}
+      profile={{ age: 35, countryCode: "CH" }}
+      onRestart={vi.fn()}
+    />,
+  );
+
+  const urgent = screen.getByRole("alert");
+  expect(urgent).toHaveTextContent("Immediate cardiopulmonary action");
+  const cardio = screen.getByRole("listitem", {
+    name: "Cardio, VO₂ max & cellular energy pillar",
+  });
+  const chestLeaf = within(cardio).getByRole("button", {
+    name: /Immediate cardiopulmonary action.*Urgent.*Authoritative safety/i,
+  });
+  await user.click(chestLeaf);
+  expect(screen.getByRole("region", { name: "Immediate cardiopulmonary action" }))
+    .toHaveTextContent("Chest pain");
+  expect(screen.getByRole("link", { name: "Chest pain" })).toHaveAttribute(
+    "href",
+    "https://www.nhs.uk/conditions/chest-pain/",
+  );
 });
 
 test("a merged support action renders every applicable reason and source link", () => {
@@ -314,7 +345,7 @@ test("assisted adolescents see urgent instructions before a neutral private-resu
     urgent.compareDocumentPosition(handoff) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   expect(screen.getByText(/move to a private place if it is safe/i)).toBeVisible();
-  expect(screen.queryByRole("navigation", { name: /living risk canopy/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("navigation", { name: /health signal pillars/i })).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "My Health Habits Map" })).not.toBeInTheDocument();
   expect(screen.queryByText(/pregnancy-related health service/i)).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: /confirmed lab context/i })).not.toBeInTheDocument();
@@ -324,9 +355,9 @@ test("assisted adolescents see urgent instructions before a neutral private-resu
   await user.click(screen.getByRole("button", { name: /show my private results/i }));
 
   expect(
-    screen.getByRole("heading", { name: /a living canopy you can inspect/i }),
+    screen.getByRole("heading", { name: /four health pillars you can inspect/i }),
   ).toHaveFocus();
-  expect(screen.getByRole("navigation", { name: /living risk canopy/i })).toBeVisible();
+  expect(screen.getByRole("navigation", { name: /health signal pillars/i })).toBeVisible();
   expect(screen.getByRole("heading", { name: "My Health Habits Map" })).toBeVisible();
   expect(screen.getByText(/pregnancy-related health service/i)).toBeVisible();
   expect(screen.getByRole("region", { name: /confirmed lab context/i })).toBeVisible();
@@ -355,7 +386,7 @@ test("children under 13 receive general information and guardian routing only", 
   expect(document.body.textContent).not.toMatch(
     /purity score|my health habits map|\b\d+\s*\/\s*100\b|\bpoints?\b|\bgrade\b/i,
   );
-  expect(screen.queryByRole("navigation", { name: /living risk canopy/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("navigation", { name: /health signal pillars/i })).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: /confirmed lab context/i })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /print or save as pdf/i })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /download json/i })).not.toBeInTheDocument();
@@ -558,13 +589,16 @@ test("keeps the selected evidence leaf and raw-answer choice while exporting equ
     name: /include structured raw answers in json/i,
   });
   await user.click(rawToggle);
-  const canopy = screen.getByRole("navigation", { name: /living risk canopy/i });
+  const canopy = screen.getByRole("navigation", { name: /health signal pillars/i });
   const leafButtons = within(canopy).getAllByRole("button");
   const selected = leafButtons.at(-1);
   expect(selected).toBeDefined();
   if (!selected) return;
   await user.click(selected);
-  const selectedPanelId = screen.getByRole("region", { name: selected.textContent ?? "" }).id;
+  const selectedTitle = selected.querySelector(".risk-tree__leaf-title")?.textContent;
+  expect(selectedTitle).toBeTruthy();
+  if (!selectedTitle) return;
+  const selectedPanelId = screen.getByRole("region", { name: selectedTitle }).id;
 
   await user.click(screen.getByRole("button", { name: "Download JSON" }));
   const english = await readBlob(blobs[0]);
@@ -629,9 +663,9 @@ test("localizes adolescent, assisted-handoff, and child result routes without ex
   });
   await user.click(screen.getByRole("button", { name: "Français" }));
   expect(screen.getByRole("heading", { name: "Vos résultats privés sont prêts" })).toBeVisible();
-  expect(screen.queryByRole("navigation", { name: /canopée vivante/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("navigation", { name: /piliers de signaux de santé/i })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Afficher mes résultats privés" }));
-  expect(screen.getByRole("heading", { name: "Une canopée vivante que vous pouvez examiner." }))
+  expect(screen.getByRole("heading", { name: "Quatre piliers de santé que vous pouvez examiner." }))
     .toHaveFocus();
   expect(screen.getByRole("heading", { name: "Ma carte des habitudes de santé" })).toBeVisible();
   assisted.unmount();

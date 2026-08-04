@@ -73,6 +73,7 @@ const expectedDynamicKeys = {
     "evidence-limited-association",
   ],
   riskSignal: ["urgent", "high-signal", "worth-attention", "low-signal"],
+  riskUrgency: ["urgent", "prompt-review", "long-term", "support"],
   componentStatus: ["answered", "missing", "excluded"],
   exclusionReason: [
     "prescribed-nrt-quit-plan",
@@ -166,6 +167,14 @@ describe("complete bilingual UI copy", () => {
       "Authoritative safety",
     );
     expect(uiCopy.en["evidenceTier.guideline-action"]).toBe("Guideline action");
+    expect(uiCopy.en["riskUrgency.urgent"]).toBe("Urgent");
+    expect(uiCopy.en["riskUrgency.prompt-review"]).toBe("Prompt review");
+    expect(uiCopy.en["riskUrgency.long-term"]).toBe("Longer-term");
+    expect(uiCopy.en["riskUrgency.support"]).toBe("Support");
+    expect(uiCopy.fr["riskUrgency.urgent"]).toBe("Urgent");
+    expect(uiCopy.fr["riskUrgency.prompt-review"]).toBe("À examiner rapidement");
+    expect(uiCopy.fr["riskUrgency.long-term"]).toBe("À plus long terme");
+    expect(uiCopy.fr["riskUrgency.support"]).toBe("Soutien");
     expect(uiCopy.en["adolescentSupport.adolescent_pregnancy_support"]).toBe(
       "pregnancy-related health",
     );
@@ -183,6 +192,15 @@ describe("complete bilingual UI copy", () => {
     expect(uiCopy.fr["adolescentSupport.adolescent_alcohol_support"]).toMatch(/^l'/);
     expect(uiCopy.fr["riskTree.noMissing"]).not.toMatch(/requise?/i);
     expect(uiCopy.fr["domain.isotretinoin"]).toBe("Isotretinoin");
+  });
+
+  test("uses four-pillar language for result navigation in both locales", () => {
+    expect(uiCopy.en["riskTree.aria"]).toBe("Health signal pillars");
+    expect(uiCopy.fr["riskTree.aria"]).toBe("Piliers de signaux de santé");
+    expect(uiCopy.en["riskTree.pillar.aria"]).toBe("{pillar} pillar");
+    expect(uiCopy.fr["riskTree.pillar.aria"]).toBe("Pilier {pillar}");
+    expect(uiCopy.en["results.canopy.title"]).toBe("Four health pillars you can inspect.");
+    expect(uiCopy.fr["results.canopy.title"]).toBe("Quatre piliers de santé que vous pouvez examiner.");
   });
 
   test("provides the approved long and short chapter labels in both languages", () => {

@@ -6,6 +6,7 @@ import { questionBank } from "../data/questions";
 import { useI18n } from "../i18n/context";
 import { localizeQuestion } from "../i18n/questions-fr";
 import { uiCopyKeys } from "../i18n/ui-copy";
+import { HEALTH_PILLARS, indexRiskLeavesByPillar } from "../lib/health-pillars";
 import type { RiskLeaf } from "../lib/types";
 
 export type RiskTreeProps = {
@@ -43,7 +44,10 @@ function LeafList({
             aria-pressed={selectedId === leaf.id}
             onClick={() => onSelect(leaf.id)}
           >
-            {leaf.title}
+            <span className="risk-tree__leaf-title">{leaf.title}</span>
+            <span className="risk-tree__leaf-meta">
+              {t(uiCopyKeys.riskUrgency[leaf.urgency])} · {t(uiCopyKeys.evidenceTier[leaf.evidenceTier])}
+            </span>
           </button>
         </li>
       ))}
@@ -92,6 +96,10 @@ function EvidencePanel({ leaf }: { readonly leaf: RiskLeaf | undefined }) {
               signal: t(uiCopyKeys.riskSignal[leaf.signal]),
             })}
           </dd>
+        </div>
+        <div>
+          <dt>{t("riskTree.urgency")}</dt>
+          <dd>{t(uiCopyKeys.riskUrgency[leaf.urgency])}</dd>
         </div>
         <div>
           <dt>{t("riskTree.tier")}</dt>
@@ -162,11 +170,7 @@ export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
   );
   const selectedLeaf =
     leaves.find((leaf) => leaf.id === requestedLeafId) ?? leaves[0];
-  const urgent = leaves.filter((leaf) => leaf.urgency === "urgent");
-  const medicalReview = leaves.filter(
-    (leaf) => leaf.urgency === "prompt-review" || leaf.urgency === "support",
-  );
-  const longerTerm = leaves.filter((leaf) => leaf.urgency === "long-term");
+  const leavesByPillar = indexRiskLeavesByPillar(leaves);
 
   return (
     <div className="risk-canopy-layout">
@@ -177,41 +181,31 @@ export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
           <p className="risk-tree__empty" role="status">{t("riskTree.emptySignals")}</p>
         ) : null}
         <ul className="risk-tree__branches">
-          <li className="risk-tree__branch risk-tree__branch--urgent">
-            <span className="risk-tree__branch-label">{t("riskTree.branch.urgent")}</span>
-            <LeafList
-              leaves={urgent}
-              selectedId={selectedLeaf?.id}
-              onSelect={setRequestedLeafId}
-            />
-          </li>
-          <li className="risk-tree__branch risk-tree__branch--review">
-            <span className="risk-tree__branch-label">{t("riskTree.branch.review")}</span>
-            <LeafList
-              leaves={medicalReview}
-              selectedId={selectedLeaf?.id}
-              onSelect={setRequestedLeafId}
-            />
-          </li>
-          <li className="risk-tree__branch risk-tree__branch--longer">
-            <span className="risk-tree__branch-label">{t("riskTree.branch.longer")}</span>
-            <LeafList
-              leaves={longerTerm}
-              selectedId={selectedLeaf?.id}
-              onSelect={setRequestedLeafId}
-            />
-          </li>
-          <li className="risk-tree__branch risk-tree__branch--protective">
-            <span className="risk-tree__branch-label">{t("riskTree.protective")}</span>
-            <ul className="risk-tree__roots">
-              {protectiveRoots.length > 0 ? (
-                protectiveRoots.map((root) => <li key={root}>{root}</li>)
-              ) : (
-                <li>{t("riskTree.emptyProtective")}</li>
-              )}
-            </ul>
-          </li>
+          {HEALTH_PILLARS.map((pillar) => (
+            <li
+              key={pillar}
+              className={`risk-tree__branch risk-tree__branch--${pillar}`}
+              aria-label={t("riskTree.pillar.aria", { pillar: t(uiCopyKeys.pillar[pillar]) })}
+            >
+              <span className="risk-tree__branch-label">{t(uiCopyKeys.pillar[pillar])}</span>
+              <LeafList
+                leaves={leavesByPillar[pillar]}
+                selectedId={selectedLeaf?.id}
+                onSelect={setRequestedLeafId}
+              />
+            </li>
+          ))}
         </ul>
+        <section className="risk-tree__foundation" aria-label={t("riskTree.protective")}>
+          <span className="risk-tree__branch-label">{t("riskTree.protective")}</span>
+          <ul className="risk-tree__roots">
+            {protectiveRoots.length > 0 ? (
+              protectiveRoots.map((root) => <li key={root}>{root}</li>)
+            ) : (
+              <li>{t("riskTree.emptyProtective")}</li>
+            )}
+          </ul>
+        </section>
       </nav>
       <EvidencePanel leaf={selectedLeaf} />
     </div>

@@ -124,6 +124,18 @@ describe("global interaction styles", () => {
     ).toBeGreaterThan(css.indexOf(".risk-tree__leaves button:hover,"));
   });
 
+  test("lays out four stable pillar branches in a desktop grid and mobile column with a full-width foundation", () => {
+    expect(css).toMatch(/\.risk-tree__branches\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s);
+    expect(css).toMatch(/\.risk-tree__branch--cardio-energy\s*\{/);
+    expect(css).toMatch(/\.risk-tree__branch--strength-neural\s*\{/);
+    expect(css).toMatch(/\.risk-tree__branch--sleep-circadian\s*\{/);
+    expect(css).toMatch(/\.risk-tree__branch--nutrition-metabolic\s*\{/);
+    expect(css).toMatch(/\.risk-tree__foundation\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
+    expect(css).not.toMatch(/\.risk-tree__branch--(?:urgent|review|longer|protective)\s*\{/);
+    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]+\.risk-tree__branches\s*\{[^}]*grid-template-columns:\s*1fr/s);
+    expect(css).toMatch(/\.risk-tree__leaf-meta\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+  });
+
   test("scopes action-card layout and counters to direct action rows", () => {
     expect(css).toMatch(/\.action-plan > ol > li\s*\{/);
     expect(css).toMatch(/\.action-plan > ol > li::before\s*\{/);

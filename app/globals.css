@@ -560,10 +560,21 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
 }
 .risk-tree__branch:nth-child(odd)::before { right: 0; border-left: 2px solid var(--deep-water); }
 .risk-tree__branch:nth-child(even)::before { left: 0; border-right: 2px solid var(--deep-water); }
-.risk-tree__branch--urgent { border-top-color: var(--living-coral); }
-.risk-tree__branch--review { border-top-color: var(--signal-amber); }
-.risk-tree__branch--longer { border-top-color: var(--electric-blue); }
-.risk-tree__branch--protective { border-top-color: var(--deep-water); }
+.risk-tree__branch--cardio-energy { border-top-color: var(--living-coral); }
+.risk-tree__branch--strength-neural { border-top-color: var(--signal-amber); }
+.risk-tree__branch--sleep-circadian { border-top-color: var(--electric-blue); }
+.risk-tree__branch--nutrition-metabolic { border-top-color: var(--deep-water); }
+.risk-tree__foundation {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  grid-column: 1 / -1;
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-top: 6px solid var(--deep-water);
+  background: rgb(244 247 245 / 94%);
+}
 .risk-tree__branch-label {
   display: block;
   margin-bottom: 13px;
@@ -587,6 +598,17 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
   line-height: 1.35;
   text-align: left;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.risk-tree__leaf-title, .risk-tree__leaf-meta { display: block; }
+.risk-tree__leaf-meta {
+  margin-top: 4px;
+  color: var(--muted);
+  font-family: var(--font-data), monospace;
+  font-size: .68rem;
+  font-weight: 650;
+  letter-spacing: .035em;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .risk-tree__leaves button:hover, .risk-tree__leaves button[aria-pressed="true"] {
   border-color: var(--electric-blue);

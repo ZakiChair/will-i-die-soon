@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test } from "vitest";
 
@@ -17,16 +17,22 @@ const source = {
   applicability: { countries: "all" as const },
 };
 
-function leaf(id: string, title: string, missingInputs: ReadonlyArray<string>): RiskLeaf {
+function leaf(
+  id: string,
+  ruleId: string,
+  title: string,
+  missingInputs: ReadonlyArray<string>,
+  urgency: RiskLeaf["urgency"] = "prompt-review",
+): RiskLeaf {
   return {
     id,
-    ruleId: id,
+    ruleId,
     rulesetVersion: "risk-rules-v1",
     group: "cardiovascular",
     title,
     copy: `${title} copy`,
     evidenceTier: "guideline-action",
-    urgency: "prompt-review",
+    urgency,
     signal: "worth-attention",
     factors: ["A self-reported factor"],
     missingInputs,
@@ -42,23 +48,23 @@ test("keeps the selected evidence leaf while localizing ledger and missing-quest
       <LanguageSwitcher />
       <RiskTree
         leaves={[
-          leaf("first", "First signal", []),
-          leaf("second", "Second signal", ["sex_assigned_at_birth"]),
+          leaf("first", "urgent-chest", "First signal", [], "urgent"),
+          leaf("second", "adult-short-sleep", "Second signal", ["sex_assigned_at_birth"], "long-term"),
         ]}
         protectiveRoots={["A protective root"]}
       />
     </I18nProvider>,
   );
 
-  await user.click(screen.getByRole("button", { name: "Second signal" }));
-  expect(screen.getByRole("button", { name: "Second signal" })).toHaveAttribute(
+  await user.click(screen.getByRole("button", { name: /Second signal/ }));
+  expect(screen.getByRole("button", { name: /Second signal/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
 
   await user.click(screen.getByRole("button", { name: "Français" }));
 
-  expect(screen.getByRole("button", { name: "Second signal" })).toHaveAttribute(
+  expect(screen.getByRole("button", { name: /Second signal/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -66,6 +72,7 @@ test("keeps the selected evidence leaf while localizing ledger and missing-quest
   expect(screen.getByText("Version des règles")).toBeVisible();
   expect(screen.getByText("risk-rules-v1")).toBeVisible();
   expect(screen.getByText("Action fondée sur des recommandations")).toBeVisible();
+  expect(screen.getByText("À plus long terme")).toBeVisible();
   expect(screen.getByText(/Mérite votre attention/)).toBeVisible();
   expect(
     screen.getByText(/Quel sexe vous a-t-on attribué à la naissance/),
@@ -80,6 +87,9 @@ test("keeps the selected evidence leaf while localizing ledger and missing-quest
     "href",
     source.url,
   );
+  const frenchNavigation = screen.getByRole("navigation", { name: /piliers de signaux de santé/i });
+  expect(within(frenchNavigation).getAllByRole("listitem", { name: /pilier/i })).toHaveLength(4);
+  expect(within(frenchNavigation).getByText("Sommeil et rythme circadien")).toBeVisible();
 });
 
 test("localizes empty branches and the protective fallback", async () => {
@@ -93,7 +103,7 @@ test("localizes empty branches and the protective fallback", async () => {
 
   await user.click(screen.getByRole("button", { name: "Français" }));
 
-  expect(screen.getAllByText("Aucun signal correspondant dans cette branche.")).toHaveLength(3);
+  expect(screen.getAllByText("Aucun signal correspondant dans cette branche.")).toHaveLength(4);
   expect(
     screen.getByText(
       "Aucun signal qualitatif n'a atteint le seuil d'affichage dans les réponses fournies.",
@@ -109,7 +119,7 @@ test("localizes empty branches and the protective fallback", async () => {
 test("renders explicit empty factor and source states without inventing evidence", async () => {
   const user = userEvent.setup();
   const sparseLeaf = {
-    ...leaf("sparse", "Sparse signal", []),
+    ...leaf("sparse", "adult-short-sleep", "Sparse signal", []),
     factors: [],
     sources: [],
   };
@@ -125,4 +135,82 @@ test("renders explicit empty factor and source states without inventing evidence
   expect(screen.getByText("Aucun facteur contributif n'est indiqué.")).toBeVisible();
   expect(screen.getByText("Aucune source n'est associée à ce signal.")).toBeVisible();
   expect(screen.queryByRole("link")).not.toBeInTheDocument();
+});
+
+test("renders exactly four labelled pillars in product order and keeps roots outside them", () => {
+  render(
+    <I18nProvider>
+      <RiskTree
+        leaves={[
+          leaf("chest", "urgent-chest", "Chest signal", [], "urgent"),
+          leaf("sleep", "adult-short-sleep", "Sleep signal", []),
+          leaf("mood", "low-mood-support", "Mood signal", [], "support"),
+          leaf("food", "alcohol-control-support", "Food signal", []),
+        ]}
+        protectiveRoots={["Reliable social support"]}
+      />
+    </I18nProvider>,
+  );
+
+  const navigation = screen.getByRole("navigation", { name: /health signal pillars/i });
+  const branches = within(navigation).getAllByRole("listitem", { name: /pillar/i });
+  expect(branches).toHaveLength(4);
+  expect(branches.map((branch) => branch.getAttribute("class"))).toEqual([
+    expect.stringContaining("cardio-energy"),
+    expect.stringContaining("strength-neural"),
+    expect.stringContaining("sleep-circadian"),
+    expect.stringContaining("nutrition-metabolic"),
+  ]);
+  expect(within(branches[0]).getByText("Chest signal")).toBeVisible();
+  expect(within(branches[1]).getByText("Mood signal")).toBeVisible();
+  expect(within(branches[2]).getByText("Sleep signal")).toBeVisible();
+  expect(within(branches[3]).getByText("Food signal")).toBeVisible();
+  expect(within(navigation).getByText("Protective roots").closest("section")).toHaveClass(
+    "risk-tree__foundation",
+  );
+  expect(within(navigation).queryByText("Medical review")).not.toBeInTheDocument();
+  expect(within(navigation).queryByText("Longer-term domains")).not.toBeInTheDocument();
+});
+
+test("keeps leaf order, accessible selection, urgency, and evidence metadata functional", async () => {
+  const user = userEvent.setup();
+  render(
+    <I18nProvider>
+      <RiskTree
+        leaves={[
+          leaf("first", "urgent-chest", "First cardio signal", [], "urgent"),
+          leaf("second", "urgent-breathing", "Second cardio signal", []),
+        ]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+
+  const first = screen.getByRole("button", { name: /First cardio signal.*Urgent.*Guideline action/i });
+  const second = screen.getByRole("button", { name: /Second cardio signal.*Prompt review.*Guideline action/i });
+  expect(first).toHaveAttribute("aria-pressed", "true");
+  expect(first).toHaveAttribute("aria-controls", "risk-evidence-panel");
+  first.focus();
+  expect(first).toHaveFocus();
+  await user.tab();
+  expect(second).toHaveFocus();
+  await user.keyboard("{Enter}");
+  expect(second).toHaveAttribute("aria-pressed", "true");
+  expect(first).toHaveAttribute("aria-pressed", "false");
+  expect(screen.getByRole("region", { name: "Second cardio signal" })).toHaveTextContent(
+    "Prompt review",
+  );
+  expect(screen.getByRole("region", { name: "Second cardio signal" })).toHaveTextContent(
+    "Evidence tier",
+  );
+});
+
+test("throws explicitly when a displayed leaf has no pillar mapping", () => {
+  expect(() =>
+    render(
+      <I18nProvider>
+        <RiskTree leaves={[leaf("unknown", "not-a-risk-rule", "Unknown signal", [])]} protectiveRoots={[]} />
+      </I18nProvider>,
+    ),
+  ).toThrow("Missing health-pillar mapping for risk rule: not-a-risk-rule");
 });
