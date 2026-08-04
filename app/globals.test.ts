@@ -72,9 +72,13 @@ describe("global interaction styles", () => {
     expect(css).toMatch(/body\s*\{[\s\S]*var\(--motif-canopy\)[^;]+no-repeat/s);
     expect(css).toMatch(/\.consent__body[^{]*\{[^}]*background:\s*var\(--surface-readable\)/s);
     expect(css).toMatch(/\.question-sheet[^{]*\{[^}]*background:\s*var\(--surface-readable\)/s);
+    expect(css).toMatch(/\.risk-tree\s*\{[^}]*var\(--surface-readable\)/s);
     expect(css).toMatch(/\.lab-import[^{]*\{[^}]*background:\s*var\(--motif-wash-dense\)/s);
+    expect(css).toMatch(/\.lab-review__row\s*\{[^}]*background:\s*var\(--motif-wash-dense\)/s);
+    expect(css).toMatch(/\.confirmed-labs table\s*\{[^}]*background:\s*var\(--motif-wash-dense\)/s);
     expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]+background-size:\s*100% 760px, auto 760px, 100% 100%/s);
     expect(css).toMatch(/@media print[\s\S]+body\s*\{[^}]*background:\s*white[^}]*background-image:\s*none/s);
+    expect(css).toMatch(/@media print[\s\S]+\.landing__canopy-media,\s*\.intermission__media\s*\{[^}]*display:\s*none/s);
   });
 
   test("crops decorative artwork responsively and removes video under reduced motion", () => {

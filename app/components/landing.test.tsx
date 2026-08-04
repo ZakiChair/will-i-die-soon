@@ -132,6 +132,8 @@ test("keeps the hero poster available while reduced-motion changes gate the sile
   expect(poster).toHaveAttribute("height", "1080");
   expect(video).not.toBeNull();
   expect(video).toHaveAttribute("aria-hidden", "true");
+  expect(video).not.toHaveAttribute("controls");
+  expect(video?.tabIndex).toBe(-1);
   expect(video).toHaveAttribute("poster", "/media/canopy-hero.webp");
   expect(video).toHaveAttribute("preload", "none");
   expect(video?.autoplay).toBe(true);

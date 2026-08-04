@@ -817,6 +817,7 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
 
 @media print {
   body { background: white; background-image: none; }
+  .landing__canopy-media, .intermission__media { display: none !important; }
   .language-switcher { display: none; }
   .journey.results { width: 100%; padding: 0; }
   .results__header, .result-tools { display: none !important; }
