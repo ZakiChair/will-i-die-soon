@@ -89,10 +89,13 @@ describe("global interaction styles", () => {
       /\.intermission__media\s+(?:img|> img)[^{]*\{[^}]*object-fit:\s*cover/s,
     );
     expect(css).toMatch(
+      /\.intermission__media\s+(?:video|> video)[^{]*\{[^}]*object-fit:\s*cover/s,
+    );
+    expect(css).toMatch(
       /@media \(max-width: 560px\)[\s\S]+\.intermission__[^{]+\{/,
     );
     expect(css).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]+\.landing__canopy-video\s*\{[^}]*display:\s*none/s,
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]+\.landing__canopy-video,\s*\.intermission__video\s*\{[^}]*display:\s*none/s,
     );
   });
 
@@ -108,6 +111,18 @@ describe("global interaction styles", () => {
     );
     expect(css).toMatch(
       /\.landing__canopy-video--ready\s*\{[^}]*opacity:\s*\.78/s,
+    );
+  });
+
+  test("keeps the intermission poster visible until its local video can play", () => {
+    expect(css).toMatch(
+      /\.intermission__poster--covered\s*\{[^}]*opacity:\s*0[^}]*visibility:\s*hidden/s,
+    );
+    expect(css).toMatch(
+      /\.intermission__video\s*\{[^}]*opacity:\s*0/s,
+    );
+    expect(css).toMatch(
+      /\.intermission__video--ready\s*\{[^}]*opacity:\s*1[^}]*visibility:\s*visible/s,
     );
   });
 

@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
+import { useDecorativeMotion } from "../hooks/use-decorative-motion";
 import { useI18n } from "../i18n/context";
 import { uiCopyKeys } from "../i18n/ui-copy";
 import { HEALTH_PILLARS, type HealthPillar } from "../lib/health-pillars";
@@ -12,17 +14,75 @@ export type IntermissionProps = {
   onContinue: () => void;
 };
 
-function artworkFor(pillar: HealthPillar) {
-  switch (pillar) {
-    case "cardio-energy":
-      return { id: "cardio", src: "/media/canopy-hero.webp" } as const;
-    case "strength-neural":
-      return { id: "recovery", src: "/media/recovery-intermission.webp" } as const;
-    case "sleep-circadian":
-      return { id: "sleep", src: "/media/sleep-intermission.webp" } as const;
-    case "nutrition-metabolic":
-      return { id: "metabolism", src: "/media/metabolism-intermission.webp" } as const;
-  }
+type PillarMedia = {
+  readonly id: string;
+  readonly poster: string;
+  readonly video?: string;
+};
+
+const PILLAR_MEDIA: Readonly<Record<HealthPillar, PillarMedia>> = {
+  "cardio-energy": {
+    id: "cardio",
+    poster: "/media/cardio-intermission.webp",
+    video: "/media/cardio-intermission.mp4",
+  },
+  "strength-neural": { id: "recovery", poster: "/media/recovery-intermission.webp" },
+  "sleep-circadian": { id: "sleep", poster: "/media/sleep-intermission.webp" },
+  "nutrition-metabolic": { id: "metabolism", poster: "/media/metabolism-intermission.webp" },
+};
+
+function IntermissionPoster({
+  poster,
+  covered = false,
+}: {
+  readonly poster: string;
+  readonly covered?: boolean;
+}) {
+  return (
+    <Image
+      className={`intermission__poster${
+        covered ? " intermission__poster--covered" : ""
+      }`}
+      src={poster}
+      alt=""
+      aria-hidden="true"
+      width={1920}
+      height={1080}
+      sizes="(max-width: 560px) calc(100vw - 32px), (max-width: 850px) calc(100vw - 84px), 1040px"
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+      unoptimized
+    />
+  );
+}
+
+function AnimatedIntermissionMedia({ poster, video }: Required<Pick<PillarMedia, "poster" | "video">>) {
+  const [videoReady, setVideoReady] = useState(false);
+
+  return (
+    <>
+      <IntermissionPoster poster={poster} covered={videoReady} />
+      <video
+        className={`intermission__video${
+          videoReady ? " intermission__video--ready" : ""
+        }`}
+        aria-hidden="true"
+        tabIndex={-1}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="none"
+        poster={poster}
+        disablePictureInPicture
+        onCanPlay={() => setVideoReady(true)}
+        onError={() => setVideoReady(false)}
+      >
+        <source src={video} type="video/mp4" />
+      </video>
+    </>
+  );
 }
 
 export function Intermission({
@@ -30,8 +90,10 @@ export function Intermission({
   onContinue,
 }: IntermissionProps) {
   const { t } = useI18n();
-  const artwork = artworkFor(pillar);
+  const motionAllowed = useDecorativeMotion();
+  const artwork = PILLAR_MEDIA[pillar];
   const current = HEALTH_PILLARS.indexOf(pillar) + 1;
+  const showVideo = motionAllowed && Boolean(artwork.video);
 
   return (
     <section
@@ -39,18 +101,11 @@ export function Intermission({
       aria-labelledby="intermission-title"
     >
       <div className="intermission__media" aria-hidden="true">
-        <Image
-          src={artwork.src}
-          alt=""
-          aria-hidden="true"
-          width={1920}
-          height={1080}
-          sizes="(max-width: 560px) calc(100vw - 32px), (max-width: 850px) calc(100vw - 84px), 1040px"
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-          unoptimized
-        />
+        {showVideo && artwork.video ? (
+          <AnimatedIntermissionMedia poster={artwork.poster} video={artwork.video} />
+        ) : (
+          <IntermissionPoster poster={artwork.poster} />
+        )}
       </div>
       <div className="intermission__panel">
         <p className="data-label">

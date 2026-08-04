@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDecorativeMotion } from "../hooks/use-decorative-motion";
 import { useI18n } from "../i18n/context";
 import { type UiCopyKey, uiCopyKeys } from "../i18n/ui-copy";
 
@@ -33,31 +34,58 @@ const depths: ReadonlyArray<{
   },
 ];
 
-export function Landing({ onStart }: LandingProps) {
-  const { locale, t } = useI18n();
-  const [motionAllowed, setMotionAllowed] = useState(false);
+function CanopyPoster({ covered = false }: { readonly covered?: boolean }) {
+  return (
+    <Image
+      className={`landing__canopy-poster${
+        covered ? " landing__canopy-poster--covered" : ""
+      }`}
+      src="/media/canopy-hero.webp"
+      alt=""
+      aria-hidden="true"
+      width={1920}
+      height={1080}
+      sizes="(max-width: 850px) calc(100vw - 40px), 48vw"
+      loading="eager"
+      fetchPriority="high"
+      decoding="async"
+      draggable={false}
+      unoptimized
+    />
+  );
+}
+
+function AnimatedCanopyMedia() {
   const [videoReady, setVideoReady] = useState(false);
 
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") {
-      return;
-    }
+  return (
+    <>
+      <CanopyPoster covered={videoReady} />
+      <video
+        className={`landing__canopy-video${
+          videoReady ? " landing__canopy-video--ready" : ""
+        }`}
+        aria-hidden="true"
+        tabIndex={-1}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="none"
+        poster="/media/canopy-hero.webp"
+        disablePictureInPicture
+        onCanPlay={() => setVideoReady(true)}
+        onError={() => setVideoReady(false)}
+      >
+        <source src="/media/canopy-loop.mp4" type="video/mp4" />
+      </video>
+    </>
+  );
+}
 
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const updateMotion = () => {
-      const isMotionAllowed = !media.matches && !document.hidden;
-      setMotionAllowed(isMotionAllowed);
-      if (!isMotionAllowed) setVideoReady(false);
-    };
-
-    updateMotion();
-    media.addEventListener("change", updateMotion);
-    document.addEventListener("visibilitychange", updateMotion);
-    return () => {
-      media.removeEventListener("change", updateMotion);
-      document.removeEventListener("visibilitychange", updateMotion);
-    };
-  }, []);
+export function Landing({ onStart }: LandingProps) {
+  const { locale, t } = useI18n();
+  const motionAllowed = useDecorativeMotion();
 
   return (
     <div className="landing">
@@ -82,42 +110,11 @@ export function Landing({ onStart }: LandingProps) {
           </div>
           <div className="landing__canopy-stage">
             <div className="landing__canopy-media" aria-hidden="true">
-              <Image
-                className={`landing__canopy-poster${
-                  videoReady ? " landing__canopy-poster--covered" : ""
-                }`}
-                src="/media/canopy-hero.webp"
-                alt=""
-                aria-hidden="true"
-                width={1920}
-                height={1080}
-                sizes="(max-width: 850px) calc(100vw - 40px), 48vw"
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
-                draggable={false}
-                unoptimized
-              />
               {motionAllowed ? (
-                <video
-                  className={`landing__canopy-video${
-                    videoReady ? " landing__canopy-video--ready" : ""
-                  }`}
-                  aria-hidden="true"
-                  tabIndex={-1}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="none"
-                  poster="/media/canopy-hero.webp"
-                  disablePictureInPicture
-                  onCanPlay={() => setVideoReady(true)}
-                  onError={() => setVideoReady(false)}
-                >
-                  <source src="/media/canopy-loop.mp4" type="video/mp4" />
-                </video>
-              ) : null}
+                <AnimatedCanopyMedia />
+              ) : (
+                <CanopyPoster />
+              )}
             </div>
           </div>
         </section>

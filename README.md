@@ -16,7 +16,11 @@ An English-default, fully bilingual English/French health-risk exploration that 
 - **Explainable results:** immediate signals come first, followed by a semantic keyboard-accessible risk tree, evidence leaves, missing-factor context, protective roots, and up to three prioritized actions.
 - **Purity Score:** a transparent adult wellness-habit index for sufficiently covered Detailed/Deep assessments. Quick shows a reflection rather than a number; under-18 or unverified-age routes do not receive a score. Age, sex, ethnicity, disability, diagnoses, family history, and unavoidable exposures cannot lower it.
 - **Explicit local handoff:** print and redacted JSON require clicks. Structured raw answers are an adult-only opt-in; free text, filenames, raw file/parser content, and private metadata are excluded.
-- **Purposeful visuals:** a code-native living canopy, four generated stills, and a silent derived hero loop. Motion respects reduced-motion settings. Generated media was created with imagegen and ffmpeg, not Sora, and contains no medical labels or factual diagrams.
+- **Purposeful visuals:** a code-native living canopy, five local generated posters, and silent local loops for the landing and Cardio transition. Motion respects reduced-motion settings. Generated media was created with OpenAI's built-in image-generation tool and locally post-processed/encoded with local FFmpeg/WebP tooling; it was not created with Sora and contains no medical labels or factual diagrams.
+
+## Decorative media provenance
+
+The Cardio transition poster (`public/media/cardio-intermission.webp`) was generated on 2026-08-04 with OpenAI's built-in image-generation tool, then resized/cropped with FFmpeg and locally WebP-encoded. Its prompt requested a serene 16:9 scientific-botanical collage: pale paper and silver-green leaves, deep-teal capillary-like branches, subtle oxygen arcs and abstract mitochondrial cristae, with a quiet central space and no text, anatomy, devices, labels, logos, or watermark. The matching local Cardio loop (`public/media/cardio-intermission.mp4`) is a silent restrained zoom derived from that poster. These decorative files are locally hosted, non-interactive, hidden in print, and suppressed for reduced motion.
 
 ## Evidence limits
 
