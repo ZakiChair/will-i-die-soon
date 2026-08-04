@@ -89,8 +89,10 @@ test("classifies all 54 risk rules in the required pillar distribution", () => {
   expect(HEALTH_PILLARS.map((pillar) =>
     Object.values(RISK_RULE_PILLAR_BY_ID).filter((mapped) => mapped === pillar).length,
   )).toEqual([12, 23, 2, 17]);
-  for (const rule of riskRules) {
-    expect(healthPillarForRiskRule(rule.id)).toBe(RISK_RULE_PILLAR_BY_ID[rule.id]);
+  for (const ruleId of Object.keys(RISK_RULE_PILLAR_BY_ID)) {
+    expect(healthPillarForRiskRule(ruleId)).toBe(
+      RISK_RULE_PILLAR_BY_ID[ruleId as keyof typeof RISK_RULE_PILLAR_BY_ID],
+    );
   }
   expect(() => healthPillarForRiskRule("unclassified-rule")).toThrow(
     "Missing health-pillar mapping for risk rule: unclassified-rule",
