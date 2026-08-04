@@ -642,3 +642,44 @@ test("adds a navigation warning only while an assessment is active", async () =>
     true,
   );
 });
+
+test("shows dense prompt criteria in both languages without losing draft or language focus", async () => {
+  const user = userEvent.setup();
+  render(
+    <>
+      <LanguageSwitcher />
+      <Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />
+    </>,
+  );
+
+  await skipUntilQuestion(user, /severe.*breath/i);
+
+  const englishHeading = screen.getByRole("heading", {
+    level: 1,
+    name: "Are there signs of severe breathing difficulty right now?",
+  });
+  expect(englishHeading).toHaveFocus();
+  expect(
+    screen.getByText(/unable to speak normally.*turning blue or grey/i),
+  ).toBeVisible();
+  expect(screen.getByRole("group", { name: englishHeading.textContent ?? "" })).toHaveAccessibleDescription(
+    /struggling to breathe.*child.*under the ribs/i,
+  );
+
+  await user.click(screen.getByRole("radio", { name: "No" }));
+  const french = screen.getByRole("button", { name: "Français" });
+  await user.click(french);
+
+  expect(french).toHaveFocus();
+  expect(screen.getByRole("radio", { name: "Non" })).toBeChecked();
+  const frenchHeading = screen.getByRole("heading", {
+    level: 1,
+    name: "Y a-t-il actuellement des signes de détresse respiratoire grave ?",
+  });
+  expect(frenchHeading).toBeVisible();
+  expect(frenchHeading).not.toHaveFocus();
+  expect(screen.getByText(/chez un enfant.*creusement sous les côtes/i)).toBeVisible();
+  expect(screen.getByRole("group", { name: frenchHeading.textContent ?? "" })).toHaveAccessibleDescription(
+    /grande difficulté à respirer.*réaction anormale/i,
+  );
+});

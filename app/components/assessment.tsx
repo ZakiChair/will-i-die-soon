@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { questionBank } from "../data/questions";
 import { useI18n } from "../i18n/context";
 import { localizeRiskLeaves } from "../i18n/presentation";
+import { getQuestionPromptPresentation } from "../i18n/question-prompt-presentation";
 import { localizeQuestion } from "../i18n/questions-fr";
 import { uiCopyKeys } from "../i18n/ui-copy";
 import { healthPillarForQuestion, type HealthPillar } from "../lib/health-pillars";
@@ -25,6 +26,10 @@ import type {
 import { Intermission } from "./intermission";
 import { LabImport } from "./lab-import";
 import { QuestionControl } from "./question-control";
+import {
+  QUESTION_PROMPT_DETAIL_ID,
+  QuestionPrompt,
+} from "./question-prompt";
 import { PillarProgress } from "./pillar-progress";
 import type { ConfirmedLabValue, LabMarker } from "../lib/labs";
 
@@ -90,6 +95,13 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   ).length;
   const question = queue[currentIndex] ?? getNextQuestion(questionnaire);
   const presentedQuestion = question ? localizeQuestion(question, locale) : null;
+  const promptPresentation = presentedQuestion
+    ? getQuestionPromptPresentation(
+        presentedQuestion.id,
+        locale,
+        presentedQuestion.prompt,
+      )
+    : null;
   const presentedUrgentLeaf = useMemo(
     () =>
       urgentLeaf ? localizeRiskLeaves([urgentLeaf], locale, profile)[0] ?? null : null,
@@ -279,13 +291,21 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
           <p className="question-sheet__domain data-label">
             {question ? t(uiCopyKeys.domain[question.domain]) : null}
           </p>
-          <h1 id="question-title" ref={questionHeading} tabIndex={-1}>
-            {presentedQuestion?.prompt}
-          </h1>
+          {promptPresentation ? (
+            <QuestionPrompt
+              presentation={promptPresentation}
+              headingRef={questionHeading}
+            />
+          ) : null}
           {question ? (
             <QuestionControl
               key={question.id}
               question={presentedQuestion ?? question}
+              questionDescriptionId={
+                promptPresentation?.detail?.trim()
+                  ? QUESTION_PROMPT_DETAIL_ID
+                  : undefined
+              }
               answer={answers[question.id]}
               onAnswer={recordAnswer}
               canGoBack={currentIndex > 0}
