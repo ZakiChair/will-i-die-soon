@@ -114,6 +114,19 @@ describe("question prompt presentation", () => {
     },
   );
 
+  test.each(CURATED_QUESTION_PROMPT_IDS)(
+    "falls back when the canonical prompt for %s drifts from its curated split",
+    (id) => {
+      const canonical = requiredQuestion(id);
+      for (const locale of ["en", "fr"] satisfies Locale[]) {
+        const changedPrompt = `${localizeQuestion(canonical, locale).prompt} Updated.`;
+        expect(
+          getQuestionPromptPresentation(id, locale, changedPrompt),
+        ).toEqual({ title: changedPrompt });
+      }
+    },
+  );
+
   test("uses the complete localized prompt for an ordinary question", () => {
     const canonical = requiredQuestion("usual_sleep_hours");
     const localized = localizeQuestion(canonical, "fr");
