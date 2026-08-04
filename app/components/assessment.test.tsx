@@ -135,6 +135,28 @@ test("keeps a single quantitative answered-question progress bar during a questi
   expect(progressBars[0]).toHaveAttribute("max", "20");
 });
 
+test("gives the answered-question progress bar a direct localized accessible name", async () => {
+  const user = userEvent.setup();
+  render(
+    <>
+      <LanguageSwitcher />
+      <Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />
+    </>,
+  );
+
+  await continuePastIntermission(user);
+
+  expect(
+    screen.getByRole("progressbar", { name: "Assessment progress" }),
+  ).toBeVisible();
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+
+  expect(
+    screen.getByRole("progressbar", { name: "Progression de l'analyse" }),
+  ).toBeVisible();
+});
+
 test("introduces each entered chapter once and never replays it after Back", async () => {
   const user = userEvent.setup();
   render(<Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />);
@@ -393,6 +415,21 @@ test("Enter advances only after a valid answer and Back restores that answer", a
 
   expect(screen.getByText("Question 1 of 20")).toBeVisible();
   expect(screen.getByRole("radio", { name: "Female" })).toBeChecked();
+});
+
+test("keeps answered-question progress after Back retains an answer", async () => {
+  const user = userEvent.setup();
+  render(
+    <Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />,
+  );
+  await continuePastIntermission(user);
+
+  await user.click(screen.getByRole("radio", { name: "Female" }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("button", { name: "Back" }));
+
+  expect(screen.getByRole("radio", { name: "Female" })).toBeChecked();
+  expect(screen.getByRole("progressbar")).toHaveAttribute("value", "1");
 });
 
 test("Back visibly preserves a deliberate skip", async () => {

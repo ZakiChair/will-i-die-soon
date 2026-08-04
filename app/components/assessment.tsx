@@ -85,6 +85,9 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
   const questionHeading = useRef<HTMLHeadingElement>(null);
   const urgentHeading = useRef<HTMLHeadingElement>(null);
   const { answers, queue } = questionnaire;
+  const answeredQuestionCount = queue.filter((candidate) =>
+    Object.prototype.hasOwnProperty.call(answers, candidate.id),
+  ).length;
   const question = queue[currentIndex] ?? getNextQuestion(questionnaire);
   const presentedQuestion = question ? localizeQuestion(question, locale) : null;
   const presentedUrgentLeaf = useMemo(
@@ -258,8 +261,15 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
               currentPillar={healthPillarForQuestion(question)}
             />
           ) : null}
-          <progress value={currentIndex} max={queue.length}>
-            {t("assessment.progress", { completed: currentIndex, total: queue.length })}
+          <progress
+            aria-label={t("assessment.progress.aria")}
+            value={answeredQuestionCount}
+            max={queue.length}
+          >
+            {t("assessment.progress", {
+              completed: answeredQuestionCount,
+              total: queue.length,
+            })}
           </progress>
         </aside>
         <article className="question-sheet">
