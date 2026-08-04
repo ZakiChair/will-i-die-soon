@@ -21,6 +21,7 @@ import { evaluateRisks } from "../lib/risk-engine";
 import { buildActionPlan, calculatePurityScore } from "../lib/scoring";
 import type { ActionItem } from "../lib/scoring";
 import type { AnalysisDepth, AnswerMap, ProfileContext, RiskLeaf } from "../lib/types";
+import { ExpressResults } from "./express-results";
 import { RiskTree } from "./risk-tree";
 
 export type ResultsProps = {
@@ -325,7 +326,10 @@ export function Results({
       }),
     [answers, assessmentDepth, profile.age],
   );
-  const actions = useMemo(() => buildActionPlan(leaves, score), [leaves, score]);
+  const actions = useMemo(
+    () => assessmentDepth === "express" ? [] : buildActionPlan(leaves, score),
+    [assessmentDepth, leaves, score],
+  );
   const presentedLeaves = useMemo(
     () => localizeRiskLeaves(leaves, locale, profile),
     [leaves, locale, profile],
@@ -410,25 +414,31 @@ export function Results({
         />
       ) : (
         <>
-          <section className="results-canopy" aria-labelledby="results-canopy-title">
-            <div className="section-heading">
-              <p className="data-label">{t("results.canopy.eyebrow")}</p>
-              <h2 id="results-canopy-title" ref={revealedResultsHeading} tabIndex={-1}>
-                {t("results.canopy.title")}
-              </h2>
-            </div>
-            <RiskTree leaves={presentedLeaves} protectiveRoots={roots} />
-          </section>
+          {assessmentDepth === "express" ? (
+            <ExpressResults answers={answers} />
+          ) : (
+            <>
+              <section className="results-canopy" aria-labelledby="results-canopy-title">
+                <div className="section-heading">
+                  <p className="data-label">{t("results.canopy.eyebrow")}</p>
+                  <h2 id="results-canopy-title" ref={revealedResultsHeading} tabIndex={-1}>
+                    {t("results.canopy.title")}
+                  </h2>
+                </div>
+                <RiskTree leaves={presentedLeaves} protectiveRoots={roots} />
+              </section>
 
-          {profile.age < 18 ? (
-            <AdolescentHabitsMap answers={answers} />
-          ) : presentedScore.kind === "adult-score" ? (
-            <ScoreLedger score={presentedScore} />
-          ) : presentedScore.kind === "insufficient-coverage" ? (
-            <CoverageReflection score={presentedScore} />
-          ) : null}
+              {profile.age < 18 ? (
+                <AdolescentHabitsMap answers={answers} />
+              ) : presentedScore.kind === "adult-score" ? (
+                <ScoreLedger score={presentedScore} />
+              ) : presentedScore.kind === "insufficient-coverage" ? (
+                <CoverageReflection score={presentedScore} />
+              ) : null}
 
-          {profile.age >= 18 ? <ActionPlan actions={presentedActions} /> : null}
+              {profile.age >= 18 ? <ActionPlan actions={presentedActions} /> : null}
+            </>
+          )}
           <ConfirmedLabs values={confirmedLabs} />
 
           <section className="result-tools" aria-labelledby="result-tools-title">

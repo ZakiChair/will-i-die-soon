@@ -93,6 +93,35 @@ const F1_ANSWERS: AnswerMap = {
   interaction_shared_list: true,
 };
 
+test("Express results keep shared tools while omitting the score and generic result surfaces", () => {
+  render(
+    <Results
+      answers={{
+        reported_vo2_max_ml_kg_min: 48.5,
+        squat_one_rep_max_kg: 123,
+        deadlift_one_rep_max_kg: 181,
+        usual_sleep_hours: 7.5,
+        sleep_refreshed: 8,
+        height_cm: 182,
+        weight_kg: 80,
+        plant_food_frequency: 4,
+        diet_ultra_processed: "rarely",
+      }}
+      assessmentDepth="express"
+      confirmedLabs={[]}
+      profile={{ age: 35, countryCode: "CH" }}
+      onRestart={vi.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("heading", { name: "Your Express snapshot" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: /keep or clear these results/i })).toBeVisible();
+  expect(screen.queryByText("Health signal pillars")).not.toBeInTheDocument();
+  expect(screen.queryByText(/Purity Score/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/wellness habits reflection/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /actions you can choose/i })).not.toBeInTheDocument();
+});
+
 const confirmedLab: ConfirmedLabValue = {
   source: {
     marker: "hba1c",
