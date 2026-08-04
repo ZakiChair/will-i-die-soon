@@ -145,3 +145,41 @@ function withinScale(group: HTMLElement, value: string): HTMLElement {
   if (!input) throw new Error(`Missing scale value ${value}`);
   return input;
 }
+
+test("describes the answer group with visible question criteria", () => {
+  render(
+    <I18nProvider>
+      <h1 id="question-title">Short title</h1>
+      <p id="question-detail">Complete criteria.</p>
+      <QuestionControl
+        question={requiredQuestion("urgent_breathing_now")}
+        questionDescriptionId="question-detail"
+        onAnswer={vi.fn()}
+        onBack={vi.fn()}
+        canGoBack={false}
+      />
+    </I18nProvider>,
+  );
+
+  const group = screen.getByRole("group", { name: "Short title" });
+  expect(group).toHaveAccessibleDescription("Complete criteria.");
+  expect(group).toHaveAttribute("aria-describedby", "question-detail");
+});
+
+test("omits aria-describedby when a question has no presentation detail", () => {
+  render(
+    <I18nProvider>
+      <h1 id="question-title">Ordinary question</h1>
+      <QuestionControl
+        question={requiredQuestion("usual_sleep_hours")}
+        onAnswer={vi.fn()}
+        onBack={vi.fn()}
+        canGoBack={false}
+      />
+    </I18nProvider>,
+  );
+
+  expect(screen.getByRole("group", { name: "Ordinary question" })).not.toHaveAttribute(
+    "aria-describedby",
+  );
+});

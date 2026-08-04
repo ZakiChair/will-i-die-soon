@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useI18n } from "../i18n/context";
 import { questionUnitKeys, type UiCopyKey } from "../i18n/ui-copy";
 import type { AnswerValue, Question } from "../lib/types";
+import { QUESTION_PROMPT_TITLE_ID } from "./question-prompt";
 
 export type QuestionControlProps = {
   question: Question;
@@ -11,6 +12,7 @@ export type QuestionControlProps = {
   onAnswer: (answer: AnswerValue) => void;
   onBack: () => void;
   canGoBack: boolean;
+  questionDescriptionId?: string;
 };
 
 function initialValue(question: Question, answer: AnswerValue | undefined) {
@@ -33,6 +35,7 @@ export function QuestionControl({
   onAnswer,
   onBack,
   canGoBack,
+  questionDescriptionId,
 }: QuestionControlProps) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<string | string[]>(() =>
@@ -90,7 +93,10 @@ export function QuestionControl({
         }
       }}
     >
-      <fieldset aria-labelledby="question-title">
+      <fieldset
+        aria-labelledby={QUESTION_PROMPT_TITLE_ID}
+        aria-describedby={questionDescriptionId}
+      >
         <legend className="sr-only">{t("question.legend")}</legend>
 
         {question.answerType === "boolean" ? (
