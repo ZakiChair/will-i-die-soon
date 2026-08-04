@@ -157,16 +157,31 @@ describe("global interaction styles", () => {
     ).toBeGreaterThan(css.indexOf(".risk-tree__leaves button:hover,"));
   });
 
-  test("lays out four stable pillar branches in a desktop grid and mobile column with a full-width foundation", () => {
+  test("lays out four stable pillar branches in a desktop grid and mobile column while the foundation remains a block below it", () => {
     expect(css).toMatch(/\.risk-tree__branches\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s);
     expect(css).toMatch(/\.risk-tree__branch--cardio-energy\s*\{/);
     expect(css).toMatch(/\.risk-tree__branch--strength-neural\s*\{/);
     expect(css).toMatch(/\.risk-tree__branch--sleep-circadian\s*\{/);
     expect(css).toMatch(/\.risk-tree__branch--nutrition-metabolic\s*\{/);
-    expect(css).toMatch(/\.risk-tree__foundation\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
+    const foundationRule = css.match(
+      /\.risk-tree__foundation\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+    expect(foundationRule).not.toMatch(/grid-column/);
+    expect(foundationRule).toMatch(/width:\s*100%/);
     expect(css).not.toMatch(/\.risk-tree__branch--(?:urgent|review|longer|protective)\s*\{/);
     expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]+\.risk-tree__branches\s*\{[^}]*grid-template-columns:\s*1fr/s);
     expect(css).toMatch(/\.risk-tree__leaf-meta\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+  });
+
+  test("scopes the passive pillar chapter rail and lets it wrap on a narrow viewport", () => {
+    expect(css).toMatch(/\.pillar-progress\s*\{[^}]*display:\s*grid/s);
+    expect(css).toMatch(/\.pillar-progress__chapter\s*\{[^}]*display:\s*grid/s);
+    expect(css).toMatch(/\.pillar-progress__chapter--completed\s*\{/);
+    expect(css).toMatch(/\.pillar-progress__chapter--current\s*\{/);
+    expect(css).toMatch(/\.pillar-progress__chapter--upcoming\s*\{/);
+    expect(css).toMatch(
+      /@media \(max-width: 560px\)[\s\S]+\.pillar-progress__chapters\s*\{[^}]*grid-template-columns:\s*1fr/s,
+    );
   });
 
   test("scopes action-card layout and counters to direct action rows", () => {

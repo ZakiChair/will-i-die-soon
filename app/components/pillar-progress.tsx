@@ -6,15 +6,9 @@ import { HEALTH_PILLARS, type HealthPillar } from "../lib/health-pillars";
 
 type PillarProgressProps = {
   readonly currentPillar: HealthPillar;
-  readonly completedQuestions: number;
-  readonly totalQuestions: number;
 };
 
-export function PillarProgress({
-  currentPillar,
-  completedQuestions,
-  totalQuestions,
-}: PillarProgressProps) {
+export function PillarProgress({ currentPillar }: PillarProgressProps) {
   const { t } = useI18n();
   const current = HEALTH_PILLARS.indexOf(currentPillar);
 
@@ -26,15 +20,22 @@ export function PillarProgress({
           pillar: t(uiCopyKeys.pillar[currentPillar]),
         })}
       </p>
-      <ol>
-        {HEALTH_PILLARS.map((pillar, index) => (
-          <li key={pillar} aria-current={pillar === currentPillar ? "step" : undefined}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            {t(uiCopyKeys.pillarShort[pillar])}
-          </li>
-        ))}
+      <ol className="pillar-progress__chapters">
+        {HEALTH_PILLARS.map((pillar, index) => {
+          const state = index < current ? "completed" : index === current ? "current" : "upcoming";
+
+          return (
+            <li
+              key={pillar}
+              className={`pillar-progress__chapter pillar-progress__chapter--${state}`}
+              aria-current={pillar === currentPillar ? "step" : undefined}
+            >
+              <span className="pillar-progress__number">{String(index + 1).padStart(2, "0")}</span>
+              <span className="pillar-progress__label">{t(uiCopyKeys.pillar[pillar])}</span>
+            </li>
+          );
+        })}
       </ol>
-      <progress value={completedQuestions} max={totalQuestions} />
     </section>
   );
 }

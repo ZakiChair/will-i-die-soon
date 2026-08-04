@@ -256,8 +256,6 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
           {question ? (
             <PillarProgress
               currentPillar={healthPillarForQuestion(question)}
-              completedQuestions={currentIndex}
-              totalQuestions={queue.length}
             />
           ) : null}
           <progress value={currentIndex} max={queue.length}>

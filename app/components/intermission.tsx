@@ -64,10 +64,8 @@ function IntermissionPoster({
 function AnimatedIntermissionMedia({
   poster,
   video,
-  posterFailed,
   onPosterError,
 }: Required<Pick<PillarMedia, "poster" | "video">> & {
-  readonly posterFailed: boolean;
   readonly onPosterError: () => void;
 }) {
   const [videoReady, setVideoReady] = useState(false);
@@ -75,13 +73,11 @@ function AnimatedIntermissionMedia({
 
   return (
     <>
-      {!posterFailed ? (
-        <IntermissionPoster
-          poster={poster}
-          covered={videoReady}
-          onError={onPosterError}
-        />
-      ) : null}
+      <IntermissionPoster
+        poster={poster}
+        covered={videoReady}
+        onError={onPosterError}
+      />
       <video
         className={`intermission__video${
           videoReady ? " intermission__video--ready" : ""
@@ -138,11 +134,10 @@ export function Intermission({
         }`}
         aria-hidden="true"
       >
-        {showVideo && artwork.video ? (
+        {showVideo && artwork.video && !posterFailed ? (
           <AnimatedIntermissionMedia
             poster={artwork.poster}
             video={artwork.video}
-            posterFailed={posterFailed}
             onPosterError={() => setPosterFailed(true)}
           />
         ) : (

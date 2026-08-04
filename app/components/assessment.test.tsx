@@ -117,10 +117,22 @@ test("introduces the first available chapter before the first adult Quick questi
   expect(screen.queryByRole("button", { name: /sleep|heart|habits|care/i })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Prefer not to say" })).toBeVisible();
   const chapters = screen.getByRole("region", { name: "Assessment chapters" });
-  expect(chapters).toHaveTextContent("Cardio & energy");
-  expect(chapters).toHaveTextContent("Strength & recovery");
-  expect(chapters).toHaveTextContent("Sleep");
-  expect(chapters).toHaveTextContent("Nutrition & metabolism");
+  expect(chapters).toHaveTextContent("Cardio, VO₂ max & cellular energy");
+  expect(chapters).toHaveTextContent("Strength, nervous system & recovery");
+  expect(chapters).toHaveTextContent("Sleep & circadian rhythm");
+  expect(chapters).toHaveTextContent("Nutrition & metabolic health");
+});
+
+test("keeps a single quantitative answered-question progress bar during a question", async () => {
+  const user = userEvent.setup();
+  render(<Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />);
+
+  await user.click(screen.getByRole("button", { name: "Continue assessment" }));
+
+  const progressBars = screen.getAllByRole("progressbar");
+  expect(progressBars).toHaveLength(1);
+  expect(progressBars[0]).toHaveAttribute("value", "0");
+  expect(progressBars[0]).toHaveAttribute("max", "20");
 });
 
 test("introduces each entered chapter once and never replays it after Back", async () => {

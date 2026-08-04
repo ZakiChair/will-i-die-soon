@@ -164,6 +164,28 @@ test("reveals the page surface when a static pillar poster fails to load", () =>
   expect(screen.getByRole("button", { name: "Continue assessment" })).toBeVisible();
 });
 
+test("unmounts the Cardio loop when its poster fails while keeping the failure surface", () => {
+  installMotionPreference(false);
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  const { container } = render(
+    <I18nProvider>
+      <Intermission pillar="cardio-energy" completed={8} total={20} onContinue={vi.fn()} />
+    </I18nProvider>,
+  );
+
+  const poster = container.querySelector<HTMLImageElement>(".intermission__poster");
+  expect(poster).toBeInTheDocument();
+  expect(container.querySelector(".intermission__video")).toBeInTheDocument();
+
+  fireEvent.error(poster!);
+
+  expect(container.querySelector(".intermission__poster")).not.toBeInTheDocument();
+  expect(container.querySelector(".intermission__video")).not.toBeInTheDocument();
+  expect(container.querySelector(".intermission__media")).toHaveClass(
+    "intermission__media--poster-failed",
+  );
+});
+
 test("keeps the Cardio poster and removes its loop for reduced motion or a hidden page", () => {
   const motion = installMotionPreference(false);
   Object.defineProperty(document, "hidden", {

@@ -294,8 +294,61 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
 .assessment__rail > .data-label { color: var(--muted); }
 .assessment__rail progress { width: 100%; height: 5px; border: 0; border-radius: 0; background: var(--line); }
 .assessment__rail progress::-webkit-progress-bar { background: var(--line); }
-.assessment__rail progress::-webkit-progress-value { background: var(--electric-blue); }
-.assessment__rail progress::-moz-progress-bar { background: var(--electric-blue); }
+.assessment__rail progress::-webkit-progress-value { background: var(--deep-water); }
+.assessment__rail progress::-moz-progress-bar { background: var(--deep-water); }
+.pillar-progress {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 18px;
+}
+.pillar-progress__position {
+  margin: 0;
+  color: var(--deep-water);
+  font-family: var(--font-data), monospace;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.pillar-progress__chapters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pillar-progress__chapter {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: rgb(255 255 255 / 56%);
+  font-size: .78rem;
+  font-weight: 650;
+  line-height: 1.32;
+}
+.pillar-progress__number {
+  color: var(--deep-water);
+  font-family: var(--font-data), monospace;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.pillar-progress__label { min-width: 0; overflow-wrap: anywhere; }
+.pillar-progress__chapter--completed { color: var(--deep-water); background: rgb(244 247 245 / 82%); }
+.pillar-progress__chapter--current {
+  border-color: var(--deep-water);
+  box-shadow: inset 3px 0 var(--living-coral);
+  color: var(--ink);
+  background: var(--surface-readable);
+}
+.pillar-progress__chapter--upcoming { opacity: .72; }
 .question-sheet {
   min-height: 620px;
   padding: clamp(26px, 5vw, 64px);
@@ -582,7 +635,6 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
   position: relative;
   z-index: 1;
   width: 100%;
-  grid-column: 1 / -1;
   margin-top: 22px;
   padding: 18px;
   border: 1px solid var(--line);
@@ -828,6 +880,7 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
   .scale-grid { grid-template-columns: repeat(6, 1fr); }
   .question-actions { grid-template-columns: 1fr 1fr; }
   .question-actions button:nth-child(2) { grid-column: 1 / -1; grid-row: 1; }
+  .pillar-progress__chapters { grid-template-columns: 1fr; }
   .lab-import__source, .lab-review__row { grid-template-columns: 1fr; }
   .lab-import button[type="submit"] { margin: 10px 0 0; }
   .risk-tree { min-height: 0; padding: 22px 16px 36px; }
