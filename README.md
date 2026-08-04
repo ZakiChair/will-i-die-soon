@@ -45,7 +45,11 @@ npm ci
 Run the release gates:
 
 ```bash
-export PATH="$NVM_BIN:$PATH"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+[ -s "$NVM_DIR/nvm.sh" ] || { echo "nvm is required for the release matrix" >&2; exit 1; }
+. "$NVM_DIR/nvm.sh"
+nvm use 24.13.0
+test "$(node --version)" = "v24.13.0"
 node --version
 npm --version
 npx tsc --noEmit --incremental false --pretty false
@@ -66,4 +70,4 @@ npm start
 
 The Sites/Vinext structure is retained. `.openai/hosting.json` identifies the configured owner-only project and declares no D1 or R2 application binding. On exact source HEAD `cbaf5b591d18a95f2f7f3668bfe3e580cdfd45e1`, the fresh Node `v24.13.0` / npm `11.6.2` matrix passed: TypeScript and ESLint exited 0, all 26 test files / 4,658 tests passed, the Vinext build completed its 5/5 stages with exit 0, `npm audit --omit=dev` found zero production vulnerabilities, `git diff` and `git diff --check` were clean, and no `.tsbuildinfo` was produced. Isolated-Chrome QA covered desktop/mobile EN/FR, Quick 20, all four introductions and branches, evidence/keyboard interaction, local lab import, reduced motion, print, local-only requests/storage/cookies, and Lighthouse 13.4.1 desktop/mobile scores of 100/100/100 for Accessibility/Best Practices/SEO; the mobile file-input overflow was fixed and rechecked. A final focused exact-head Chrome run confirmed passive four-pillar progress, retained `1/20` on Back, localized progress naming, no overflow, terminal poster-error fallback, and 37 localhost-only GETs with no POST, `Set-Cookie`, storage, or runtime errors. Independent spec and quality reviews are Ready with no open findings.
 
-The private release is active. Version 1 (`696e500611b4827ba44e5d44e52f7f0a4bce4aca`) is retained as first-deployment history. The final verified deployed-product baseline is owner-only Sites version 2, saved and deployed from exact source `e2666f09f736cc35a28e387257f492660085ba03` at `https://will-i-die-soon-health-map.zaki-chair.chatgpt.site`; its exact-source match and deployed-product QA passed. Current custom access allows one non-external owner and zero groups or external visitors. This documentation-only closure changes the source SHA and will be published immediately as the next exact owner-only saved version; its final SHA/version match is recorded externally in the ignored Task 7 evidence report without another tracked documentation mutation.
+The private release is active. Version 1 (`696e500611b4827ba44e5d44e52f7f0a4bce4aca`) is retained as first-deployment history. The final verified deployed-product baseline is owner-only Sites version 2, saved and deployed from exact source `e2666f09f736cc35a28e387257f492660085ba03` at `https://will-i-die-soon-health-map.zaki-chair.chatgpt.site`; its exact-source match and deployed-product QA passed. Current custom access allows one non-external owner and zero groups or external visitors. This documentation-only closure changes the source SHA and will be published immediately as the next exact owner-only saved version; after terminal success, its final SHA/version match will be appended to the ignored Task 7 evidence report without another tracked documentation mutation.

@@ -20,7 +20,7 @@
 - No new runtime dependency, backend, analytics, cookie, browser storage, remote media, remote OCR/PDF worker, or answer upload.
 - Question typography remains `clamp(1.9rem, 3.4vw, 3.75rem)` and mobile `clamp(1.7rem, 7.4vw, 2.6rem)`.
 - Decorative media carries no interaction or semantic information. Motion is muted, inline, nonessential, visibility-gated, and absent under `prefers-reduced-motion`.
-- Use Node `v24.13.0` for installs, tests, lint, build, and audits; expose its bin directory through `$NVM_BIN`.
+- Use Node `v24.13.0` for installs, tests, lint, build, and audits: initialize nvm from `${NVM_DIR:-$HOME/.nvm}`, select `24.13.0`, and validate the resulting Node version.
 - Hosting remains private and owner-only. Never call the public Sites deployment method without a separate user approval.
 
 ---
@@ -117,7 +117,11 @@ Also assert every question override names a real question and differs from its d
 Run:
 
 ```bash
-export PATH="$NVM_BIN:$PATH"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+[ -s "$NVM_DIR/nvm.sh" ] || { echo "nvm is required for the release matrix" >&2; exit 1; }
+. "$NVM_DIR/nvm.sh"
+nvm use 24.13.0
+test "$(node --version)" = "v24.13.0"
 npx vitest run app/lib/health-pillars.test.ts
 ```
 
@@ -813,7 +817,11 @@ Document the four-pillar presentation layer, the 243/47/54 exhaustive mapping te
 - [x] **Step 2: Run the exact full verification matrix under Node 24.**
 
 ```bash
-export PATH="$NVM_BIN:$PATH"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+[ -s "$NVM_DIR/nvm.sh" ] || { echo "nvm is required for the release matrix" >&2; exit 1; }
+. "$NVM_DIR/nvm.sh"
+nvm use 24.13.0
+test "$(node --version)" = "v24.13.0"
 node --version
 npm --version
 npm ci
@@ -915,7 +923,11 @@ The first owner-only deployment succeeded on 2026-08-04T10:41:29.202972+00:00 at
 Because Step 4 changes the source SHA, rerun on exact final HEAD:
 
 ```bash
-export PATH="$NVM_BIN:$PATH"
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+[ -s "$NVM_DIR/nvm.sh" ] || { echo "nvm is required for the release matrix" >&2; exit 1; }
+. "$NVM_DIR/nvm.sh"
+nvm use 24.13.0
+test "$(node --version)" = "v24.13.0"
 npx tsc --noEmit --incremental false --pretty false
 npm run lint
 npm test -- --run
