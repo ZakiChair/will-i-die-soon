@@ -1,13 +1,13 @@
 # Four-pillar visual system
 
 Date: 2026-08-04
-Status: approved direction; implementation pending written-spec review
+Status: implemented; release verification pending
 
 ## Outcome
 
 Replace the ambiguous interactive canopy with a calm botanical visual system and organise the assessment and results around four understandable health pillars:
 
-1. Cardio, VO2 max & cellular energy
+1. Cardio, VO₂ max & cellular energy
 2. Strength, nervous system & recovery
 3. Sleep & circadian rhythm
 4. Nutrition & metabolic health
@@ -16,7 +16,7 @@ The change simplifies navigation and presentation. It does not turn the prototyp
 
 ## User problem
 
-The landing illustration currently overlays four controls labelled Sleep, Heart, Habits, and Care. They look actionable, but activating one only changes colours and branch lengths. There is no destination, explanation, filter, or analysis behind the action. This is a false affordance and an accessibility problem because focus is also represented as a pressed state.
+The landing illustration formerly overlaid four controls labelled Sleep, Heart, Habits, and Care. They looked actionable but only changed colours and branch lengths. The implemented surface removes that false affordance and its pressed-state accessibility problem.
 
 The botanical art itself is strong and should become the consistent visual signature of the product. The interface needs to preserve that art while removing the decorative interaction and giving the long questionnaire a clear four-part rhythm.
 
@@ -35,7 +35,7 @@ The botanical art itself is strong and should become the consistent visual signa
 
 ### Out of scope
 
-- Estimating VO2 max from questionnaire answers as if it were measured.
+- Estimating VO₂ max from questionnaire answers as if it were measured.
 - Claiming to measure mitochondrial function.
 - Introducing new disease probabilities, clinical thresholds, treatment advice, or medication dosing.
 - Rewriting the underlying 54 risk-rule conditions or changing evidence tiers.
@@ -54,12 +54,12 @@ Medication, substance, laboratory, and care-access answers are cross-cutting inp
 
 | Pillar | User-facing purpose | Representative inputs | Presentation boundary |
 | --- | --- | --- | --- |
-| Cardio, VO2 max & cellular energy | Explore circulation, breathing capacity, activity tolerance, and energy-production context. | Movement, sedentary time, blood pressure, tobacco/nicotine, cardiopulmonary symptoms, relevant family history and labs. | A self-reported or imported VO2 max is labelled as reported data. Without a suitable test, the product discusses associated signals only. |
+| Cardio, VO₂ max & cellular energy | Explore circulation, breathing capacity, activity tolerance, and energy-production context. | Movement, sedentary time, blood pressure, tobacco/nicotine, cardiopulmonary symptoms, relevant family history and labs. | A self-reported or imported VO₂ max is labelled as reported data. Without a suitable test, the product discusses associated signals only. |
 | Strength, nervous system & recovery | Explore force production, neuromuscular function, recovery load, stress, cognition, and exposure effects. | Resistance activity, function, injuries, cognition, mood/stress, anabolic steroids, peptides/research compounds, stimulants and other relevant substances or medicines. | No questionnaire response is described as a direct neurological or endocrine measurement. |
 | Sleep & circadian rhythm | Explore sleep opportunity, quality, timing, breathing symptoms, alertness, and recovery. | Sleep duration, schedule, snoring/apnoea signals, daytime sleepiness, shift patterns, sedating or stimulating exposures. | The pillar reports patterns and follow-up signals, not a sleep-disorder diagnosis. |
 | Nutrition & metabolic health | Explore intake, hydration, body measurements, appetite, metabolic context, and relevant laboratory follow-up. | Diet, hydration, alcohol, weight/height, GLP-1 use, supplements, glucose/lipid/liver/kidney-related labs. | The pillar keeps medication safety and laboratory confirmation language distinct from lifestyle suggestions. |
 
-The physiological wording follows the integrated definition of cardiorespiratory fitness: circulatory and respiratory systems deliver oxygen to skeletal-muscle mitochondria for energy production. That connection supports the first pillar, but it does not make a questionnaire a direct VO2-max or mitochondrial assay. See the American Heart Association scientific statement: <https://www.ahajournals.org/doi/10.1161/CIR.0000000000000866>.
+The physiological wording follows the integrated definition of cardiorespiratory fitness: circulatory and respiratory systems deliver oxygen to skeletal-muscle mitochondria for energy production. That connection supports the first pillar, but it does not make a questionnaire a direct VO₂-max or mitochondrial assay. See the American Heart Association scientific statement: <https://www.ahajournals.org/doi/10.1161/CIR.0000000000000866>.
 
 ## Data and component design
 
@@ -71,7 +71,7 @@ Add a pure presentation module with a closed union such as:
 type HealthPillar = "cardio-energy" | "strength-neural" | "sleep-circadian" | "nutrition-metabolic";
 ```
 
-The module owns:
+The implemented module owns:
 
 - the ordered pillar list;
 - bilingual copy keys and artwork identifiers;
@@ -79,7 +79,7 @@ The module owns:
 - explicit question-level overrides for cross-cutting domains;
 - an exhaustive risk-rule-to-pillar mapping.
 
-Tests must prove that every question and every non-deprecated risk rule resolves to exactly one primary pillar. Conditions, factors, inputs, source IDs, evidence tiers, urgency, and signals remain untouched.
+Tests prove that 243 questions, 47 domains, and 54 risk rules resolve to exactly one primary pillar; 88 conditional questions and 98 gate edges preserve gate-before-dependent order. The risk-rule mapping is 12/23/2/17 in pillar order. Conditions, factors, inputs, source IDs, evidence tiers, urgency, and signals remain untouched.
 
 ### Questionnaire chapters
 
@@ -135,10 +135,10 @@ The palette remains paper, ink, deep water, electric blue, coral, and amber. Blu
 Media appears at chapter transitions, not behind individual answer controls. This keeps long assessments engaging without turning every question into a loading event.
 
 - Reuse the sleep, recovery, and metabolism WebP intermissions.
-- Generate one cardio/cellular-energy WebP in the same botanical-scientific art direction.
+- The Cardio/cellular-energy WebP was generated with OpenAI's built-in image-generation tool on 2026-08-04, resized/cropped locally with FFmpeg, and compressed locally with cwebp; it was not generated with Sora.
 - Keep the current landing MP4 as one motion moment.
 - Add at least one second short, silent, local MP4 for a pillar transition; target a small encoded size and lazy loading.
-- Video is muted, inline, looped, nonessential, hidden when the document is not visible, and replaced by the poster when reduced motion is requested or playback fails.
+- Video is muted, inline, looped, nonessential, hidden when the document is not visible, and replaced by the poster until `canplay`, when reduced motion is requested, or after playback failure; print removes the decorative media.
 - No remote media, analytics beacon, CDN worker, or user-specific asset request is introduced.
 - Generated-media provenance is recorded accurately; the interface does not claim a particular generator unless that generator was actually used.
 

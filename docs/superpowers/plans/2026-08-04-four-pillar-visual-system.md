@@ -38,7 +38,7 @@
 - Produces: `RISK_RULE_PILLAR_BY_ID`, `healthPillarForRiskRule(ruleId)`, and `indexRiskLeavesByPillar(leaves)` for Task 4.
 - Consumes: canonical `HealthDomain`, `Question`, and `RiskLeaf` types; it does not import UI copy or mutate inputs.
 
-- [ ] **Step 1: Write the failing coverage and gate-order tests.**
+- [x] **Step 1: Write the failing coverage and gate-order tests.**
 
 Create `app/lib/health-pillars.test.ts` with real-bank assertions:
 
@@ -112,7 +112,7 @@ test("groups without changing IDs and preserves order inside each pillar", () =>
 
 Also assert every question override names a real question and differs from its domain default. The plan-time graph must report 243 questions, 88 conditional questions, and 98 gate edges.
 
-- [ ] **Step 2: Run the focused RED suite.**
+- [x] **Step 2: Run the focused RED suite.**
 
 Run:
 
@@ -123,7 +123,7 @@ npx vitest run app/lib/health-pillars.test.ts
 
 Expected: FAIL because `app/lib/health-pillars.ts` does not exist.
 
-- [ ] **Step 3: Implement the exhaustive question mapping.**
+- [x] **Step 3: Implement the exhaustive question mapping.**
 
 Create the pure module with this exact public shape and product order:
 
@@ -232,7 +232,7 @@ export function groupQuestionsByPillar(questions: ReadonlyArray<Question>): Ques
 
 The `adolescent_substance_severe_timing` override is required because it depends on both strength/substance gates and the later nutrition/alcohol gate. Do not delete it as a cosmetic exception.
 
-- [ ] **Step 4: Implement the exhaustive risk-rule presentation table.**
+- [x] **Step 4: Implement the exhaustive risk-rule presentation table.**
 
 Add this explicit mapping to the same module; it changes presentation only:
 
@@ -318,7 +318,7 @@ export function indexRiskLeavesByPillar(leaves: ReadonlyArray<RiskLeaf>) {
 
 The coverage test must require exactly 54 keys and the distribution 12 / 23 / 2 / 17. A new rule must fail until classified.
 
-- [ ] **Step 5: Group queues only after existing selection and prove budgets unchanged.**
+- [x] **Step 5: Group queues only after existing selection and prove budgets unchanged.**
 
 In both `buildAssessmentQueue` and `reconcileAssessmentState`, wrap the existing result only after `selectAssessmentQuestions`:
 
@@ -334,7 +334,7 @@ npx vitest run app/lib/health-pillars.test.ts app/lib/questionnaire.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit the pure model.**
+- [x] **Step 6: Commit the pure model.**
 
 ```bash
 git add app/lib/health-pillars.ts app/lib/health-pillars.test.ts app/lib/questionnaire.ts app/lib/questionnaire.test.ts
@@ -360,7 +360,7 @@ git commit -m "feat: add four-pillar presentation model"
 - Produces: `uiCopyKeys.pillar`, `uiCopyKeys.pillarShort`, and bilingual chapter/intermission copy.
 - Produces: `PillarProgress({ currentPillar, completedQuestions, totalQuestions })` and `Intermission({ pillar, completed, total, onContinue })`.
 
-- [ ] **Step 1: Write RED copy, progress, and transition tests.**
+- [x] **Step 1: Write RED copy, progress, and transition tests.**
 
 Add copy coverage for these exact labels:
 
@@ -383,7 +383,7 @@ npx vitest run app/i18n/ui-copy.test.ts app/components/pillar-progress.test.tsx 
 
 Expected: FAIL for missing keys/component and domain-based intermissions.
 
-- [ ] **Step 2: Add typed English and French pillar copy.**
+- [x] **Step 2: Add typed English and French pillar copy.**
 
 Add long labels above plus short labels:
 
@@ -406,7 +406,7 @@ French short labels are `Cardio et énergie`, `Force et récupération`, `Sommei
 
 Provide complete French equivalents and typed `uiCopyKeys.pillar` records. Do not remove old canopy keys until Task 3, while the old component still compiles.
 
-- [ ] **Step 3: Implement non-interactive pillar progress.**
+- [x] **Step 3: Implement non-interactive pillar progress.**
 
 Use an ordered list, not tabs, navigation, or buttons:
 
@@ -448,7 +448,7 @@ export function PillarProgress({
 
 The labelled section describes progress only; it does not permit skipping adaptive questions.
 
-- [ ] **Step 4: Replace arbitrary domain milestones with one-time pillar introductions.**
+- [x] **Step 4: Replace arbitrary domain milestones with one-time pillar introductions.**
 
 Remove `INTERMISSION_LIMITS`, `milestoneIndices`, and domain-set artwork heuristics. Derive the current pillar from the current question. Treat entry from intake into the first available pillar as the first introduction, then show an introduction only when `nextPillar !== answeredPillar` and that next pillar has not been introduced:
 
@@ -472,7 +472,7 @@ The initial intro provides the cardio artwork opportunity; subsequent intros use
 
 During this task, map `cardio-energy` temporarily to `/media/canopy-hero.webp`, strength to recovery, sleep to sleep, and nutrition to metabolism; Task 5 replaces the cardio fallback with its generated asset and adds motion.
 
-- [ ] **Step 5: Update assessment helpers and verify all routes.**
+- [x] **Step 5: Update assessment helpers and verify all routes.**
 
 Teach test helpers to click `Continue assessment` when a chapter intro is present. Assert adult Quick includes all four pillar labels, minors retain their existing private/assisted routes, an urgent answer still interrupts before later chapter content, and lab import still resumes the correct pillar.
 
@@ -484,7 +484,7 @@ npx vitest run app/i18n/ui-copy.test.ts app/components/pillar-progress.test.tsx 
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit chapter navigation.**
+- [x] **Step 6: Commit chapter navigation.**
 
 ```bash
 git add app/components/pillar-progress.tsx app/components/pillar-progress.test.tsx app/i18n/ui-copy.ts app/i18n/ui-copy.test.ts app/components/assessment.tsx app/components/assessment.test.tsx app/components/intermission.tsx app/components/intermission.test.tsx
@@ -509,7 +509,7 @@ git commit -m "feat: organize assessment into four chapters"
 - Consumes: existing `/media/canopy-hero.webp` and `/media/canopy-loop.mp4`.
 - Produces: decorative `landing__canopy-media` with no focusable descendants and global CSS tokens `--motif-canopy`, `--motif-wash`, `--motif-wash-dense`, and `--surface-readable`.
 
-- [ ] **Step 1: Write tests that reproduce the false affordance and demand its removal.**
+- [x] **Step 1: Write tests that reproduce the false affordance and demand its removal.**
 
 Add to `landing.test.tsx`:
 
@@ -530,13 +530,13 @@ npx vitest run app/components/landing.test.tsx app/globals.test.ts
 
 Expected: FAIL because the four decorative buttons and canopy CSS still exist.
 
-- [ ] **Step 2: Remove the component and stale copy without touching the functional risk tree.**
+- [x] **Step 2: Remove the component and stale copy without touching the functional risk tree.**
 
 Remove `LivingCanopy` imports and renders from landing and assessment. Delete only `app/components/living-canopy.tsx`; do not delete `RiskTree`. Remove `canopy.aria`, `canopy.caption`, all four `canopyBranch.*` keys, and `uiCopyKeys.canopyBranch` after no caller remains.
 
 Keep the hero media wrapper, poster/video handoff, static fallback, and reduced-motion behaviour. Its image and video remain `aria-hidden`, empty-alt, and non-focusable.
 
-- [ ] **Step 3: Implement the static botanical theme and readable surfaces.**
+- [x] **Step 3: Implement the static botanical theme and readable surfaces.**
 
 Add exact tokens:
 
@@ -561,7 +561,7 @@ Use `--surface-readable` for consent/question/result cards and `--motif-wash-den
 
 At 560px, set `background-size: 100% 760px, auto 760px, 100% 100%` and `background-position: top center, top center, top center`; assert `document.documentElement.scrollWidth === innerWidth` in browser QA. Under print, set `body { background: white; background-image: none; }`.
 
-- [ ] **Step 4: Run focused and full first-party UI tests.**
+- [x] **Step 4: Run focused and full first-party UI tests.**
 
 ```bash
 npx vitest run app/components/landing.test.tsx app/components/assessment.test.tsx app/page.test.tsx app/components/lab-import.test.tsx app/components/results.test.tsx app/globals.test.ts app/i18n/ui-copy.test.ts
@@ -569,7 +569,7 @@ npx vitest run app/components/landing.test.tsx app/components/assessment.test.ts
 
 Expected: PASS; no landing/assessment button named Sleep, Heart, Habits, or Care remains.
 
-- [ ] **Step 5: Commit the root-cause fix and visual surface.**
+- [x] **Step 5: Commit the root-cause fix and visual surface.**
 
 ```bash
 git add app/components/landing.tsx app/components/landing.test.tsx app/components/assessment.tsx app/i18n/ui-copy.ts app/i18n/ui-copy.test.ts app/globals.css app/globals.test.ts
@@ -596,7 +596,7 @@ git commit -m "fix: remove decorative canopy controls"
 - Produces: exactly four result branches, shared protective foundation, leaf urgency/evidence badges, and the unchanged functional evidence notebook.
 - Produces: `uiCopyKeys.riskUrgency` with exact EN/FR labels for all four canonical `RiskUrgency` values.
 
-- [ ] **Step 1: Write RED result-tree tests using real mapped rule IDs.**
+- [x] **Step 1: Write RED result-tree tests using real mapped rule IDs.**
 
 Replace fixture IDs such as `first`, `second`, or `sparse` with real `ruleId` values. Assert:
 
@@ -622,7 +622,7 @@ npx vitest run app/components/risk-tree.test.tsx app/components/results.test.tsx
 
 Expected: FAIL because branches are still urgency-based.
 
-- [ ] **Step 2: Replace urgency filters with the explicit pillar index.**
+- [x] **Step 2: Replace urgency filters with the explicit pillar index.**
 
 Keep `requestedLeafId` and the canonical first-leaf fallback, then render all pillars even when empty:
 
@@ -653,7 +653,7 @@ const leavesByPillar = indexRiskLeavesByPillar(leaves);
 
 Preserve leaf order inside each pillar. Do not change `evaluateRisks`, `localizeRiskLeaves`, or export data.
 
-- [ ] **Step 3: Keep urgency and evidence visible after regrouping.**
+- [x] **Step 3: Keep urgency and evidence visible after regrouping.**
 
 Add the translated urgency and evidence tier to each leaf button:
 
@@ -666,11 +666,11 @@ Add the translated urgency and evidence tier to each leaf button:
 
 Add `riskUrgency.urgent`, `riskUrgency.prompt-review`, `riskUrgency.long-term`, and `riskUrgency.support` with English values `Urgent`, `Prompt review`, `Longer-term`, and `Support`, and French values `Urgent`, `À examiner rapidement`, `À plus long terme`, and `Soutien`. Add `riskTree.pillar.aria` as `{pillar} pillar` / `Pilier {pillar}`, plus an `Urgency / Urgence` row in `EvidencePanel`. Rename `riskTree.aria`, `results.canopy.*`, and related French copy from “living canopy” to the four-pillar vocabulary. Keep the urgent summary copy unchanged.
 
-- [ ] **Step 4: Restyle the tree as a labelled 2×2 pillar grid.**
+- [x] **Step 4: Restyle the tree as a labelled 2×2 pillar grid.**
 
 Remove `--urgent`, `--review`, `--longer`, and `--protective` branch modifiers. Add stable pillar modifiers and a full-width `.risk-tree__foundation`. Preserve the existing selected inset blue bar and two-colour focus ring. On mobile, render one column and keep badge text wrapping; no information may rely on colour alone.
 
-- [ ] **Step 5: Run presentation and unchanged engine regressions.**
+- [x] **Step 5: Run presentation and unchanged engine regressions.**
 
 ```bash
 npx vitest run app/lib/health-pillars.test.ts app/components/risk-tree.test.tsx app/components/results.test.tsx app/i18n/ui-copy.test.ts app/globals.test.ts app/lib/risk-engine.test.ts app/lib/export.test.ts
@@ -678,7 +678,7 @@ npx vitest run app/lib/health-pillars.test.ts app/components/risk-tree.test.tsx 
 
 Expected: PASS; risk engine and export expectations remain unchanged.
 
-- [ ] **Step 6: Commit result presentation.**
+- [x] **Step 6: Commit result presentation.**
 
 ```bash
 git add app/components/risk-tree.tsx app/components/risk-tree.test.tsx app/components/results.tsx app/components/results.test.tsx app/i18n/ui-copy.ts app/i18n/ui-copy.test.ts app/globals.css app/globals.test.ts
@@ -707,7 +707,7 @@ git commit -m "feat: group results into four health pillars"
 - Produces: pillar-media metadata where cardio has poster and MP4, while strength/sleep/nutrition keep local WebP posters.
 - Consumes: built-in image generation and FFmpeg only; no runtime package is added.
 
-- [ ] **Step 1: Write RED motion/fallback tests.**
+- [x] **Step 1: Write RED motion/fallback tests.**
 
 Create hook tests for media-query changes and `document.hidden`. Extend intermission tests to assert:
 
@@ -728,7 +728,7 @@ npx vitest run app/hooks/use-decorative-motion.test.tsx app/components/landing.t
 
 Expected: FAIL for missing hook/cardio assets/video.
 
-- [ ] **Step 2: Generate the cardio/cellular-energy artwork.**
+- [x] **Step 2: Generate the cardio/cellular-energy artwork.**
 
 Read and use the `imagegen` skill. Generate one 16:9 image with this prompt:
 
@@ -738,7 +738,7 @@ A serene scientific-botanical collage for a private health reflection website, 1
 
 Inspect the result before use. Convert it to 1920×1080 WebP with FFmpeg in a safe temporary directory, then place the final asset at `public/media/cardio-intermission.webp`. Target at most 358,400 bytes; adjust WebP quality only, not dimensions or crop, if necessary. Record accurate generated-media provenance in README without claiming Sora unless Sora was actually used.
 
-- [ ] **Step 3: Encode one seamless local cardio transition loop.**
+- [x] **Step 3: Encode one seamless local cardio transition loop.**
 
 Create an eight-second, silent, 1280×720 H.264 loop from the approved poster:
 
@@ -758,7 +758,7 @@ test "$(stat -f %z public/media/cardio-intermission.mp4)" -le 1572864
 
 Expected: H.264, 1280×720, 24 fps, about 8 seconds, no audio, at most 1.5 MiB. If FFmpeg's exact last frame prevents a seamless loop, reduce the `-t` duration to `7.958333` so the duplicated endpoint is omitted; do not add a runtime animation dependency.
 
-- [ ] **Step 4: Extract and reuse the motion gate.**
+- [x] **Step 4: Extract and reuse the motion gate.**
 
 Move the existing landing `matchMedia` plus `visibilitychange` logic into:
 
@@ -783,7 +783,7 @@ export function useDecorativeMotion(): boolean {
 
 Refactor landing without changing poster/video handoff. In `Intermission`, use a pillar-media map and render the cardio MP4 only when motion is allowed; strength, sleep, and nutrition remain static. Keep the poster visible until `canplay`, restore it on `error`, and never render essential copy inside the media layer.
 
-- [ ] **Step 5: Verify media behaviour and commit.**
+- [x] **Step 5: Verify media behaviour and commit.**
 
 ```bash
 npx vitest run app/hooks/use-decorative-motion.test.tsx app/components/landing.test.tsx app/components/intermission.test.tsx app/globals.test.ts
@@ -806,11 +806,11 @@ git commit -m "feat: add local pillar transition media"
 - Consumes: Tasks 1–5 exact HEAD.
 - Produces: verified documentation, browser evidence, independent spec/quality review, and a clean release candidate.
 
-- [ ] **Step 1: Update documentation before the release run.**
+- [x] **Step 1: Update documentation before the release run.**
 
 Document the four-pillar presentation layer, the 243/47/54 exhaustive mapping tests, the generated cardio WebP, both local MP4 motion moments, reduced-motion behaviour, and the unchanged clinical/risk/export boundary. Change the design document status to `implemented; release verification pending`. Do not claim direct VO₂ max or mitochondrial measurement and do not attribute a generator that was not used.
 
-- [ ] **Step 2: Run the exact full verification matrix under Node 24.**
+- [x] **Step 2: Run the exact full verification matrix under Node 24.**
 
 ```bash
 export PATH=/Users/zakichair/.nvm/versions/node/v24.13.0/bin:$PATH
@@ -829,7 +829,7 @@ find . -name '*.tsbuildinfo' -not -path './node_modules/*' -print
 
 Expected: Node `v24.13.0`; TypeScript/lint/tests/build pass; production audit has zero vulnerabilities; no TypeScript build artifact; worktree contains only intentional documentation/checklist changes before their commit.
 
-- [ ] **Step 3: Run targeted invariant scans.**
+- [x] **Step 3: Run targeted invariant scans.**
 
 ```bash
 rg -n "canopy__leaf|canopy__branch|canopyBranch\.|aria-pressed=.*Sleep|aria-pressed=.*Heart" app

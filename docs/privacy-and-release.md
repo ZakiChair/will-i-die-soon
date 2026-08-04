@@ -1,6 +1,6 @@
 # Privacy and release record
 
-Audit date: **2026-08-03**. Release state: **verified source candidate for a private research prototype; not deployed by this task**.
+Audit date: **2026-08-04**. Release state: **CLI-verified source candidate for a private research prototype; browser QA, independent review, and private deployment remain pending**.
 
 ## Data boundary
 
@@ -9,6 +9,12 @@ The locale, profile, adaptive queue, assessment answers, confirmed laboratory ob
 The app does not write answers or locale to `localStorage`, `sessionStorage`, IndexedDB, cookies, query parameters, URL fragments, console logs, or analytics. No API route receives an assessment. The Cloudflare Worker forwards the incoming page request to the Vinext handler; that inbound request boundary is not an answer endpoint. Hosting-provider infrastructure logs remain an owner/platform audit boundary and cannot be proved absent from application source, but the journey never sends assessment answers to that handler after the page is loaded.
 
 Ordinary evidence links are external HTTPS navigation initiated by the user. They use `target="_blank"` and `rel="noreferrer"`; the app does not prefetch their content or attach answers to their URLs.
+
+## Four-pillar presentation boundary
+
+The ordered presentation pillars are `cardio-energy`, `strength-neural`, `sleep-circadian`, and `nutrition-metabolic`: **Cardio, VO₂ max & cellular energy**, **Strength, nervous system & recovery**, **Sleep & circadian rhythm**, and **Nutrition & metabolic health**. Their French labels are **Cardio, VO₂ max et énergie cellulaire**, **Force, système nerveux et récupération**, **Sommeil et rythme circadien**, and **Alimentation et santé métabolique**.
+
+This layer only groups already-selected questions and evaluated evidence leaves. Its closed guards cover 243 questions, 47 domains, 54 risk rules, 88 conditional questions, and 98 gate edges; risk-rule distribution is 12/23/2/17 in pillar order. Quick remains exactly 20 questions, Detailed exactly 50, and Deep remains 150–200 after selection and active branches. The grouping does not change clinical rules, evidence tiers, scoring, exports, laboratory parsing, or the underlying risk conditions. It does not directly measure VO₂ max or mitochondrial function, diagnose disease, predict an exact disease probability, or estimate time to death.
 
 ## Lifecycle and clearing
 
@@ -44,9 +50,9 @@ Structured raw answers require a separate explicit opt-in and are allowed only f
 
 ## Public asset audit
 
-The first-party presentation assets are `og.png` (1200×630), `favicon.svg`, four WebP images, and one silent MP4 loop. The remaining public files are fixed parser workers/cores/language data, their licences, and starter SVG icons. File-type, string, and metadata inspection found no embedded assessment answer, filename, user identifier, credential, author, copyright owner, or download-origin metadata in the presentation media. The MP4's x264/VideoLAN encoder string and library/schema URLs in vendored parser assets are tool provenance, not user data or secrets.
+The first-party presentation assets are `og.png` (1200×630), `favicon.svg`, five WebP images, and two silent local MP4 loops. The remaining public files are fixed parser workers/cores/language data, their licences, and starter SVG icons. File-type, string, and metadata inspection found no embedded assessment answer, filename, user identifier, credential, author, copyright owner, or download-origin metadata in the presentation media. The MP4's x264/VideoLAN encoder string and library/schema URLs in vendored parser assets are tool provenance, not user data or secrets.
 
-Generated artwork contains no medical labels, numerical claims, or factual diagram text that could be mistaken for evidence. The stills were created with the built-in **imagegen** workflow and the silent loop was derived with **ffmpeg**. No Sora-generated media is used.
+Generated artwork contains no medical labels, numerical claims, or factual diagram text that could be mistaken for evidence. The Cardio WebP was created with OpenAI's built-in image-generation tool on 2026-08-04, resized/cropped locally with FFmpeg, and compressed locally with cwebp; it is not Sora-generated. The silent Cardio loop was derived locally with FFmpeg. Landing and Cardio motion use local poster/canplay/error fallbacks, are static for reduced motion or hidden documents, and are removed from print. There is no remote runtime media.
 
 ## React and bundle audit
 
@@ -67,6 +73,10 @@ The Worker adds these defaults without reading the body, changing body/status/st
 The production dependency gate is `npm audit --omit=dev`. The verified dependency baseline has zero production vulnerabilities with Next 16.2.12, React/React DOM/RSC 19.2.8, PostCSS 8.5.25, and sharp 0.35.3. The full development-tree audit remains a separate residual: 11 development-only nodes (2 low, 3 moderate, 6 high, 0 critical) in Babel/Cloudflare/Vite/Wrangler-related tooling. Their fixes require a coordinated build-toolchain upgrade; artifact scans found no affected implementation embedded in production JavaScript. Advisory-registry severity is a point-in-time snapshot, not a fixed property, so both the production and full audits must be rerun for a later release.
 
 First-party scans cover network transports, analytics, cookies/browser storage, URL answer state, unsafe HTML/eval, console output, deterministic/future-disease claims, medicine start/stop/dose instructions, and disease percentages in both English and French presentation corpora. Vendored `/public/lab-assets` code is excluded from first-party findings; the Worker's single inbound handler call is allowlisted and documented above. Every non-allowlisted match must be manually classified before deployment.
+
+## 2026-08-04 CLI release matrix
+
+The source candidate is verified with Node `v24.13.0` using `npm ci`, TypeScript with incremental output disabled, ESLint, the complete Vitest suite, the production build, `npm audit --omit=dev --json`, diff checking, and a `.tsbuildinfo` search. The production audit reports zero production vulnerabilities. Targeted scans cover obsolete canopy controls, browser persistence/unsafe HTML, HTTP(S) media paths, and deterministic disease/probability wording; every match is reviewed in the task release report. This is command-line evidence only: browser QA, private-deployment runtime/network checks, and two-stage independent review are still required before deployment.
 
 ## Sites state and exact private-deployment prerequisites
 
