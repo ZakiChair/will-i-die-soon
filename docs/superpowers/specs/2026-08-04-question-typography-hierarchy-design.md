@@ -1,7 +1,7 @@
 # Question typography hierarchy design
 
 Date: 2026-08-04  
-Status: visual direction approved; written specification awaiting user review
+Status: approved for implementation
 
 ## Product context
 
