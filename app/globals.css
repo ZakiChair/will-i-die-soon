@@ -284,8 +284,8 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
 
 .assessment__layout {
   display: grid;
-  grid-template-columns: minmax(260px, .72fr) minmax(0, 1.28fr);
-  gap: clamp(34px, 7vw, 100px);
+  grid-template-columns: minmax(230px, .52fr) minmax(0, 1.48fr);
+  gap: clamp(24px, 4vw, 56px);
   align-items: start;
   padding-top: clamp(42px, 7vw, 88px);
 }
@@ -313,7 +313,7 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
 }
 .pillar-progress__chapters {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -351,7 +351,7 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
 .pillar-progress__chapter--upcoming { opacity: .72; }
 .question-sheet {
   min-height: 620px;
-  padding: clamp(26px, 5vw, 64px);
+  padding: clamp(24px, 3.5vw, 48px);
   border: 1px solid var(--line);
   background: var(--surface-readable);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%);
@@ -367,13 +367,35 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
   text-transform: uppercase;
 }
 
-.question-sheet h1 {
+.safety-screen h1 {
   max-width: 780px;
   margin: 10px 0 clamp(34px, 6vw, 64px);
   font-size: clamp(1.9rem, 3.4vw, 3.75rem);
   font-weight: 550;
   letter-spacing: -.045em;
   line-height: 1.02;
+}
+
+.question-sheet .question-prompt__title {
+  max-width: 28ch;
+  margin: 10px 0 clamp(28px, 4vw, 40px);
+  font-size: clamp(2.125rem, 2.75vw, 2.75rem);
+  font-weight: 550;
+  letter-spacing: -.035em;
+  line-height: 1.08;
+}
+
+.question-sheet .question-prompt__title--split {
+  margin-bottom: 12px;
+}
+
+.question-prompt__detail {
+  max-width: 64ch;
+  margin: 0 0 clamp(22px, 2vw, 28px);
+  color: color-mix(in srgb, var(--deep-water) 78%, var(--muted));
+  font-size: clamp(1rem, 1.2vw, 1.125rem);
+  font-weight: 475;
+  line-height: 1.55;
 }
 
 .question-form fieldset { margin: 0; padding: 0; border: 0; }
@@ -876,7 +898,9 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
   .intermission__panel { padding: 30px 20px 34px; }
   .intermission h1 { font-size: clamp(2.8rem, 15vw, 4.5rem); }
   .question-sheet { min-height: 0; padding: 24px 18px 38px; }
-  .question-sheet h1 { font-size: clamp(1.7rem, 7.4vw, 2.6rem); }
+  .safety-screen h1 { font-size: clamp(1.7rem, 7.4vw, 2.6rem); }
+  .question-sheet .question-prompt__title { font-size: clamp(1.75rem, 7vw, 2.125rem); }
+  .question-prompt__detail { font-size: 1rem; }
   .scale-grid { grid-template-columns: repeat(6, 1fr); }
   .question-actions { grid-template-columns: 1fr 1fr; }
   .question-actions button:nth-child(2) { grid-column: 1 / -1; grid-row: 1; }

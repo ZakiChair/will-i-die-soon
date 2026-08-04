@@ -33,13 +33,35 @@ function contrast(left: string, right: string): number {
 }
 
 describe("global interaction styles", () => {
-  test("uses the smaller question-heading scale at desktop and mobile widths", () => {
+  test("uses the approved question title and detail hierarchy", () => {
     expect(css).toMatch(
-      /\.question-sheet h1[^{]*\{[^}]*font-size:\s*clamp\(1\.9rem,\s*3\.4vw,\s*3\.75rem\)/s,
+      /\.question-sheet \.question-prompt__title[^{]*\{[^}]*max-width:\s*28ch[^}]*font-size:\s*clamp\(2\.125rem,\s*2\.75vw,\s*2\.75rem\)[^}]*letter-spacing:\s*-\.035em[^}]*line-height:\s*1\.08/s,
     );
     expect(css).toMatch(
-      /@media \(max-width: 560px\)[\s\S]+\.question-sheet h1[^{]*\{[^}]*clamp\(1\.7rem,\s*7\.4vw,\s*2\.6rem\)/s,
+      /\.question-sheet \.question-prompt__title--split[^{]*\{[^}]*margin-bottom:\s*12px/s,
     );
+    expect(css).toMatch(
+      /\.question-prompt__detail[^{]*\{[^}]*max-width:\s*64ch[^}]*margin:\s*0 0 clamp\(22px,\s*2vw,\s*28px\)[^}]*font-size:\s*clamp\(1rem,\s*1\.2vw,\s*1\.125rem\)[^}]*line-height:\s*1\.55/s,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 560px\)[\s\S]+\.question-sheet \.question-prompt__title[^{]*\{[^}]*font-size:\s*clamp\(1\.75rem,\s*7vw,\s*2\.125rem\)/s,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 560px\)[\s\S]+\.question-prompt__detail[^{]*\{[^}]*font-size:\s*1rem/s,
+    );
+  });
+
+  test("gives the question more room while keeping the chapter rail passive", () => {
+    expect(css).toMatch(
+      /\.assessment__layout\s*\{[^}]*grid-template-columns:\s*minmax\(230px,\s*\.52fr\) minmax\(0,\s*1\.48fr\)[^}]*gap:\s*clamp\(24px,\s*4vw,\s*56px\)/s,
+    );
+    expect(css).toMatch(
+      /\.pillar-progress__chapters\s*\{[^}]*grid-template-columns:\s*1fr/s,
+    );
+    expect(css).toMatch(
+      /\.question-sheet\s*\{[^}]*padding:\s*clamp\(24px,\s*3\.5vw,\s*48px\)/s,
+    );
+    expect(css).toMatch(/\.safety-screen h1\s*\{/);
   });
 
   test("uses a two-color focus-visible indicator that contrasts on paper and deep water", () => {
@@ -173,14 +195,14 @@ describe("global interaction styles", () => {
     expect(css).toMatch(/\.risk-tree__leaf-meta\s*\{[^}]*overflow-wrap:\s*anywhere/s);
   });
 
-  test("scopes the passive pillar chapter rail and lets it wrap on a narrow viewport", () => {
+  test("scopes the passive pillar chapter rail and stacks its chapters", () => {
     expect(css).toMatch(/\.pillar-progress\s*\{[^}]*display:\s*grid/s);
     expect(css).toMatch(/\.pillar-progress__chapter\s*\{[^}]*display:\s*grid/s);
     expect(css).toMatch(/\.pillar-progress__chapter--completed\s*\{/);
     expect(css).toMatch(/\.pillar-progress__chapter--current\s*\{/);
     expect(css).toMatch(/\.pillar-progress__chapter--upcoming\s*\{/);
     expect(css).toMatch(
-      /@media \(max-width: 560px\)[\s\S]+\.pillar-progress__chapters\s*\{[^}]*grid-template-columns:\s*1fr/s,
+      /\.pillar-progress__chapters\s*\{[^}]*grid-template-columns:\s*1fr/s,
     );
   });
 
