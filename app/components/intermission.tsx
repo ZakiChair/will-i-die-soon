@@ -59,6 +59,7 @@ function IntermissionPoster({
 
 function AnimatedIntermissionMedia({ poster, video }: Required<Pick<PillarMedia, "poster" | "video">>) {
   const [videoReady, setVideoReady] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   return (
     <>
@@ -76,8 +77,13 @@ function AnimatedIntermissionMedia({ poster, video }: Required<Pick<PillarMedia,
         preload="none"
         poster={poster}
         disablePictureInPicture
-        onCanPlay={() => setVideoReady(true)}
-        onError={() => setVideoReady(false)}
+        onCanPlay={() => {
+          if (!failed) setVideoReady(true);
+        }}
+        onError={() => {
+          setVideoReady(false);
+          setFailed(true);
+        }}
       >
         <source src={video} type="video/mp4" />
       </video>

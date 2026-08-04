@@ -108,6 +108,10 @@ test("uses a local Cardio loop only after its poster can play", () => {
   fireEvent.error(video);
   expect(poster).not.toHaveClass("intermission__poster--covered");
   expect(video).not.toHaveClass("intermission__video--ready");
+
+  fireEvent.canPlay(video);
+  expect(poster).not.toHaveClass("intermission__poster--covered");
+  expect(video).not.toHaveClass("intermission__video--ready");
 });
 
 test("keeps the Cardio poster and removes its loop for reduced motion or a hidden page", () => {

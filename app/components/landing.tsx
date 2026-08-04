@@ -57,6 +57,7 @@ function CanopyPoster({ covered = false }: { readonly covered?: boolean }) {
 
 function AnimatedCanopyMedia() {
   const [videoReady, setVideoReady] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   return (
     <>
@@ -74,8 +75,13 @@ function AnimatedCanopyMedia() {
         preload="none"
         poster="/media/canopy-hero.webp"
         disablePictureInPicture
-        onCanPlay={() => setVideoReady(true)}
-        onError={() => setVideoReady(false)}
+        onCanPlay={() => {
+          if (!failed) setVideoReady(true);
+        }}
+        onError={() => {
+          setVideoReady(false);
+          setFailed(true);
+        }}
       >
         <source src="/media/canopy-loop.mp4" type="video/mp4" />
       </video>

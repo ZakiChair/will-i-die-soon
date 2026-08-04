@@ -182,6 +182,11 @@ test("hands the canopy artwork from the poster to the playable video without ove
 
   expect(poster).not.toHaveClass("landing__canopy-poster--covered");
   expect(video).not.toHaveClass("landing__canopy-video--ready");
+
+  fireEvent.canPlay(video);
+
+  expect(poster).not.toHaveClass("landing__canopy-poster--covered");
+  expect(video).not.toHaveClass("landing__canopy-video--ready");
 });
 
 test("stops decorative hero motion while the document is hidden", () => {
