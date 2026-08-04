@@ -840,7 +840,7 @@ rg -n "you (have|will develop)|vous (avez|développerez)|\b[0-9]+%.*(disease|mal
 
 Expected: no obsolete decorative-canopy controls; no persistence/unsafe HTML; no remote runtime media; no deterministic disease/probability claim. Source links in the evidence registry are outside the runtime-media scan scope.
 
-- [ ] **Step 4: Perform browser QA on the production build.**
+- [x] **Step 4: Perform browser QA on the production build.**
 
 Start `npm start` on a free local port and verify with Chrome DevTools:
 
@@ -857,17 +857,17 @@ Start `npm start` on a free local port and verify with Chrome DevTools:
 
 Run a Lighthouse navigation audit for accessibility, best practices, and SEO; investigate any new failure introduced by this change.
 
-- [ ] **Step 5: Request two-stage independent review.**
+- [x] **Step 5: Request two-stage independent review.**
 
 Use `superpowers:requesting-code-review`. The spec reviewer checks exact four-pillar labels/order, mapping coverage, adaptive budgets, clinical invariants, media/fallbacks, EN/FR, and the removal of false controls. The quality reviewer checks component boundaries, React state, focus/a11y, CSS specificity, performance, tests, and generated-asset provenance. Address Critical and Important findings through fresh implementation agents, rerun affected tests, and request re-review until approved.
 
-- [ ] **Step 6: Commit the verified release candidate.**
+- [x] **Step 6: Commit the verified release candidate.**
 
 After reviews and fresh green gates:
 
 ```bash
 git add README.md docs/privacy-and-release.md docs/superpowers/specs/2026-08-04-four-pillar-visual-system-design.md docs/superpowers/plans/2026-08-04-four-pillar-visual-system.md
-git commit -m "docs: verify four-pillar prototype"
+git commit -m "docs: complete four-pillar release verification"
 git status --short
 ```
 
@@ -933,10 +933,10 @@ On the final URL, repeat landing metadata/security headers, EN/FR switch, first 
 
 ## Plan self-review checklist
 
-- [ ] Every design requirement maps to Tasks 1–7.
-- [ ] No placeholder or unstated implementation step remains.
-- [ ] Question and rule mappings are explicit and runtime-covered.
-- [ ] Questionnaire budgets and clinical/export contracts remain unchanged.
-- [ ] All new copy is complete in EN/FR.
-- [ ] The generated artwork and both motion moments have static/reduced-motion fallbacks.
+- [x] Every design requirement maps to Tasks 1–7.
+- [x] No placeholder or unstated implementation step remains.
+- [x] Question and rule mappings are explicit and runtime-covered.
+- [x] Questionnaire budgets and clinical/export contracts remain unchanged.
+- [x] All new copy is complete in EN/FR.
+- [x] The generated artwork and both motion moments have static/reduced-motion fallbacks.
 - [ ] Final private deployment matches the final documented commit SHA.

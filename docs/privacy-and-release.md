@@ -1,6 +1,6 @@
 # Privacy and release record
 
-Audit date: **2026-08-04**. Release state: **CLI-verified source candidate for a private research prototype; browser QA, independent review, and private deployment remain pending**.
+Audit date: **2026-08-04**. Release state: **fully verified source candidate for a private research prototype; private Sites deployment remains pending**.
 
 ## Data boundary
 
@@ -74,15 +74,17 @@ The production dependency gate is `npm audit --omit=dev`. The verified dependenc
 
 First-party scans cover network transports, analytics, cookies/browser storage, URL answer state, unsafe HTML/eval, console output, deterministic/future-disease claims, medicine start/stop/dose instructions, and disease percentages in both English and French presentation corpora. Vendored `/public/lab-assets` code is excluded from first-party findings; the Worker's single inbound handler call is allowlisted and documented above. Every non-allowlisted match must be manually classified before deployment.
 
-## 2026-08-04 CLI release matrix
+## 2026-08-04 release verification
 
-The source candidate is verified with Node `v24.13.0` using `npm ci`, TypeScript with incremental output disabled, ESLint, the complete Vitest suite, the production build, `npm audit --omit=dev --json`, diff checking, and a `.tsbuildinfo` search. The production audit reports zero production vulnerabilities. Targeted scans cover obsolete canopy controls, browser persistence/unsafe HTML, HTTP(S) media paths, and deterministic disease/probability wording; every match is reviewed in the task release report. This is command-line evidence only: browser QA, private-deployment runtime/network checks, and two-stage independent review are still required before deployment.
+On exact source HEAD `cbaf5b591d18a95f2f7f3668bfe3e580cdfd45e1`, the fresh pinned Node `v24.13.0` / npm `11.6.2` release matrix passed with `npm ci`, TypeScript with incremental output disabled, ESLint, all 26 Vitest files / 4,658 tests, the Vinext production build (5/5 stages), `npm audit --omit=dev --json`, diff checking, and a `.tsbuildinfo` search. TypeScript and ESLint exited 0; the production audit found zero vulnerabilities; `git diff` and `git diff --check` were clean; and no `.tsbuildinfo` file was produced. Targeted scans cover obsolete canopy controls, browser persistence/unsafe HTML, HTTP(S) media paths, and deterministic disease/probability wording; every match is reviewed in the task release report.
+
+Isolated-Chrome QA first exercised the broad production flow on `fd921df9b73757edc14dd982a26963e29c959259`, then rechecked the mobile file-input containment fix on `4892de5cf8e41b046e1446c6a226345f4b1e8bf3`. It covered desktop/mobile English and French, Quick's exact 20-question route, all four chapter introductions and result branches, evidence selection and keyboard operation, local laboratory import, reduced motion, print, and the local-only network/storage/cookie boundary. Lighthouse `13.4.1` scored Accessibility, Best Practices, and SEO at 100/100/100 for both desktop and mobile. The final focused Chrome run on exact HEAD `cbaf5b591d18a95f2f7f3668bfe3e580cdfd45e1` confirmed four passive progress labels, exactly one `aria-current` and one progressbar, Back retaining `1/20`, the localized French progress label, no horizontal overflow, terminal poster-error unmounting, and 37 localhost GETs with no POST, `Set-Cookie`, storage, console errors, or page errors. Independent final spec review is Ready after focus/poster corrections; independent final quality review is Ready after rail/media/foundation/progress corrections. Neither review has an open finding.
 
 ## Sites state and exact private-deployment prerequisites
 
 The checked-in Sites configuration names project `appgprj_6a70dd6389a88191986c131c5d0eb343` with `d1: null` and `r2: null`. The controller independently confirmed a custom **owner-only** access state: **1 allowed owner, 0 allowed groups, 0 external visitors**. No credential is stored here. This source-state task did not push, save a Sites version, change access, or deploy, and it does not claim a production URL or completed deployment.
 
-Before any private deployment, the owner/controller must complete all of the following against the exact verified commit:
+Before any private deployment, the owner/controller must complete all of the following against the exact final commit:
 
 1. Re-run TypeScript with incremental output disabled, affected and full tests, lint, production build, production audit, diff check, first-party scans, public-asset audit, and the production-like PDF/image network check; confirm no `.tsbuildinfo` or credential entered source.
 2. Confirm the canonical request-host metadata and response security headers in the production-like runtime, including a hostile-header fallback case and the actual private HTTPS host.
