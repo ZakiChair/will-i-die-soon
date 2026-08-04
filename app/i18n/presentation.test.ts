@@ -1289,6 +1289,7 @@ describe("score presentation", () => {
   });
 
   it.each([
+    ["express", "express-assessment"],
     ["quick", "quick-assessment"],
     ["deep", "answer-more-wellness-habits"],
     ["deep", "unresolved-core-gate"],

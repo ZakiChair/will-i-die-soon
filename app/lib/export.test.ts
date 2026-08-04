@@ -170,6 +170,51 @@ test("explicit raw opt-in includes only valid structured answers and still remov
   );
 });
 
+test("adult Express raw opt-in exports all nine structured answers without private metadata", async () => {
+  const answers = {
+    reported_vo2_max_ml_kg_min: 48.5,
+    squat_one_rep_max_kg: 123,
+    deadlift_one_rep_max_kg: 181,
+    usual_sleep_hours: 7.5,
+    sleep_refreshed: 8,
+    height_cm: 182,
+    weight_kg: 80,
+    plant_food_frequency: 4,
+    diet_ultra_processed: "rarely",
+    exact_location: "SECRET STREET ADDRESS",
+  } as const;
+  const json = await readJson(
+    createRedactedExport(
+      {
+        ...report,
+        subjectAgeYears: 35,
+        assessmentDepth: "express",
+        score: calculatePurityScore(answers, {
+          ageYears: 35,
+          assessmentDepth: "express",
+        }),
+        answers,
+      },
+      { includeRawAnswers: true },
+    ),
+  );
+
+  expect(json.assessmentDepth).toBe("express");
+  expect(json.rawAnswers).toEqual({
+    deadlift_one_rep_max_kg: 181,
+    diet_ultra_processed: "rarely",
+    height_cm: 182,
+    plant_food_frequency: 4,
+    reported_vo2_max_ml_kg_min: 48.5,
+    sleep_refreshed: 8,
+    squat_one_rep_max_kg: 123,
+    usual_sleep_hours: 7.5,
+    weight_kg: 80,
+  });
+  expect(JSON.stringify(json)).not.toMatch(/SECRET|STREET ADDRESS|exact_location/i);
+  expect(json).not.toHaveProperty("expressSummary");
+});
+
 test.each([
   ["age 17 with an adult-shaped score", 17, completeAdultScore],
   ["under 13 with a Quick reflection", 12, quickAdultReflection],

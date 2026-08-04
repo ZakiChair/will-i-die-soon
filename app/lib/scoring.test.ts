@@ -296,6 +296,19 @@ describe("eligibility, exclusions, and missingness", () => {
     expect(result).not.toHaveProperty("score");
   });
 
+  test("Express always returns its no-score summary state", () => {
+    const result = calculatePurityScore(F1_ANSWERS, {
+      ageYears: 35,
+      assessmentDepth: "express",
+    });
+
+    expect(result).toMatchObject({
+      kind: "insufficient-coverage",
+      reason: "express-assessment",
+    });
+    expect(result).not.toHaveProperty("score");
+  });
+
   test("skipping an answer preserves other earned points and reduces assessed coverage", () => {
     const complete = adultScore();
     const skipped = calculatePurityScore(

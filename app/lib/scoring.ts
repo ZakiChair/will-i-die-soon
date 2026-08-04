@@ -126,6 +126,7 @@ export type CoverageCategory = {
 export type PublicInsufficientCoverageResult = {
   readonly kind: "insufficient-coverage";
   readonly reason:
+    | "express-assessment"
     | "quick-assessment"
     | "answer-more-wellness-habits"
     | "unresolved-core-gate";
@@ -1059,6 +1060,10 @@ export function calculatePurityScore(
     medicationCategory(answers),
   ] as const;
   const ledger = scoreLedger(categories, routing.assessmentDepth);
+
+  if (routing.assessmentDepth === "express") {
+    return insufficientCoverage(ledger, "express-assessment");
+  }
 
   if (routing.assessmentDepth === "quick") {
     return insufficientCoverage(ledger, "quick-assessment");
