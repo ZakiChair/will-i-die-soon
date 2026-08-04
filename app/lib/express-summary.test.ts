@@ -43,6 +43,26 @@ describe("Express summary", () => {
     },
   );
 
+  test("omits ratios that cannot be represented as finite numbers", () => {
+    const summary = buildExpressSummary({
+      weight_kg: Number.MIN_VALUE,
+      squat_one_rep_max_kg: Number.MAX_VALUE,
+      deadlift_one_rep_max_kg: Number.MAX_VALUE,
+    });
+
+    expect(summary.strength.squatBodyWeightRatio).toBeNull();
+    expect(summary.strength.deadliftBodyWeightRatio).toBeNull();
+  });
+
+  test("rounds exact half ties up to two decimal places", () => {
+    const summary = buildExpressSummary({
+      weight_kg: 200,
+      squat_one_rep_max_kg: 309,
+    });
+
+    expect(summary.strength.squatBodyWeightRatio).toBe(1.55);
+  });
+
   test("treats skipped and invalid performance values as missing rather than zero", () => {
     const summary = buildExpressSummary({
       reported_vo2_max_ml_kg_min: null,

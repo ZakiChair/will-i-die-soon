@@ -51,12 +51,12 @@ function positive(value: unknown): number | null {
 }
 
 function ratio(load: number | null, weight: number | null): number | null {
-  return load !== null && weight !== null
-    ? new Decimal(load)
-        .div(weight)
-        .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
-        .toNumber()
-    : null;
+  if (load === null || weight === null) return null;
+  const value = new Decimal(load)
+    .div(weight)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber();
+  return Number.isFinite(value) ? value : null;
 }
 
 function ultraProcessedFrequency(value: unknown): UltraProcessedFrequency | null {
