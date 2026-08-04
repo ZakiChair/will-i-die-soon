@@ -75,6 +75,28 @@ test.each([
   },
 );
 
+test("moves focus to the entering chapter heading instead of its Continue button", () => {
+  render(
+    <I18nProvider>
+      <Intermission
+        pillar="cardio-energy"
+        completed={8}
+        total={20}
+        onContinue={vi.fn()}
+      />
+    </I18nProvider>,
+  );
+
+  const heading = screen.getByRole("heading", {
+    name: "Next: Cardio, VO₂ max & cellular energy",
+  });
+  const continueButton = screen.getByRole("button", { name: "Continue assessment" });
+
+  expect(heading).toHaveFocus();
+  expect(continueButton).not.toHaveFocus();
+  expect(heading).toHaveAttribute("tabindex", "-1");
+});
+
 test("uses a local Cardio loop only after its poster can play", () => {
   installMotionPreference(false);
   Object.defineProperty(document, "hidden", { configurable: true, value: false });
@@ -107,11 +129,39 @@ test("uses a local Cardio loop only after its poster can play", () => {
 
   fireEvent.error(video);
   expect(poster).not.toHaveClass("intermission__poster--covered");
+  expect(container.querySelector(".intermission__poster")).toBeInTheDocument();
+  expect(container.querySelector(".intermission__media")).not.toHaveClass(
+    "intermission__media--poster-failed",
+  );
   expect(video).not.toHaveClass("intermission__video--ready");
 
   fireEvent.canPlay(video);
   expect(poster).not.toHaveClass("intermission__poster--covered");
   expect(video).not.toHaveClass("intermission__video--ready");
+});
+
+test("reveals the page surface when a static pillar poster fails to load", () => {
+  const { container } = render(
+    <I18nProvider>
+      <Intermission
+        pillar="sleep-circadian"
+        completed={8}
+        total={20}
+        onContinue={vi.fn()}
+      />
+    </I18nProvider>,
+  );
+
+  const media = container.querySelector(".intermission__media");
+  const poster = container.querySelector<HTMLImageElement>(".intermission__poster");
+  if (!poster) throw new Error("Expected static poster");
+
+  fireEvent.error(poster);
+
+  expect(media).toHaveClass("intermission__media--poster-failed");
+  expect(container.querySelector(".intermission__poster")).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { level: 1 })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Continue assessment" })).toBeVisible();
 });
 
 test("keeps the Cardio poster and removes its loop for reduced motion or a hidden page", () => {
@@ -187,8 +237,10 @@ test("localizes the entering chapter without changing its position", async () =>
     </I18nProvider>,
   );
 
-  await user.click(screen.getByRole("button", { name: "Français" }));
+  const french = screen.getByRole("button", { name: "Français" });
+  await user.click(french);
 
+  expect(french).toHaveFocus();
   expect(screen.getByTestId("locale")).toHaveTextContent("fr");
   expect(screen.getByText("Chapitre 04 / 04")).toBeVisible();
   expect(

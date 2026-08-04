@@ -135,6 +135,15 @@ describe("global interaction styles", () => {
     );
   });
 
+  test("makes a failed pillar poster expose the ambient page surface", () => {
+    expect(css).toMatch(
+      /\.intermission__media--poster-failed\s*\{[^}]*background:\s*transparent/s,
+    );
+    expect(css).toMatch(
+      /\.intermission__media--poster-failed::after\s*\{[^}]*background:\s*transparent/s,
+    );
+  });
+
   test("keeps both focus rings when a risk-tree button is selected or hovered", () => {
     const riskTreeFocusRule = css.match(
       /\.risk-tree__leaves button:hover:focus-visible,[^{]+\{(?<declarations>[^}]+)\}/s,

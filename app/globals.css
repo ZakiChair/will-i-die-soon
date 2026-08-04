@@ -407,6 +407,9 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
 .intermission__poster--covered { opacity: 0; visibility: hidden; }
 .intermission__video { pointer-events: none; opacity: 0; visibility: hidden; }
 .intermission__video--ready { opacity: 1; visibility: visible; }
+.intermission--poster-failed, .intermission__media--poster-failed { background: transparent; }
+.intermission__media--poster-failed::after { background: transparent; }
+.intermission__media--poster-failed .intermission__video { opacity: 0; visibility: hidden; }
 .intermission__panel {
   width: min(650px, 100%);
   padding: clamp(30px, 6vw, 64px);

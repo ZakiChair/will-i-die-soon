@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDecorativeMotion } from "../hooks/use-decorative-motion";
 import { useI18n } from "../i18n/context";
 import { uiCopyKeys } from "../i18n/ui-copy";
@@ -34,36 +34,54 @@ const PILLAR_MEDIA: Readonly<Record<HealthPillar, PillarMedia>> = {
 function IntermissionPoster({
   poster,
   covered = false,
+  onError,
 }: {
   readonly poster: string;
   readonly covered?: boolean;
+  readonly onError?: () => void;
 }) {
   return (
-    <Image
-      className={`intermission__poster${
-        covered ? " intermission__poster--covered" : ""
-      }`}
-      src={poster}
-      alt=""
-      aria-hidden="true"
-      width={1920}
-      height={1080}
-      sizes="(max-width: 560px) calc(100vw - 32px), (max-width: 850px) calc(100vw - 84px), 1040px"
-      loading="lazy"
-      decoding="async"
-      draggable={false}
-      unoptimized
-    />
+    <span onErrorCapture={onError ? () => onError() : undefined}>
+      <Image
+        className={`intermission__poster${
+          covered ? " intermission__poster--covered" : ""
+        }`}
+        src={poster}
+        alt=""
+        aria-hidden="true"
+        width={1920}
+        height={1080}
+        sizes="(max-width: 560px) calc(100vw - 32px), (max-width: 850px) calc(100vw - 84px), 1040px"
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+        unoptimized
+      />
+    </span>
   );
 }
 
-function AnimatedIntermissionMedia({ poster, video }: Required<Pick<PillarMedia, "poster" | "video">>) {
+function AnimatedIntermissionMedia({
+  poster,
+  video,
+  posterFailed,
+  onPosterError,
+}: Required<Pick<PillarMedia, "poster" | "video">> & {
+  readonly posterFailed: boolean;
+  readonly onPosterError: () => void;
+}) {
   const [videoReady, setVideoReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
   return (
     <>
-      <IntermissionPoster poster={poster} covered={videoReady} />
+      {!posterFailed ? (
+        <IntermissionPoster
+          poster={poster}
+          covered={videoReady}
+          onError={onPosterError}
+        />
+      ) : null}
       <video
         className={`intermission__video${
           videoReady ? " intermission__video--ready" : ""
@@ -97,29 +115,54 @@ export function Intermission({
 }: IntermissionProps) {
   const { t } = useI18n();
   const motionAllowed = useDecorativeMotion();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [posterFailed, setPosterFailed] = useState(false);
   const artwork = PILLAR_MEDIA[pillar];
   const current = HEALTH_PILLARS.indexOf(pillar) + 1;
   const showVideo = motionAllowed && Boolean(artwork.video);
 
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
+
   return (
     <section
-      className={`intermission intermission--${artwork.id}`}
+      className={`intermission intermission--${artwork.id}${
+        posterFailed ? " intermission--poster-failed" : ""
+      }`}
       aria-labelledby="intermission-title"
     >
-      <div className="intermission__media" aria-hidden="true">
+      <div
+        className={`intermission__media${
+          posterFailed ? " intermission__media--poster-failed" : ""
+        }`}
+        aria-hidden="true"
+      >
         {showVideo && artwork.video ? (
-          <AnimatedIntermissionMedia poster={artwork.poster} video={artwork.video} />
+          <AnimatedIntermissionMedia
+            poster={artwork.poster}
+            video={artwork.video}
+            posterFailed={posterFailed}
+            onPosterError={() => setPosterFailed(true)}
+          />
         ) : (
-          <IntermissionPoster poster={artwork.poster} />
+          !posterFailed ? (
+            <IntermissionPoster
+              poster={artwork.poster}
+              onError={() => setPosterFailed(true)}
+            />
+          ) : null
         )}
       </div>
       <div className="intermission__panel">
         <p className="data-label">
           {t("intermission.eyebrow", { current: String(current).padStart(2, "0") })}
         </p>
-        <h1 id="intermission-title">{t("intermission.title", { pillar: t(uiCopyKeys.pillar[pillar]) })}</h1>
+        <h1 id="intermission-title" ref={heading} tabIndex={-1}>
+          {t("intermission.title", { pillar: t(uiCopyKeys.pillar[pillar]) })}
+        </h1>
         <p>{t("intermission.body")}</p>
-        <button className="primary-action" type="button" onClick={onContinue} autoFocus>
+        <button className="primary-action" type="button" onClick={onContinue}>
           {t("intermission.continue")}
         </button>
       </div>
