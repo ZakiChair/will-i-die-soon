@@ -1058,8 +1058,8 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
   .human-atlas-scenes { width: 100%; margin-top: 0; padding: 24px 14px; }
   .human-atlas-scene { min-height: 0; padding: 12px 0; opacity: 1; transform: none; }
   .human-atlas-glow { transition: none; animation: none; }
-  .human-atlas-glow--breath { opacity: .76; }
-  .human-atlas-glow[data-active="true"] { transform: translateX(-7.4%) scale(1); }
+  .human-atlas-glow[data-active="true"] { opacity: 0; transform: translateX(-7.4%) scale(1); }
+  .human-atlas-glow--breath, .human-atlas-glow--breath[data-active="true"] { opacity: .76; }
   .risk-tree__leaves button:hover, .risk-tree__leaves button[aria-pressed="true"] { transform: none !important; }
 }
 

@@ -157,6 +157,19 @@ describe("global interaction styles", () => {
     expect(css).not.toMatch(/\.landing__canopy-video/);
   });
 
+  test("shows only the static breath glow when reduced motion is requested", () => {
+    const reducedMotionRules = css.match(
+      /@media \(prefers-reduced-motion: reduce\)\s*\{(?<rules>[\s\S]*?)\n}\n\n\[data-motion="paused"\]/,
+    )?.groups?.rules;
+
+    expect(reducedMotionRules).toMatch(
+      /\.human-atlas-glow\[data-active="true"\]\s*\{[^}]*opacity:\s*0/s,
+    );
+    expect(reducedMotionRules).toMatch(
+      /\.human-atlas-glow--breath,\s*\.human-atlas-glow--breath\[data-active="true"\]\s*\{[^}]*opacity:\s*\.76/s,
+    );
+  });
+
   test("makes a failed pillar poster expose the ambient page surface", () => {
     expect(css).toMatch(
       /\.intermission__media--poster-failed\s*\{[^}]*background:\s*transparent/s,
