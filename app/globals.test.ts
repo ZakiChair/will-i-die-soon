@@ -170,6 +170,34 @@ describe("global interaction styles", () => {
     );
   });
 
+  test("keeps the Human Atlas hero and story in separate print flow", () => {
+    const printRules = css.match(
+      /@media print\s*\{(?<rules>[\s\S]*)\}\s*$/,
+    )?.groups?.rules;
+
+    expect(printRules).toMatch(
+      /\.landing__atlas-experience\s*\{[^}]*width:\s*100%[^}]*margin:\s*0/s,
+    );
+    expect(printRules).toMatch(
+      /\.landing__atlas-hero\s*\{[^}]*position:\s*static[^}]*width:\s*100%[^}]*margin-bottom:\s*24px/s,
+    );
+  });
+
+  test("keeps Human Atlas input microcopy at least eleven CSS pixels", () => {
+    const microcopyRule = css.match(
+      /\.human-atlas-scene small, \.human-atlas-static small\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+    const size = microcopyRule?.match(
+      /font-size:\s*(?<value>[\d.]+)(?<unit>rem|px)/,
+    )?.groups;
+
+    expect(size).toBeDefined();
+    const remSize = size?.unit === "px"
+      ? Number(size.value) / 16
+      : Number(size?.value);
+    expect(remSize).toBeGreaterThanOrEqual(0.6875);
+  });
+
   test("makes a failed pillar poster expose the ambient page surface", () => {
     expect(css).toMatch(
       /\.intermission__media--poster-failed\s*\{[^}]*background:\s*transparent/s,

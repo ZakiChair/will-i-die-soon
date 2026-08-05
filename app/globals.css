@@ -199,7 +199,7 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
 .human-atlas-scene__card > .data-label { color: var(--living-coral); }
 .human-atlas-scene h3 { margin: 13px 0; font-size: clamp(1.8rem, 2.8vw, 3rem); font-weight: 500; letter-spacing: -.05em; line-height: .98; }
 .human-atlas-scene__card > p:not(.data-label) { color: var(--deep-water); line-height: 1.6; }
-.human-atlas-scene small, .human-atlas-static small { color: var(--muted); font-family: var(--font-data), monospace; font-size: .67rem; line-height: 1.55; }
+.human-atlas-scene small, .human-atlas-static small { color: var(--muted); font-family: var(--font-data), monospace; font-size: .6875rem; line-height: 1.55; }
 .human-atlas-stage--failed { display: grid; place-items: center; padding: 28px; }
 .human-atlas-stage--failed .human-atlas-progress { display: none; }
 .human-atlas-stage__fallback { max-width: 38ch; margin: 0; color: var(--deep-water); line-height: 1.6; }
@@ -1068,6 +1068,8 @@ h1, h2, h3 { font-family: var(--font-display), Georgia, serif; }
 @media print {
   body { background: white; background-image: none; }
   .journey::before { display: none; }
+  .landing__atlas-experience { width: 100%; margin: 0; }
+  .landing__atlas-hero { position: static; width: 100%; margin-bottom: 24px; }
   .human-atlas-stage { display: none; }
   .human-atlas-glow, .human-atlas-glow-set, .landing__scroll-hint, .intermission__media { display: none !important; }
   .human-atlas-scroll { min-height: 0; }
