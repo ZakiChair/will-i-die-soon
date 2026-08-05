@@ -109,6 +109,19 @@ describe("complete bilingual UI copy", () => {
     expect(uiCopyKeys).not.toHaveProperty("canopyBranch");
   });
 
+  test("keeps Human Atlas copy descriptive rather than diagnostic or personalized", () => {
+    const atlasEntries = Object.entries(uiCopy.en).filter(([key]) =>
+      key.startsWith("landing.atlas."),
+    );
+
+    expect(atlasEntries.length).toBeGreaterThanOrEqual(26);
+    for (const [key, message] of atlasEntries) {
+      expect(message, key).not.toMatch(
+        /we (?:diagnose|predict)|your diagnosis|predict(?:s|ing)? (?:your|when)|measures? your (?:brain|nervous system|digestion|energy)|medical scan/i,
+      );
+    }
+  });
+
   test("keeps exact English/French key parity with nonblank copy and matching variables", () => {
     const englishKeys = Object.keys(uiCopy.en).sort();
     const frenchKeys = Object.keys(uiCopy.fr).sort();
