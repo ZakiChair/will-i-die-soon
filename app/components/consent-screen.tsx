@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { questionBank } from "../data/questions";
 import { useI18n } from "../i18n/context";
 import { uiCopyKeys } from "../i18n/ui-copy";
@@ -16,6 +16,7 @@ type MinorMode = "assisted" | "private";
 
 export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
   const { locale, t } = useI18n();
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const [ageInput, setAgeInput] = useState("");
   const [countryCode, setCountryCode] = useState("");
   const [minorMode, setMinorMode] = useState<MinorMode | null>(null);
@@ -49,6 +50,10 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
       ? selectedDepthLabel.toLocaleLowerCase("fr")
       : selectedDepthLabel;
 
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
+
   function submitConsent(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (canSubmit && profile) {
@@ -66,7 +71,7 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
       </header>
       <div className="consent__body">
         <p className="data-label">{t("consent.eyebrow")}</p>
-        <h1 id="consent-title">{t("consent.title")}</h1>
+        <h1 id="consent-title" ref={titleRef} tabIndex={-1}>{t("consent.title")}</h1>
         <p className="consent__intro">{t("consent.intro")}</p>
         <aside className="consent__privacy" aria-label={t("consent.privacy.aria")}>
           <strong>{t("consent.privacy.strong")}</strong> {t("consent.privacy.body")}

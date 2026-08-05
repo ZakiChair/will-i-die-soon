@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
-import { useState } from "react";
-import { useDecorativeMotion } from "../hooks/use-decorative-motion";
+import { DecorativeSectionBoundary } from "./decorative-section-boundary";
+import { HumanAtlasScroll, HumanAtlasStaticStory } from "./human-atlas-scroll";
 import { useI18n } from "../i18n/context";
 import { type UiCopyKey, uiCopyKeys } from "../i18n/ui-copy";
 import type { AnalysisDepth } from "../lib/types";
@@ -12,15 +11,10 @@ type LandingProps = {
 };
 
 const depths: ReadonlyArray<{
-  id: AnalysisDepth;
+  id: Exclude<AnalysisDepth, "express">;
   detailKey: UiCopyKey;
   descriptionKey: UiCopyKey;
 }> = [
-  {
-    id: "express",
-    detailKey: "depth.express.detail",
-    descriptionKey: "depth.express.description",
-  },
   {
     id: "quick",
     detailKey: "depth.quick.detail",
@@ -38,64 +32,9 @@ const depths: ReadonlyArray<{
   },
 ];
 
-function CanopyPoster({ covered = false }: { readonly covered?: boolean }) {
-  return (
-    <Image
-      className={`landing__canopy-poster${
-        covered ? " landing__canopy-poster--covered" : ""
-      }`}
-      src="/media/canopy-hero.webp"
-      alt=""
-      aria-hidden="true"
-      width={1920}
-      height={1080}
-      sizes="(max-width: 850px) calc(100vw - 40px), 48vw"
-      loading="eager"
-      fetchPriority="high"
-      decoding="async"
-      draggable={false}
-      unoptimized
-    />
-  );
-}
-
-function AnimatedCanopyMedia() {
-  const [videoReady, setVideoReady] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  return (
-    <>
-      <CanopyPoster covered={videoReady} />
-      <video
-        className={`landing__canopy-video${
-          videoReady ? " landing__canopy-video--ready" : ""
-        }`}
-        aria-hidden="true"
-        tabIndex={-1}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="none"
-        poster="/media/canopy-hero.webp"
-        disablePictureInPicture
-        onCanPlay={() => {
-          if (!failed) setVideoReady(true);
-        }}
-        onError={() => {
-          setVideoReady(false);
-          setFailed(true);
-        }}
-      >
-        <source src="/media/canopy-loop.mp4" type="video/mp4" />
-      </video>
-    </>
-  );
-}
-
 export function Landing({ onStart }: LandingProps) {
   const { locale, t } = useI18n();
-  const motionAllowed = useDecorativeMotion();
+  const startExpress = () => onStart("express");
 
   return (
     <div className="landing">
@@ -103,36 +42,40 @@ export function Landing({ onStart }: LandingProps) {
         <div className="wordmark">
           Will I Die <strong>Soon?</strong>
         </div>
-        <div className="prototype-label data-label">
-          {t("landing.prototype")}
-        </div>
+        <div className="prototype-label data-label">{t("landing.prototype")}</div>
       </header>
 
       <div className="landing__main">
-        <section className="landing__hero" aria-labelledby="landing-title">
-          <div>
-            <p className="landing__kicker data-label">{t("landing.kicker")}</p>
-            <h1 id="landing-title">
-              {t("landing.title.before")}<span>{t("landing.title.after")}</span>
-            </h1>
-            <p className="landing__intro">{t("landing.intro")}</p>
-            <div className="landing__rule" aria-hidden="true" />
+        <section className="landing__atlas-experience" aria-labelledby="landing-title">
+          <div className="landing__atlas-hero">
+            <p className="data-label">{t("landing.atlas.hero.eyebrow")}</p>
+            <h1 id="landing-title">{t("landing.atlas.hero.title")}</h1>
+            <p>{t("landing.atlas.hero.body")}</p>
+            <button className="landing__primary-cta" type="button" onClick={startExpress}>
+              {t("landing.atlas.hero.cta")}
+            </button>
+            <p className="landing__scroll-hint">{t("landing.atlas.hero.scroll")}</p>
           </div>
-          <div className="landing__canopy-stage">
-            <div className="landing__canopy-media" aria-hidden="true">
-              {motionAllowed ? (
-                <AnimatedCanopyMedia />
-              ) : (
-                <CanopyPoster />
-              )}
-            </div>
+          <div className="landing__atlas-decorative">
+            <DecorativeSectionBoundary fallback={<HumanAtlasStaticStory />}>
+              <HumanAtlasScroll />
+            </DecorativeSectionBoundary>
           </div>
+        </section>
+
+        <section className="landing__atlas-conversion" aria-labelledby="atlas-conversion-title">
+          <p className="data-label">{t("landing.atlas.conversion.eyebrow")}</p>
+          <h2 id="atlas-conversion-title">{t("landing.atlas.conversion.title")}</h2>
+          <p>{t("landing.atlas.conversion.body")}</p>
+          <button className="landing__primary-cta" type="button" onClick={startExpress}>
+            {t("landing.atlas.conversion.cta")}
+          </button>
         </section>
 
         <section className="depth-section" aria-labelledby="depth-title">
           <div className="section-heading">
-            <p className="data-label">{t("landing.pace.eyebrow")}</p>
-            <h2 id="depth-title">{t("landing.pace.title")}</h2>
+            <p className="data-label">{t("landing.atlas.other.eyebrow")}</p>
+            <h2 id="depth-title">{t("landing.atlas.other.title")}</h2>
           </div>
           <div className="depth-grid">
             {depths.map((depth) => {
@@ -176,9 +119,7 @@ export function Landing({ onStart }: LandingProps) {
         </section>
       </div>
 
-      <footer className="landing__footnote">
-        {t("landing.urgent")}
-      </footer>
+      <footer className="landing__footnote">{t("landing.urgent")}</footer>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   Bricolage_Grotesque,
   IBM_Plex_Mono,
   Manrope,
+  Newsreader,
 } from "next/font/google";
 import { resolveMetadataOrigin } from "./lib/metadata";
 import "./globals.css";
@@ -20,6 +21,12 @@ const body = Manrope({
 
 const mono = IBM_Plex_Mono({
   variable: "--font-data",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
+const editorial = Newsreader({
+  variable: "--font-editorial",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
 });
@@ -74,7 +81,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
+      <body className={`${display.variable} ${body.variable} ${mono.variable} ${editorial.variable}`}>
         {children}
       </body>
     </html>

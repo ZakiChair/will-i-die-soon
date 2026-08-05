@@ -8,6 +8,16 @@ afterEach(() => {
   document.documentElement.lang = "en";
 });
 
+test.each([0, 1])("focuses consent heading after Express CTA %i replaces the landing", async (index) => {
+  const user = userEvent.setup();
+  render(<Home />);
+
+  expect(document.querySelector("main main")).toBeNull();
+  await user.click(screen.getAllByRole("button", { name: "Start Express" })[index]);
+
+  expect(screen.getByRole("heading", { name: "Before we begin" })).toHaveFocus();
+});
+
 async function continuePastChapterIntro(user: ReturnType<typeof userEvent.setup>) {
   const button = screen.queryByRole("button", { name: "Continue assessment" });
   if (button) await user.click(button);
@@ -120,7 +130,7 @@ test("redirects a minor Express route to Quick from consent", async () => {
   const user = userEvent.setup();
   render(<Home />);
 
-  await user.click(screen.getByRole("button", { name: "Choose Express" }));
+  await user.click(screen.getAllByRole("button", { name: "Start Express" })[0]);
   await user.type(screen.getByRole("spinbutton", { name: "How old are you?" }), "17");
   await user.selectOptions(
     screen.getByRole("combobox", { name: "Country or region" }),

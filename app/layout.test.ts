@@ -8,6 +8,7 @@ vi.mock("next/font/google", () => ({
   Bricolage_Grotesque: () => ({ variable: "--font-display" }),
   IBM_Plex_Mono: () => ({ variable: "--font-data" }),
   Manrope: () => ({ variable: "--font-body" }),
+  Newsreader: () => ({ variable: "--font-editorial" }),
 }));
 
 vi.mock("next/headers", () => ({
@@ -83,4 +84,15 @@ test("falls back locally when configured and request values are hostile", async 
   expect(metadata.metadataBase).toEqual(new URL("http://localhost:3000/"));
   expect(metadata.alternates?.canonical).toEqual(new URL("http://localhost:3000/"));
   expect(metadata.openGraph?.url).toEqual(new URL("http://localhost:3000/"));
+});
+
+test("adds the editorial variable without replacing the existing font variables", async () => {
+  const { default: RootLayout } = await import("./layout");
+  const tree = RootLayout({ children: "content" });
+  const body = tree.props.children;
+
+  expect(body.props.className).toContain("--font-display");
+  expect(body.props.className).toContain("--font-body");
+  expect(body.props.className).toContain("--font-data");
+  expect(body.props.className).toContain("--font-editorial");
 });

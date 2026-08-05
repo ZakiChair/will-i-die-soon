@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, test } from "vitest";
@@ -86,21 +86,21 @@ describe("global interaction styles", () => {
     expect(css).not.toMatch(/\.canopy__leaf/);
   });
 
-  test("uses the botanical motif with readable and dense content surfaces", () => {
+  test("keeps the botanical motif on the journey layer with readable and dense content surfaces", () => {
     expect(css).toMatch(/--motif-canopy:\s*url\("\/media\/canopy-hero\.webp"\)/);
     expect(css).toMatch(/--motif-wash:\s*rgb\(244 247 245 \/ 92%\)/);
     expect(css).toMatch(/--motif-wash-dense:\s*rgb\(244 247 245 \/ 96%\)/);
     expect(css).toMatch(/--surface-readable:\s*rgb\(255 255 255 \/ 88%\)/);
-    expect(css).toMatch(/body\s*\{[\s\S]*var\(--motif-canopy\)[^;]+no-repeat/s);
+    expect(css.match(/body\s*\{[^}]*\}/s)?.[0]).not.toMatch(/var\(--motif-canopy\)/);
+    expect(css).toMatch(/\.journey::before\s*\{[^}]*var\(--motif-canopy\)[^;]+no-repeat/s);
     expect(css).toMatch(/\.consent__body[^{]*\{[^}]*background:\s*var\(--surface-readable\)/s);
     expect(css).toMatch(/\.question-sheet[^{]*\{[^}]*background:\s*var\(--surface-readable\)/s);
     expect(css).toMatch(/\.risk-tree\s*\{[^}]*var\(--surface-readable\)/s);
     expect(css).toMatch(/\.lab-import[^{]*\{[^}]*background:\s*var\(--motif-wash-dense\)/s);
     expect(css).toMatch(/\.lab-review__row\s*\{[^}]*background:\s*var\(--motif-wash-dense\)/s);
     expect(css).toMatch(/\.confirmed-labs table\s*\{[^}]*background:\s*var\(--motif-wash-dense\)/s);
-    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]+background-size:\s*100% 760px, auto 760px, 100% 100%/s);
     expect(css).toMatch(/@media print[\s\S]+body\s*\{[^}]*background:\s*white[^}]*background-image:\s*none/s);
-    expect(css).toMatch(/@media print[\s\S]+\.landing__canopy-media,\s*\.intermission__media\s*\{[^}]*display:\s*none/s);
+    expect(css).toMatch(/@media print[\s\S]+\.journey::before\s*\{[^}]*display:\s*none/s);
   });
 
   test("contains the lab report file control within the import card", () => {
@@ -112,10 +112,7 @@ describe("global interaction styles", () => {
     expect(fileInputRule).toMatch(/min-width:\s*0/);
   });
 
-  test("crops decorative artwork responsively and removes video under reduced motion", () => {
-    expect(css).toMatch(
-      /\.landing__canopy-media\s+(?:img|> img)[^{]*\{[^}]*object-fit:\s*cover/s,
-    );
+  test("keeps Cardio intermission artwork responsive without landing video rules", () => {
     expect(css).toMatch(
       /\.intermission__media\s+(?:img|> img)[^{]*\{[^}]*object-fit:\s*cover/s,
     );
@@ -126,22 +123,7 @@ describe("global interaction styles", () => {
       /@media \(max-width: 560px\)[\s\S]+\.intermission__[^{]+\{/,
     );
     expect(css).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]+\.landing__canopy-video,\s*\.intermission__video\s*\{[^}]*display:\s*none/s,
-    );
-  });
-
-  test("shows exactly one canopy layer before and after the video becomes playable", () => {
-    expect(css).toMatch(
-      /\.landing__canopy-poster\s*\{[^}]*opacity:\s*\.78/s,
-    );
-    expect(css).toMatch(
-      /\.landing__canopy-poster--covered\s*\{[^}]*opacity:\s*0[^}]*visibility:\s*hidden/s,
-    );
-    expect(css).toMatch(
-      /\.landing__canopy-video\s*\{[^}]*opacity:\s*0/s,
-    );
-    expect(css).toMatch(
-      /\.landing__canopy-video--ready\s*\{[^}]*opacity:\s*\.78/s,
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]+\.intermission__video\s*\{[^}]*display:\s*none/s,
     );
   });
 
@@ -155,6 +137,24 @@ describe("global interaction styles", () => {
     expect(css).toMatch(
       /\.intermission__video--ready\s*\{[^}]*opacity:\s*1[^}]*visibility:\s*visible/s,
     );
+  });
+
+  test("ships a bounded local Human Atlas asset and its responsive fallback rules", () => {
+    const atlasPath = join(process.cwd(), "public/media/human-atlas-hero.webp");
+    const atlasAsset = existsSync(atlasPath) ? readFileSync(atlasPath) : Buffer.alloc(0);
+
+    expect(existsSync(atlasPath)).toBe(true);
+    expect(atlasAsset.subarray(0, 4).toString("ascii")).toBe("RIFF");
+    expect(atlasAsset.subarray(8, 12).toString("ascii")).toBe("WEBP");
+    expect(atlasAsset.byteLength).toBeLessThanOrEqual(650 * 1024);
+    expect(existsSync(join(process.cwd(), "public/media/canopy-loop.mp4"))).toBe(false);
+    expect(css).toMatch(/\.human-atlas-stage\s*\{[^}]*position:\s*sticky/s);
+    expect(css).toMatch(/\.human-atlas-media\s*\{[^}]*aspect-ratio:\s*1672 \/ 941/s);
+    expect(css).toMatch(/@media \(max-width: 780px\)[\s\S]+\.human-atlas-media\s*\{[^}]*translateX\(-62%\)/s);
+    expect(css).toMatch(/\.human-atlas-glow\s*\{[^}]*mix-blend-mode:\s*screen/s);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]+\.human-atlas-glow/s);
+    expect(css).toMatch(/@media print[\s\S]+\.human-atlas-stage[^}]*display:\s*none/s);
+    expect(css).not.toMatch(/\.landing__canopy-video/);
   });
 
   test("makes a failed pillar poster expose the ambient page surface", () => {
