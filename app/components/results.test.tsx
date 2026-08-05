@@ -519,7 +519,7 @@ test("page completion hands depth into Results and restart clears the in-memory 
   expect(screen.getByText(/Quick assessment/i)).toBeVisible();
   await user.click(screen.getByRole("button", { name: /restart from the beginning/i }));
   expect(
-    screen.getByRole("heading", { name: /your health is not a verdict.*it is a map/i }),
+    screen.getByRole("heading", { name: "Your body is a system." }),
   ).toBeVisible();
 });
 
