@@ -181,6 +181,26 @@ test("falls back to breath when IntersectionObserver is unavailable", () => {
   expect(screen.getByRole("status")).toHaveTextContent("breath");
 });
 
+test("keeps the breath fallback safe when IntersectionObserver construction fails", () => {
+  const addEventListener = vi.spyOn(window, "addEventListener");
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor() {
+        throw new Error("observer construction failed");
+      }
+    },
+  );
+
+  let unmount: (() => void) | undefined;
+  expect(() => {
+    ({ unmount } = render(<AtlasProbe />));
+  }).not.toThrow();
+  expect(screen.getByRole("status")).toHaveTextContent("breath");
+  expect(addEventListener).not.toHaveBeenCalledWith("scroll", expect.any(Function));
+  expect(() => unmount?.()).not.toThrow();
+});
+
 test("disconnects the observer when unmounted", () => {
   installObserver();
   const { unmount } = render(<AtlasProbe />);

@@ -80,7 +80,6 @@ export function useActiveAtlasScene(
       return () => observer?.disconnect();
     } catch {
       observer?.disconnect();
-      setActiveScene("breath");
     }
   }, [sceneElements]);
 
