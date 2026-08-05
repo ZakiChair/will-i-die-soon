@@ -30,4 +30,3 @@ test("keeps all four non-interactive glow layers mounted while changing active s
   expect(container.firstElementChild).toHaveAttribute("data-motion", "paused");
   expect(container.querySelectorAll("svg[data-atlas-glow]")).toHaveLength(4);
 });
-
