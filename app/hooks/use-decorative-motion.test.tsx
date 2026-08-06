@@ -71,6 +71,16 @@ test("starts false before enabling visible pages without reduced motion", () => 
   expect(screen.getByText("true")).toBeVisible();
 });
 
+test("does not rerender boolean motion consumers when decorative motion stays disabled", () => {
+  const states: boolean[] = [];
+  installMotionPreference(true);
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+
+  render(<MotionProbe states={states} />);
+
+  expect(states).toEqual([false]);
+});
+
 test("keeps dynamic layout pending until supported motion resolves", () => {
   const states: DecorativeMotionStatus[] = [];
   installMotionPreference(false);

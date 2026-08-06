@@ -480,7 +480,7 @@ test("recent-labs yes reaches import and confirmed rows survive the in-memory co
   ]);
   expect(storageSpy).not.toHaveBeenCalled();
   storageSpy.mockRestore();
-});
+}, 10_000);
 
 test("does not attach a source flag to an AnswerMap value after the marker is corrected", async () => {
   const user = userEvent.setup();

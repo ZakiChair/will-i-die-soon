@@ -575,6 +575,7 @@ h1, h2, h3 {
 .question-text input { max-width: 640px; }
 .scale-grid { display: grid; grid-template-columns: repeat(11, minmax(38px, 1fr)); gap: 6px; }
 .scale-grid label { display: grid; place-items: center; min-height: 54px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-strong); }
+.scale-grid label:has(input:focus-visible) { outline: 3px solid var(--phosphor); outline-offset: 2px; box-shadow: 0 0 0 8px var(--abyss); }
 .scale-grid label:has(input:checked) { color: var(--abyss); border-color: var(--current); background: var(--current); }
 .scale-grid input { position: absolute; opacity: 0; }
 
@@ -1178,6 +1179,7 @@ h1, h2, h3 {
 
 @media print {
   :root { --line: color-mix(in srgb, var(--abyss) 22%, transparent); --line-strong: color-mix(in srgb, var(--abyss) 38%, transparent); --muted: var(--abyss); }
+  [data-reveal], [data-motion-screen] { opacity: 1 !important; visibility: visible !important; transform: none !important; }
   html { background: var(--mist); color-scheme: light; }
   body { color: var(--abyss); background: var(--mist); background-image: none; }
   .journey::before { display: none; }

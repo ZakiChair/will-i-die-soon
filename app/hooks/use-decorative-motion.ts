@@ -36,5 +36,22 @@ export function useDecorativeMotionStatus(): DecorativeMotionStatus {
 }
 
 export function useDecorativeMotion(): boolean {
-  return useDecorativeMotionStatus() === "running";
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setAllowed(!media.matches && !document.hidden);
+
+    update();
+    media.addEventListener("change", update);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      media.removeEventListener("change", update);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, []);
+
+  return allowed;
 }

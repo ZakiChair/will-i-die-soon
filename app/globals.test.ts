@@ -132,6 +132,16 @@ describe("bioluminescent global visual contract", () => {
     expect(contrast(colorVariable("phosphor"), colorVariable("abyss"))).toBeGreaterThanOrEqual(3);
   });
 
+  test("shows focus on the visible scale label when its radio receives keyboard focus", () => {
+    const scaleFocusRule = declarationsFor(
+      ".scale-grid label:has(input:focus-visible)",
+    );
+
+    expect(scaleFocusRule).toMatch(/outline:\s*3px solid var\(--phosphor\)/);
+    expect(scaleFocusRule).toMatch(/outline-offset:\s*2px/);
+    expect(scaleFocusRule).toMatch(/box-shadow:\s*0 0 0 (?:7|8)px var\(--abyss\)/);
+  });
+
   test("keeps landing and journey bands dark and removes paper, canopy, and clipped-section framing", () => {
     expect(declarationsFor("html")).toMatch(/background:\s*var\(--abyss\)/);
     expect(declarationsFor("body")).toMatch(/color:\s*var\(--mist\)/);
@@ -331,6 +341,9 @@ describe("bioluminescent global visual contract", () => {
   test("preserves semantic print flow with decoration and private tools removed", () => {
     const print = rulesForMedia("print");
 
+    expect(print).toMatch(
+      /\[data-reveal\],\s*\[data-motion-screen\]\s*\{[^}]*opacity:\s*1 !important[^}]*visibility:\s*visible !important[^}]*transform:\s*none !important/s,
+    );
     expect(print).toMatch(/body\s*\{[^}]*color:\s*var\(--abyss\)[^}]*background:\s*var\(--mist\)/s);
     expect(print).toMatch(/\.journey::before\s*\{[^}]*display:\s*none/s);
     expect(print).toMatch(/\.landing__atlas-hero\s*\{[^}]*position:\s*static[^}]*width:\s*100%/s);
