@@ -25,18 +25,29 @@ function declarationsFor(selector: string): string {
 }
 
 function rulesForMedia(query: string): string {
-  const start = css.indexOf(`@media ${query}`);
-  if (start < 0) throw new Error(`Missing @media ${query}`);
+  const marker = `@media ${query}`;
+  const blocks: string[] = [];
+  let searchFrom = 0;
 
-  const openingBrace = css.indexOf("{", start);
-  let depth = 0;
-  for (let index = openingBrace; index < css.length; index += 1) {
-    if (css[index] === "{") depth += 1;
-    if (css[index] === "}") depth -= 1;
-    if (depth === 0) return css.slice(openingBrace + 1, index);
+  while (searchFrom < css.length) {
+    const start = css.indexOf(marker, searchFrom);
+    if (start < 0) break;
+
+    const openingBrace = css.indexOf("{", start);
+    let depth = 0;
+    for (let index = openingBrace; index < css.length; index += 1) {
+      if (css[index] === "{") depth += 1;
+      if (css[index] === "}") depth -= 1;
+      if (depth === 0) {
+        blocks.push(css.slice(openingBrace + 1, index));
+        searchFrom = index + 1;
+        break;
+      }
+    }
   }
 
-  throw new Error(`Unclosed @media ${query}`);
+  if (blocks.length === 0) throw new Error(`Missing @media ${query}`);
+  return blocks.join("\n");
 }
 
 function colorVariable(name: string): string {
@@ -215,6 +226,15 @@ describe("bioluminescent global visual contract", () => {
     expect(rulesForMedia("(max-width: 780px)")).toMatch(
       /\.scale-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6, minmax\(44px, 1fr\)\)/s,
     );
+
+    const baseRuleIndex = css.search(
+      /\.scale-grid\s*\{[^}]*grid-template-columns:\s*repeat\(11, minmax\(38px, 1fr\)\)/s,
+    );
+    const compactRuleIndex = css.search(
+      /\.scale-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6, minmax\(44px, 1fr\)\)/s,
+    );
+    expect(baseRuleIndex).toBeGreaterThanOrEqual(0);
+    expect(compactRuleIndex).toBeGreaterThan(baseRuleIndex);
   });
 
   test("keeps intermission media and poster fallbacks stable", () => {
