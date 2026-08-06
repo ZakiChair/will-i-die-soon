@@ -54,6 +54,7 @@ function HumanAtlasScrollView({
       aria-label={t("landing.atlas.story.aria")}
       className={`human-atlas-scroll${imageFailed ? " human-atlas-scroll--failed" : ""}`}
       data-active-scene={activeScene}
+      data-motion={motionAllowed ? "running" : "paused"}
     >
       <div className={`human-atlas-stage${imageFailed ? " human-atlas-stage--failed" : ""}`}>
         {!imageFailed ? (

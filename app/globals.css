@@ -1164,7 +1164,16 @@ h1, h2, h3 {
   .risk-tree__leaves button:hover, .risk-tree__leaves button[aria-pressed="true"] { transform: none !important; }
 }
 
-[data-motion="paused"] .human-atlas-glow { animation: none; }
+@media screen {
+  .landing__atlas-experience:has(.human-atlas-scroll[data-motion="paused"]) .landing__atlas-hero { position: relative; top: auto; left: auto; width: min(720px, calc(100% - 32px)); margin: 0 auto 24px; }
+  .human-atlas-scroll[data-motion="paused"] { min-height: 0; }
+  .human-atlas-scroll[data-motion="paused"] .human-atlas-stage { position: relative; }
+  .human-atlas-scroll[data-motion="paused"] .human-atlas-scenes { width: 100%; margin-top: 0; padding: 24px 14px; }
+  .human-atlas-scroll[data-motion="paused"] .human-atlas-scene { min-height: 0; padding: 12px 0; opacity: 1; transform: none; }
+  .human-atlas-scroll[data-motion="paused"] .human-atlas-glow { transition: none; animation: none; }
+  .human-atlas-scroll[data-motion="paused"] .human-atlas-glow[data-active="true"] { opacity: 0; transform: translateX(-7.4%) scale(1); }
+  .human-atlas-scroll[data-motion="paused"] .human-atlas-glow--breath, .human-atlas-scroll[data-motion="paused"] .human-atlas-glow--breath[data-active="true"] { opacity: .76; }
+}
 
 @media print {
   :root { --line: color-mix(in srgb, var(--abyss) 22%, transparent); --line-strong: color-mix(in srgb, var(--abyss) 38%, transparent); --muted: var(--abyss); }

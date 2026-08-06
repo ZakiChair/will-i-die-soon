@@ -151,3 +151,18 @@ test("does not create the scrub or strength signal motion for reduced motion", (
   expect(mockTimeline).not.toHaveBeenCalled();
   expect(mockFromTo).not.toHaveBeenCalled();
 });
+
+test("does not create a timeline when matchMedia is unavailable", () => {
+  Reflect.deleteProperty(window, "matchMedia");
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  mockUseGSAP.mockImplementation((callback) => {
+    useLayoutEffect(callback, [callback]);
+    return { context: { revert: mockRevert } };
+  });
+
+  render(<TimelineProbe />);
+
+  expect(screen.getByRole("status")).toHaveTextContent("breath");
+  expect(mockTimeline).not.toHaveBeenCalled();
+  expect(mockFromTo).not.toHaveBeenCalled();
+});

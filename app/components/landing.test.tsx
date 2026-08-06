@@ -70,6 +70,26 @@ test("makes Express the primary adult route outside decorative content", async (
   expect(expressButtons.every((button) => !button.closest(".landing__atlas-decorative"))).toBe(true);
 });
 
+test("keeps both Express routes usable and marks the controlled Atlas paused without matchMedia", async () => {
+  Reflect.deleteProperty(window, "matchMedia");
+  const onStart = vi.fn();
+  const user = userEvent.setup();
+  const { container } = render(<Landing onStart={onStart} />);
+
+  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
+    "data-motion",
+    "paused",
+  );
+  expect(container.querySelectorAll(".human-atlas-scene")).toHaveLength(4);
+
+  const expressButtons = screen.getAllByRole("button", { name: "Start Express" });
+  await user.click(expressButtons[0]);
+  await user.click(expressButtons[1]);
+
+  expect(onStart).toHaveBeenNthCalledWith(1, "express");
+  expect(onStart).toHaveBeenNthCalledWith(2, "express");
+});
+
 test.each([
   ["Quick", "Choose Quick", "quick"],
   ["Detailed", "Choose Detailed", "detailed"],

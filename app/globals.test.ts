@@ -302,6 +302,24 @@ describe("bioluminescent global visual contract", () => {
     );
   });
 
+  test("uses the same static Atlas flow whenever decorative motion is paused", () => {
+    expect(css).toMatch(
+      /\.landing__atlas-experience:has\(\.human-atlas-scroll\[data-motion="paused"\]\) \.landing__atlas-hero\s*\{[^}]*position:\s*relative[^}]*top:\s*auto[^}]*left:\s*auto/s,
+    );
+    expect(css).toMatch(
+      /\.human-atlas-scroll\[data-motion="paused"\]\s*\{[^}]*min-height:\s*0/s,
+    );
+    expect(css).toMatch(
+      /\.human-atlas-scroll\[data-motion="paused"\] \.human-atlas-stage\s*\{[^}]*position:\s*relative/s,
+    );
+    expect(css).toMatch(
+      /\.human-atlas-scroll\[data-motion="paused"\] \.human-atlas-scenes\s*\{[^}]*width:\s*100%[^}]*margin-top:\s*0/s,
+    );
+    expect(css).toMatch(
+      /\.human-atlas-scroll\[data-motion="paused"\] \.human-atlas-scene\s*\{[^}]*min-height:\s*0[^}]*opacity:\s*1[^}]*transform:\s*none/s,
+    );
+  });
+
   test("preserves semantic print flow with decoration and private tools removed", () => {
     const print = rulesForMedia("print");
 
