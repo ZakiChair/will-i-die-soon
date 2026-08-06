@@ -346,6 +346,17 @@ describe("bioluminescent global visual contract", () => {
     );
   });
 
+  test("prints adult score, urgent, lab, and risk text through one Abyss result cascade", () => {
+    const print = rulesForMedia("print");
+    const resultInk = print.match(
+      /\.journey\.results,\s*\.journey\.results \*,\s*\.journey\.results \*::before,\s*\.journey\.results \*::after\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+
+    expect(resultInk).toMatch(/color:\s*var\(--abyss\) !important/);
+    expect(resultInk).toMatch(/text-shadow:\s*none !important/);
+    expect(contrast(colorVariable("abyss"), colorVariable("mist"))).toBeGreaterThanOrEqual(4.5);
+  });
+
   test("contains no retired scanner, HUD, gradient-orb, or canopy-control selectors", () => {
     expect(css).not.toMatch(/scan-frame|target-box|hud/i);
     expect(css).not.toMatch(/gradient-orb|\borb(?:__|--|-)/i);

@@ -1194,6 +1194,7 @@ h1, h2, h3 {
   .landing__atlas-conversion, .depth-section, .privacy-panel { break-inside: avoid; }
   .language-switcher { display: none; }
   .journey.results { width: 100%; padding: 0; }
+  .journey.results, .journey.results *, .journey.results *::before, .journey.results *::after { color: var(--abyss) !important; text-shadow: none !important; }
   .results__header, .result-tools { display: none !important; }
   .results__intro { padding-top: 0; }
   .results__intro h1 { font-size: 34pt; }
