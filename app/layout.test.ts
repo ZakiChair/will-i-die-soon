@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterEach, expect, test, vi } from "vitest";
 
 const requestHeaders = vi.hoisted(() => ({
@@ -6,9 +7,12 @@ const requestHeaders = vi.hoisted(() => ({
 
 vi.mock("next/font/google", () => ({
   Bricolage_Grotesque: () => ({ variable: "--font-display" }),
+  Geist: () => ({ variable: "--font-body" }),
+  Geist_Mono: () => ({ variable: "--font-data" }),
   IBM_Plex_Mono: () => ({ variable: "--font-data" }),
   Manrope: () => ({ variable: "--font-body" }),
   Newsreader: () => ({ variable: "--font-editorial" }),
+  Space_Grotesk: () => ({ variable: "--font-display" }),
 }));
 
 vi.mock("next/headers", () => ({
@@ -86,7 +90,21 @@ test("falls back locally when configured and request values are hostile", async 
   expect(metadata.openGraph?.url).toEqual(new URL("http://localhost:3000/"));
 });
 
-test("adds the editorial variable without replacing the existing font variables", async () => {
+test("uses the bioluminescent font variable contract", () => {
+  const source = readFileSync("app/layout.tsx", "utf8");
+
+  expect(source).toContain("Space_Grotesk");
+  expect(source).toContain("Geist");
+  expect(source).toContain("Geist_Mono");
+  expect(source).toContain("--font-display");
+  expect(source).toContain("--font-body");
+  expect(source).toContain("--font-data");
+  expect(source).not.toMatch(
+    /Newsreader|Bricolage_Grotesque|Manrope|IBM_Plex_Mono|--font-editorial/,
+  );
+});
+
+test("applies only the display, body, and data font variables", async () => {
   const { default: RootLayout } = await import("./layout");
   const tree = RootLayout({ children: "content" });
   const body = tree.props.children;
@@ -94,5 +112,5 @@ test("adds the editorial variable without replacing the existing font variables"
   expect(body.props.className).toContain("--font-display");
   expect(body.props.className).toContain("--font-body");
   expect(body.props.className).toContain("--font-data");
-  expect(body.props.className).toContain("--font-editorial");
+  expect(body.props.className).not.toContain("--font-editorial");
 });

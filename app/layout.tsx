@@ -1,35 +1,14 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import {
-  Bricolage_Grotesque,
-  IBM_Plex_Mono,
-  Manrope,
-  Newsreader,
-} from "next/font/google";
+import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import { resolveMetadataOrigin } from "./lib/metadata";
 import "./globals.css";
 
-const display = Bricolage_Grotesque({
-  variable: "--font-display",
-  subsets: ["latin"],
-});
+const display = Space_Grotesk({ variable: "--font-display", subsets: ["latin"] });
 
-const body = Manrope({
-  variable: "--font-body",
-  subsets: ["latin"],
-});
+const body = Geist({ variable: "--font-body", subsets: ["latin"] });
 
-const mono = IBM_Plex_Mono({
-  variable: "--font-data",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
-
-const editorial = Newsreader({
-  variable: "--font-editorial",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
+const mono = Geist_Mono({ variable: "--font-data", subsets: ["latin"] });
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -81,7 +60,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${body.variable} ${mono.variable} ${editorial.variable}`}>
+      <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
         {children}
       </body>
     </html>
