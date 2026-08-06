@@ -23,7 +23,7 @@ test("makes Express the primary adult route outside decorative content", async (
   const user = userEvent.setup();
   const { container } = render(<Landing onStart={onStart} />);
 
-  expect(screen.getByRole("heading", { name: "Your body is a system." })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Read the signals. Not a verdict." })).toBeVisible();
   expect(screen.getByText(/9 questions.*adults 18\+.*under one minute/i)).toBeVisible();
 
   const expressButtons = screen.getAllByRole("button", { name: "Start Express" });
@@ -34,8 +34,16 @@ test("makes Express the primary adult route outside decorative content", async (
   expect(onStart).toHaveBeenNthCalledWith(2, "express");
 
   expect(screen.queryByRole("heading", { name: "Express", level: 3 })).not.toBeInTheDocument();
+  expect(screen.getAllByRole("heading", { level: 3 }).slice(0, 4).map(({ textContent }) => textContent))
+    .toEqual([
+      "Lungs and heart, one circuit.",
+      "The signal travels through the whole body.",
+      "The brain sets the tempo.",
+      "The digestive core lights up.",
+    ]);
   expect(screen.getAllByRole("heading", { level: 3 }).slice(-3).map(({ textContent }) => textContent))
     .toEqual(["Quick", "Detailed", "Deep"]);
+  expect(container.querySelectorAll("[data-reveal]")).toHaveLength(4);
   expect(container.querySelector("video")).not.toBeInTheDocument();
   expect(container.querySelector("img")?.getAttribute("src")).toContain("human-atlas-hero.webp");
   expect(expressButtons.every((button) => !button.closest(".landing__atlas-decorative"))).toBe(true);
@@ -90,7 +98,7 @@ test("presents the complete Atlas and secondary routes in French", async () => {
 
   await user.click(screen.getByRole("button", { name: "Français" }));
 
-  expect(screen.getByRole("heading", { name: "Votre corps est un système." })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Lisez les signaux. Pas un verdict." })).toBeVisible();
   expect(screen.getAllByRole("button", { name: "Commencer Express" })).toHaveLength(2);
   expect(screen.getAllByRole("heading", { level: 3 }).slice(0, 4).map(({ textContent }) => textContent))
     .toEqual([

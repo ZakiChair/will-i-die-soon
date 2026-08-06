@@ -1,7 +1,11 @@
 "use client";
 
+import { useRef } from "react";
+
 import { DecorativeSectionBoundary } from "./decorative-section-boundary";
 import { HumanAtlasScroll, HumanAtlasStaticStory } from "./human-atlas-scroll";
+import { useLandingTimeline } from "../hooks/use-landing-timeline";
+import { useSectionReveal } from "../hooks/use-section-reveal";
 import { useI18n } from "../i18n/context";
 import { type UiCopyKey, uiCopyKeys } from "../i18n/ui-copy";
 import type { AnalysisDepth } from "../lib/types";
@@ -34,10 +38,14 @@ const depths: ReadonlyArray<{
 
 export function Landing({ onStart }: LandingProps) {
   const { locale, t } = useI18n();
+  const landingRef = useRef<HTMLDivElement>(null);
+  const atlasExperienceRef = useRef<HTMLElement>(null);
+  const activeScene = useLandingTimeline(atlasExperienceRef);
+  useSectionReveal(landingRef);
   const startExpress = () => onStart("express");
 
   return (
-    <div className="landing">
+    <div className="landing" ref={landingRef}>
       <header className="landing__header">
         <div className="wordmark">
           Will I Die <strong>Soon?</strong>
@@ -46,7 +54,11 @@ export function Landing({ onStart }: LandingProps) {
       </header>
 
       <div className="landing__main">
-        <section className="landing__atlas-experience" aria-labelledby="landing-title">
+        <section
+          aria-labelledby="landing-title"
+          className="landing__atlas-experience"
+          ref={atlasExperienceRef}
+        >
           <div className="landing__atlas-hero">
             <p className="data-label">{t("landing.atlas.hero.eyebrow")}</p>
             <h1 id="landing-title">{t("landing.atlas.hero.title")}</h1>
@@ -58,12 +70,16 @@ export function Landing({ onStart }: LandingProps) {
           </div>
           <div className="landing__atlas-decorative">
             <DecorativeSectionBoundary fallback={<HumanAtlasStaticStory />}>
-              <HumanAtlasScroll />
+              <HumanAtlasScroll activeScene={activeScene} />
             </DecorativeSectionBoundary>
           </div>
         </section>
 
-        <section className="landing__atlas-conversion" aria-labelledby="atlas-conversion-title">
+        <section
+          aria-labelledby="atlas-conversion-title"
+          className="landing__atlas-conversion"
+          data-reveal
+        >
           <p className="data-label">{t("landing.atlas.conversion.eyebrow")}</p>
           <h2 id="atlas-conversion-title">{t("landing.atlas.conversion.title")}</h2>
           <p>{t("landing.atlas.conversion.body")}</p>
@@ -72,7 +88,7 @@ export function Landing({ onStart }: LandingProps) {
           </button>
         </section>
 
-        <section className="depth-section" aria-labelledby="depth-title">
+        <section className="depth-section" aria-labelledby="depth-title" data-reveal>
           <div className="section-heading">
             <p className="data-label">{t("landing.atlas.other.eyebrow")}</p>
             <h2 id="depth-title">{t("landing.atlas.other.title")}</h2>
@@ -97,7 +113,7 @@ export function Landing({ onStart }: LandingProps) {
           </div>
         </section>
 
-        <section className="privacy-panel" aria-labelledby="privacy-title">
+        <section className="privacy-panel" aria-labelledby="privacy-title" data-reveal>
           <div>
             <p className="privacy-panel__eyebrow">{t("landing.privacy.eyebrow")}</p>
             <h2 id="privacy-title">{t("landing.privacy.title")}</h2>
@@ -119,7 +135,7 @@ export function Landing({ onStart }: LandingProps) {
         </section>
       </div>
 
-      <footer className="landing__footnote">{t("landing.urgent")}</footer>
+      <footer className="landing__footnote" data-reveal>{t("landing.urgent")}</footer>
     </div>
   );
 }

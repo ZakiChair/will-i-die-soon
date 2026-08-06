@@ -122,6 +122,15 @@ describe("complete bilingual UI copy", () => {
     }
   });
 
+  test("uses the approved bilingual Human Atlas hero headline", () => {
+    expect(uiCopy.en["landing.atlas.hero.title"]).toBe(
+      "Read the signals. Not a verdict.",
+    );
+    expect(uiCopy.fr["landing.atlas.hero.title"]).toBe(
+      "Lisez les signaux. Pas un verdict.",
+    );
+  });
+
   test("keeps exact English/French key parity with nonblank copy and matching variables", () => {
     const englishKeys = Object.keys(uiCopy.en).sort();
     const frenchKeys = Object.keys(uiCopy.fr).sort();
