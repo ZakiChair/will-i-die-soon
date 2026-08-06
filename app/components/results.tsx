@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useI18n } from "../i18n/context";
 import { useSectionReveal } from "../hooks/use-section-reveal";
@@ -322,6 +322,13 @@ function ConfirmedLabs({ values }: { readonly values: ReadonlyArray<ConfirmedLab
   );
 }
 
+function PrivateResultsRevealBoundary({ children }: { readonly children: ReactNode }) {
+  const scope = useRef<HTMLDivElement>(null);
+  useSectionReveal(scope);
+
+  return <div ref={scope} data-private-results-reveal>{children}</div>;
+}
+
 export function Results({
   answers,
   assessmentDepth,
@@ -413,6 +420,70 @@ export function Results({
 
   const depthLabel = t(uiCopyKeys.depth[assessmentDepth]);
   const presentedDepth = locale === "fr" ? depthLabel.toLocaleLowerCase("fr") : depthLabel;
+  const revealedResults = (
+    <>
+      {assessmentDepth === "express" ? (
+        <ExpressResults answers={answers} />
+      ) : (
+        <>
+          <section
+            className="results-canopy"
+            aria-labelledby="results-canopy-title"
+            data-reveal
+          >
+            <div className="section-heading">
+              <p className="data-label">{t("results.canopy.eyebrow")}</p>
+              <h2 id="results-canopy-title" ref={revealedResultsHeading} tabIndex={-1}>
+                {t("results.canopy.title")}
+              </h2>
+            </div>
+            <RiskTree leaves={presentedLeaves} protectiveRoots={roots} />
+          </section>
+
+          {profile.age < 18 ? (
+            <AdolescentHabitsMap answers={answers} />
+          ) : presentedScore.kind === "adult-score" ? (
+            <ScoreLedger score={presentedScore} />
+          ) : presentedScore.kind === "insufficient-coverage" ? (
+            <CoverageReflection score={presentedScore} />
+          ) : null}
+
+          {profile.age >= 18 ? <ActionPlan actions={presentedActions} /> : null}
+        </>
+      )}
+      <ConfirmedLabs values={confirmedLabs} />
+
+      <section
+        className="result-tools"
+        aria-labelledby="result-tools-title"
+        data-reveal
+      >
+        <p className="data-label">{t("tools.eyebrow")}</p>
+        <h2 id="result-tools-title">{t("tools.title")}</h2>
+        <p>{t("tools.body")}</p>
+        {profile.age >= 18 ? (
+          <label className="result-tools__raw-toggle">
+            <input
+              type="checkbox"
+              checked={includeRawAnswers}
+              onChange={(event) => setIncludeRawAnswers(event.target.checked)}
+            />
+            <span>
+              {t("tools.raw")}
+              <small>{t("tools.raw.help")}</small>
+            </span>
+          </label>
+        ) : null}
+        <div className="result-tools__actions">
+          <button type="button" onClick={() => window.print()}>
+            {t("tools.print")}
+          </button>
+          <button type="button" onClick={downloadJson}>{t("tools.download")}</button>
+          <button type="button" onClick={onRestart}>{t("tools.restart")}</button>
+        </div>
+      </section>
+    </>
+  );
 
   return (
     <section
@@ -441,69 +512,12 @@ export function Results({
           onReveal={() => setPrivateResultsVisible(true)}
           onRestart={onRestart}
         />
+      ) : needsPrivateHandoff ? (
+        <PrivateResultsRevealBoundary>
+          {revealedResults}
+        </PrivateResultsRevealBoundary>
       ) : (
-        <>
-          {assessmentDepth === "express" ? (
-            <ExpressResults answers={answers} />
-          ) : (
-            <>
-              <section
-                className="results-canopy"
-                aria-labelledby="results-canopy-title"
-                data-reveal
-              >
-                <div className="section-heading">
-                  <p className="data-label">{t("results.canopy.eyebrow")}</p>
-                  <h2 id="results-canopy-title" ref={revealedResultsHeading} tabIndex={-1}>
-                    {t("results.canopy.title")}
-                  </h2>
-                </div>
-                <RiskTree leaves={presentedLeaves} protectiveRoots={roots} />
-              </section>
-
-              {profile.age < 18 ? (
-                <AdolescentHabitsMap answers={answers} />
-              ) : presentedScore.kind === "adult-score" ? (
-                <ScoreLedger score={presentedScore} />
-              ) : presentedScore.kind === "insufficient-coverage" ? (
-                <CoverageReflection score={presentedScore} />
-              ) : null}
-
-              {profile.age >= 18 ? <ActionPlan actions={presentedActions} /> : null}
-            </>
-          )}
-          <ConfirmedLabs values={confirmedLabs} />
-
-          <section
-            className="result-tools"
-            aria-labelledby="result-tools-title"
-            data-reveal
-          >
-            <p className="data-label">{t("tools.eyebrow")}</p>
-            <h2 id="result-tools-title">{t("tools.title")}</h2>
-            <p>{t("tools.body")}</p>
-            {profile.age >= 18 ? (
-              <label className="result-tools__raw-toggle">
-                <input
-                  type="checkbox"
-                  checked={includeRawAnswers}
-                  onChange={(event) => setIncludeRawAnswers(event.target.checked)}
-                />
-                <span>
-                  {t("tools.raw")}
-                  <small>{t("tools.raw.help")}</small>
-                </span>
-              </label>
-            ) : null}
-            <div className="result-tools__actions">
-              <button type="button" onClick={() => window.print()}>
-                {t("tools.print")}
-              </button>
-              <button type="button" onClick={downloadJson}>{t("tools.download")}</button>
-              <button type="button" onClick={onRestart}>{t("tools.restart")}</button>
-            </div>
-          </section>
-        </>
+        revealedResults
       )}
     </section>
   );

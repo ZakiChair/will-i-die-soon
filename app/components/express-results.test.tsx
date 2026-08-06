@@ -29,8 +29,9 @@ function renderExpressResults(answers: AnswerMap = completeAnswers) {
 }
 
 test("renders four transparent English Express summaries in their specified order", () => {
-  renderExpressResults();
+  const { container } = renderExpressResults();
 
+  expect(container.querySelector(".express-results")).toHaveAttribute("data-reveal");
   expect(screen.getByRole("heading", { name: "Your Express snapshot" })).toBeVisible();
   expect(screen.getAllByRole("article")).toHaveLength(4);
   expect(screen.getByRole("heading", { name: "VO₂ max" })).toBeVisible();

@@ -23,7 +23,11 @@ export function ExpressResults({ answers }: { readonly answers: AnswerMap }) {
     : t(uiCopyKeys.expressFrequency[summary.nutrition.ultraProcessedFrequency]);
 
   return (
-    <section className="express-results" aria-labelledby="express-results-title">
+    <section
+      className="express-results"
+      aria-labelledby="express-results-title"
+      data-reveal
+    >
       <p className="data-label">{t("expressResults.eyebrow")}</p>
       <h2 id="express-results-title">{t("expressResults.title")}</h2>
       <p className="express-results__intro">{t("expressResults.intro")}</p>

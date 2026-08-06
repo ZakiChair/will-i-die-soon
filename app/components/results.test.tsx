@@ -139,7 +139,7 @@ test("marks existing result bands for progressive reveal without changing headin
 });
 
 test("Express results keep shared tools while omitting the score and generic result surfaces", () => {
-  render(
+  const { container } = render(
     <Results
       answers={{
         reported_vo2_max_ml_kg_min: 48.5,
@@ -165,6 +165,7 @@ test("Express results keep shared tools while omitting the score and generic res
   expect(screen.queryByText(/Purity Score/i)).not.toBeInTheDocument();
   expect(screen.queryByText(/wellness habits reflection/i)).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: /actions you can choose/i })).not.toBeInTheDocument();
+  expect(container.querySelector(".results .express-results")).toHaveAttribute("data-reveal");
 });
 
 const confirmedLab: ConfirmedLabValue = {
