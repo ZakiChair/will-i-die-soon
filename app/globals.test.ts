@@ -172,6 +172,15 @@ describe("global interaction styles", () => {
     const media = css.match(
       /\.human-atlas-media\s*\{(?<declarations>[^}]+)\}/s,
     )?.groups?.declarations;
+    const scroll = css.match(
+      /\.human-atlas-scroll\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+    const scenes = css.match(
+      /\.human-atlas-scenes\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+    const scene = css.match(
+      /\.human-atlas-scene\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
 
     expect(landing).toMatch(/padding:\s*0 0 56px/);
     expect(experience).toMatch(/--atlas-stage-height:\s*100svh/);
@@ -186,6 +195,14 @@ describe("global interaction styles", () => {
     expect(media).toMatch(/height:\s*100%/);
     expect(media).toMatch(/aspect-ratio:\s*1672 \/ 941/);
     expect(media).toMatch(/translate\(-50%,\s*-50%\)/);
+    expect(scroll).toMatch(
+      /min-height:\s*calc\(5 \* var\(--atlas-stage-height\)\)/,
+    );
+    expect(scenes).toMatch(
+      /margin-top:\s*calc\(-1 \* var\(--atlas-stage-height\)\)/,
+    );
+    expect(scenes).toMatch(/padding-top:\s*var\(--atlas-stage-height\)/);
+    expect(scene).toMatch(/min-height:\s*var\(--atlas-stage-height\)/);
     expect(css).toMatch(
       /@media \(min-aspect-ratio: 1672 \/ 941\)[\s\S]+\.human-atlas-media\s*\{[^}]*width:\s*100%[^}]*height:\s*auto/s,
     );
