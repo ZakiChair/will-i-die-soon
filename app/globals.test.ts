@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -147,14 +148,53 @@ describe("global interaction styles", () => {
     expect(atlasAsset.subarray(0, 4).toString("ascii")).toBe("RIFF");
     expect(atlasAsset.subarray(8, 12).toString("ascii")).toBe("WEBP");
     expect(atlasAsset.byteLength).toBeLessThanOrEqual(650 * 1024);
+    expect(createHash("sha256").update(atlasAsset).digest("hex")).toBe(
+      "049911bc3c13c1151155d05c2449a629d801b9bfb3941c022e7b1a2af83f35e0",
+    );
     expect(existsSync(join(process.cwd(), "public/media/canopy-loop.mp4"))).toBe(false);
     expect(css).toMatch(/\.human-atlas-stage\s*\{[^}]*position:\s*sticky/s);
     expect(css).toMatch(/\.human-atlas-media\s*\{[^}]*aspect-ratio:\s*1672 \/ 941/s);
-    expect(css).toMatch(/@media \(max-width: 780px\)[\s\S]+\.human-atlas-media\s*\{[^}]*translateX\(-62%\)/s);
+    expect(css).toMatch(/@media \(max-width: 780px\)[\s\S]+\.human-atlas-media\s*\{[^}]*translate\(-62%,\s*-50%\)/s);
     expect(css).toMatch(/\.human-atlas-glow\s*\{[^}]*mix-blend-mode:\s*screen/s);
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]+\.human-atlas-glow/s);
     expect(css).toMatch(/@media print[\s\S]+\.human-atlas-stage[^}]*display:\s*none/s);
     expect(css).not.toMatch(/\.landing__canopy-video/);
+  });
+
+  test("fills an edge-to-edge viewport with one registered Human Atlas frame", () => {
+    const landing = css.match(/\.landing\s*\{(?<declarations>[^}]+)\}/s)?.groups?.declarations;
+    const experience = css.match(
+      /\.landing__atlas-experience\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+    const stage = css.match(
+      /\.human-atlas-stage\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+    const media = css.match(
+      /\.human-atlas-media\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+
+    expect(landing).toMatch(/padding:\s*0 0 56px/);
+    expect(experience).toMatch(/--atlas-stage-height:\s*100svh/);
+    expect(experience).toMatch(/width:\s*100%/);
+    expect(experience).toMatch(/margin:\s*clamp\(16px,\s*2vw,\s*28px\) 0 0/);
+    expect(stage).toMatch(/top:\s*0/);
+    expect(stage).toMatch(/height:\s*var\(--atlas-stage-height\)/);
+    expect(stage).toMatch(/min-height:\s*0/);
+    expect(stage).toMatch(/border:\s*0/);
+    expect(media).toMatch(/top:\s*50%/);
+    expect(media).toMatch(/left:\s*50%/);
+    expect(media).toMatch(/height:\s*100%/);
+    expect(media).toMatch(/aspect-ratio:\s*1672 \/ 941/);
+    expect(media).toMatch(/translate\(-50%,\s*-50%\)/);
+    expect(css).toMatch(
+      /@media \(min-aspect-ratio: 1672 \/ 941\)[\s\S]+\.human-atlas-media\s*\{[^}]*width:\s*100%[^}]*height:\s*auto/s,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 780px\)[\s\S]+\.landing__atlas-experience\s*\{[^}]*width:\s*100%/s,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 780px\)[\s\S]+\.human-atlas-media\s*\{[^}]*translate\(-62%,\s*-50%\)/s,
+    );
   });
 
   test("shows only the static breath glow when reduced motion is requested", () => {
