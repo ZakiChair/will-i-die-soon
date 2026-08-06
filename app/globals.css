@@ -1072,6 +1072,7 @@ h1, h2, h3 {
   .depth-grid { grid-template-columns: 1fr; }
   .depth-card { min-height: 250px; }
   .depth-card h3 { margin-top: 26px; }
+  .depth-card button { position: static; display: block; width: 100%; margin-top: 24px; }
   .landing__atlas-conversion h2 { font-size: 3.4rem; }
   .section-heading h2 { font-size: 3rem; }
   .consent h1, .completion-handoff h1 { font-size: 4rem; }

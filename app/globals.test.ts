@@ -237,6 +237,14 @@ describe("bioluminescent global visual contract", () => {
     expect(compactRuleIndex).toBeGreaterThan(baseRuleIndex);
   });
 
+  test("keeps compact depth-card actions in flow below localized copy", () => {
+    const compact = rulesForMedia("(max-width: 850px)");
+
+    expect(compact).toMatch(
+      /\.depth-card button\s*\{[^}]*position:\s*static[^}]*display:\s*block[^}]*width:\s*100%[^}]*margin-top:\s*24px/s,
+    );
+  });
+
   test("keeps intermission media and poster fallbacks stable", () => {
     expect(declarationsFor(".intermission__media img, .intermission__media video")).toMatch(/object-fit:\s*cover/);
     expect(declarationsFor(".intermission__poster--covered")).toMatch(/opacity:\s*0/);
