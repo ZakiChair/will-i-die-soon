@@ -20,7 +20,7 @@ export function MotionScreen({ screenKey, children }: MotionScreenProps) {
 
       gsap.fromTo(
         scope.current,
-        { autoAlpha: 0, y: 18 },
+        { opacity: 0, y: 18 },
         { autoAlpha: 1, duration: 0.45, ease: "power2.out", y: 0 },
       );
     },

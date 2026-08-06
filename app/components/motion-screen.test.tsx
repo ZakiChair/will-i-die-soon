@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { useLayoutEffect } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 
 const { mockFromTo, mockRevert, mockUseGSAP } = vi.hoisted(() => ({
@@ -26,6 +26,20 @@ function installMotionPreference(initiallyReduced = false) {
     })),
   );
   Object.defineProperty(document, "hidden", { configurable: true, value: false });
+}
+
+function FocusedHeading() {
+  const heading = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
+
+  return (
+    <h1 ref={heading} tabIndex={-1}>
+      Consent
+    </h1>
+  );
 }
 
 afterEach(() => {
@@ -60,6 +74,34 @@ test("renders visible content and reveals it through a scoped GSAP context", () 
     expect.anything(),
     expect.objectContaining({ autoAlpha: 1 }),
   );
+});
+
+test("keeps descendant focus stable when the screen entrance starts", async () => {
+  installMotionPreference();
+  mockUseGSAP.mockImplementation((callback) => {
+    useLayoutEffect(() => callback(), [callback]);
+    return { context: { revert: mockRevert } };
+  });
+  mockFromTo.mockImplementation((target, fromVars) => {
+    if (
+      target instanceof HTMLElement &&
+      typeof fromVars === "object" &&
+      fromVars !== null &&
+      "autoAlpha" in fromVars &&
+      fromVars.autoAlpha === 0
+    ) {
+      target.querySelector<HTMLElement>(":focus")?.blur();
+    }
+  });
+
+  render(
+    <MotionScreen screenKey="consent">
+      <FocusedHeading />
+    </MotionScreen>,
+  );
+
+  await waitFor(() => expect(mockFromTo).toHaveBeenCalled());
+  expect(screen.getByRole("heading", { name: "Consent" })).toHaveFocus();
 });
 
 test("skips screen tweens when reduced motion is preferred", () => {
