@@ -34,6 +34,16 @@ function contrast(left: string, right: string): number {
 }
 
 describe("global interaction styles", () => {
+  test("uses the display font for every landing heading after retiring the editorial contract", () => {
+    expect(css).not.toContain("--font-editorial");
+    expect(css).toMatch(
+      /\.landing__atlas-hero h1, \.human-atlas-scene h3, \.landing__atlas-conversion h2\s*\{[^}]*font-family:\s*var\(--font-display\), Georgia, serif/s,
+    );
+    expect(css).toMatch(
+      /\.human-atlas-static h3\s*\{[^}]*font-family:\s*var\(--font-display\), Georgia, serif/s,
+    );
+  });
+
   test("uses the approved question title and detail hierarchy", () => {
     expect(css).toMatch(
       /\.question-sheet \.question-prompt__title[^{]*\{[^}]*max-width:\s*28ch[^}]*font-size:\s*clamp\(2\.125rem,\s*2\.75vw,\s*2\.75rem\)[^}]*letter-spacing:\s*-\.035em[^}]*line-height:\s*1\.08/s,
