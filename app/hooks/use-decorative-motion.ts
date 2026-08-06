@@ -2,14 +2,26 @@
 
 import { useEffect, useState } from "react";
 
-export function useDecorativeMotion(): boolean {
-  const [allowed, setAllowed] = useState(false);
+export type DecorativeMotionStatus =
+  | "pending"
+  | "running"
+  | "hidden"
+  | "reduced"
+  | "unsupported";
+
+export function useDecorativeMotionStatus(): DecorativeMotionStatus {
+  const [status, setStatus] = useState<DecorativeMotionStatus>("pending");
 
   useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
+    if (typeof window.matchMedia !== "function") {
+      const unsupportedTimer = window.setTimeout(() => setStatus("unsupported"), 0);
+      return () => window.clearTimeout(unsupportedTimer);
+    }
 
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setAllowed(!media.matches && !document.hidden);
+    const update = () => {
+      setStatus(media.matches ? "reduced" : document.hidden ? "hidden" : "running");
+    };
 
     update();
     media.addEventListener("change", update);
@@ -20,5 +32,9 @@ export function useDecorativeMotion(): boolean {
     };
   }, []);
 
-  return allowed;
+  return status;
+}
+
+export function useDecorativeMotion(): boolean {
+  return useDecorativeMotionStatus() === "running";
 }

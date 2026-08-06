@@ -198,6 +198,11 @@ describe("bioluminescent global visual contract", () => {
     expect(declarationsFor(".human-atlas-scroll--failed .human-atlas-stage")).toMatch(/min-height:\s*240px/);
     expect(declarationsFor(".human-atlas-scroll--failed .human-atlas-scene")).toMatch(/opacity:\s*1/);
     expect(declarationsFor(".human-atlas-scroll--failed .human-atlas-scene")).toMatch(/transform:\s*none/);
+    expect(
+      declarationsFor(
+        ".landing__atlas-experience:has(.human-atlas-static) .landing__atlas-hero",
+      ),
+    ).toMatch(/position:\s*relative[^}]*top:\s*auto[^}]*left:\s*auto/s);
     expect(declarationsFor(".human-atlas-static")).toMatch(
       /grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/,
     );
@@ -222,8 +227,8 @@ describe("bioluminescent global visual contract", () => {
     );
   });
 
-  test("keeps scale targets at least 44 pixels wide before the assessment becomes one column", () => {
-    expect(rulesForMedia("(max-width: 900px)")).toMatch(
+  test("keeps scale targets at least 44 pixels wide through constrained assessment widths", () => {
+    expect(rulesForMedia("(max-width: 1000px)")).toMatch(
       /\.scale-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6, minmax\(44px, 1fr\)\)/s,
     );
 
@@ -317,6 +322,9 @@ describe("bioluminescent global visual contract", () => {
     );
     expect(css).toMatch(
       /\.human-atlas-scroll\[data-motion="paused"\] \.human-atlas-scene\s*\{[^}]*min-height:\s*0[^}]*opacity:\s*1[^}]*transform:\s*none/s,
+    );
+    expect(css).toMatch(
+      /\.human-atlas-scroll\[data-motion="paused"\] \.human-atlas-scene\s*\{[^}]*transition:\s*none/s,
     );
   });
 

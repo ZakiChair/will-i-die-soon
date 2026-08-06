@@ -11,7 +11,7 @@ import {
   useActiveAtlasScene,
   type HumanAtlasSceneElements,
 } from "../hooks/use-active-atlas-scene";
-import { useDecorativeMotion } from "../hooks/use-decorative-motion";
+import { useDecorativeMotionStatus } from "../hooks/use-decorative-motion";
 import { useI18n } from "../i18n/context";
 import { HumanAtlasGlow } from "./human-atlas-glow";
 
@@ -46,7 +46,9 @@ function HumanAtlasScrollView({
   sceneElements,
 }: HumanAtlasScrollViewProps) {
   const { t } = useI18n();
-  const motionAllowed = useDecorativeMotion();
+  const motionStatus = useDecorativeMotionStatus();
+  const motionAllowed = motionStatus === "running";
+  const staticFallback = motionStatus === "reduced" || motionStatus === "unsupported";
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
@@ -54,7 +56,7 @@ function HumanAtlasScrollView({
       aria-label={t("landing.atlas.story.aria")}
       className={`human-atlas-scroll${imageFailed ? " human-atlas-scroll--failed" : ""}`}
       data-active-scene={activeScene}
-      data-motion={motionAllowed ? "running" : "paused"}
+      data-motion={staticFallback ? "paused" : "running"}
     >
       <div className={`human-atlas-stage${imageFailed ? " human-atlas-stage--failed" : ""}`}>
         {!imageFailed ? (

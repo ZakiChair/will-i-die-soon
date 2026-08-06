@@ -203,12 +203,15 @@ test("pauses decorative glow motion for reduced motion and hidden documents with
   });
   installObserver();
   const { container } = render(<HumanAtlasScroll />);
+  const story = container.querySelector(".human-atlas-scroll");
   const glowSet = container.querySelector(".human-atlas-glow-set > div");
 
+  expect(story).toHaveAttribute("data-motion", "running");
   expect(glowSet).toHaveAttribute("data-motion", "running");
   expect(descriptions(container)).toHaveLength(4);
 
   act(() => motion.setReduced(true));
+  expect(story).toHaveAttribute("data-motion", "paused");
   expect(glowSet).toHaveAttribute("data-motion", "paused");
   expect(descriptions(container)).toHaveLength(4);
 
@@ -217,6 +220,7 @@ test("pauses decorative glow motion for reduced motion and hidden documents with
     Object.assign(document, { hidden: true });
     document.dispatchEvent(new Event("visibilitychange"));
   });
+  expect(story).toHaveAttribute("data-motion", "running");
   expect(glowSet).toHaveAttribute("data-motion", "paused");
   expect(descriptions(container)).toHaveLength(4);
 });

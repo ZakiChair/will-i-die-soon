@@ -1,4 +1,4 @@
-import { render as testingRender, screen } from "@testing-library/react";
+import { render as testingRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -76,9 +76,11 @@ test("keeps both Express routes usable and marks the controlled Atlas paused wit
   const user = userEvent.setup();
   const { container } = render(<Landing onStart={onStart} />);
 
-  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
-    "data-motion",
-    "paused",
+  await waitFor(() =>
+    expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
+      "data-motion",
+      "paused",
+    ),
   );
   expect(container.querySelectorAll(".human-atlas-scene")).toHaveLength(4);
 

@@ -1,7 +1,11 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
-import { useDecorativeMotion } from "./use-decorative-motion";
+import {
+  useDecorativeMotion,
+  useDecorativeMotionStatus,
+  type DecorativeMotionStatus,
+} from "./use-decorative-motion";
 
 type MotionPreference = {
   readonly media: MediaQueryList;
@@ -45,6 +49,12 @@ function MotionProbe({ states }: { readonly states: boolean[] }) {
   return <output>{String(allowed)}</output>;
 }
 
+function MotionStatusProbe({ states }: { readonly states: DecorativeMotionStatus[] }) {
+  const status = useDecorativeMotionStatus();
+  states.push(status);
+  return <output>{status}</output>;
+}
+
 afterEach(() => {
   Reflect.deleteProperty(document, "hidden");
   vi.unstubAllGlobals();
@@ -59,6 +69,56 @@ test("starts false before enabling visible pages without reduced motion", () => 
 
   expect(states[0]).toBe(false);
   expect(screen.getByText("true")).toBeVisible();
+});
+
+test("keeps dynamic layout pending until supported motion resolves", () => {
+  const states: DecorativeMotionStatus[] = [];
+  installMotionPreference(false);
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+
+  render(<MotionStatusProbe states={states} />);
+
+  expect(states[0]).toBe("pending");
+  expect(screen.getByText("running")).toBeVisible();
+});
+
+test("distinguishes a hidden page from a static motion preference", () => {
+  const motion = installMotionPreference(false);
+  Object.defineProperty(document, "hidden", {
+    configurable: true,
+    writable: true,
+    value: true,
+  });
+
+  render(<MotionStatusProbe states={[]} />);
+  expect(screen.getByText("hidden")).toBeVisible();
+
+  act(() => {
+    Object.assign(document, { hidden: false });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  expect(screen.getByText("running")).toBeVisible();
+
+  act(() => motion.setReduced(true));
+  expect(screen.getByText("reduced")).toBeVisible();
+});
+
+test("reports reduced preference as a static fallback", () => {
+  installMotionPreference(true);
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+
+  render(<MotionStatusProbe states={[]} />);
+
+  expect(screen.getByText("reduced")).toBeVisible();
+});
+
+test("reports missing matchMedia as an unsupported static fallback", async () => {
+  Reflect.deleteProperty(window, "matchMedia");
+  Object.defineProperty(document, "hidden", { configurable: true, value: false });
+
+  render(<MotionStatusProbe states={[]} />);
+
+  expect(await screen.findByText("unsupported")).toBeVisible();
 });
 
 test("responds to reduced-motion preference changes", () => {
