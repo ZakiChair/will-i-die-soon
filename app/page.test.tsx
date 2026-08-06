@@ -1,11 +1,30 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import Home from "./page";
+
+function installReducedMotionPreference() {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches: true,
+      media: "(prefers-reduced-motion: reduce)",
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  );
+}
+
+beforeEach(installReducedMotionPreference);
 
 afterEach(() => {
   cleanup();
   document.documentElement.lang = "en";
+  vi.unstubAllGlobals();
 });
 
 test.each([0, 1])("focuses consent heading after Express CTA %i replaces the landing", async (index) => {

@@ -6,7 +6,7 @@ if (!window.matchMedia) {
       addEventListener: () => undefined,
       addListener: () => undefined,
       dispatchEvent: () => false,
-      matches: true,
+      matches: false,
       media: "",
       onchange: null,
       removeEventListener: () => undefined,

@@ -1,7 +1,7 @@
 import { render as testingRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { I18nProvider } from "../i18n/context";
 import { DecorativeSectionBoundary } from "./decorative-section-boundary";
@@ -16,7 +16,28 @@ function BrokenDecoration(): never {
   throw new Error("decorative render failed");
 }
 
-afterEach(() => vi.restoreAllMocks());
+function installReducedMotionPreference() {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches: true,
+      media: "(prefers-reduced-motion: reduce)",
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  );
+}
+
+beforeEach(installReducedMotionPreference);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 test("makes Express the primary adult route outside decorative content", async () => {
   const onStart = vi.fn();
