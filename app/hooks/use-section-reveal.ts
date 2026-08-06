@@ -20,7 +20,7 @@ export function useSectionReveal(
           target,
           { opacity: 0, y: 20 },
           {
-            autoAlpha: 1,
+            opacity: 1,
             duration: 0.5,
             ease: "power2.out",
             immediateRender: false,

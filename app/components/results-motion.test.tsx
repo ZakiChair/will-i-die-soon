@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLayoutEffect, useRef } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -94,18 +94,28 @@ test("registers only newly mounted private-result bands after the handoff", asyn
   expect(mountedTargets.some((target) => initialTargets.includes(target))).toBe(false);
 });
 
-test("keeps the private-results heading focused when its reveal starts", async () => {
+test("keeps the private-results heading focused when its deferred reveal starts", async () => {
   const user = userEvent.setup();
-  mockFromTo.mockImplementation((target, fromVars) => {
+  const focusAtRevealInitialization = vi.fn();
+  const deferredRevealInitialized = vi.fn();
+  mockFromTo.mockImplementation((target, fromVars, toVars) => {
     if (
-      target instanceof HTMLElement &&
-      typeof fromVars === "object" &&
-      fromVars !== null &&
-      "autoAlpha" in fromVars &&
-      fromVars.autoAlpha === 0
-    ) {
-      target.querySelector<HTMLElement>(":focus")?.blur();
-    }
+      !(target instanceof HTMLElement) ||
+      !target.classList.contains("results-canopy") ||
+      typeof toVars !== "object" ||
+      toVars === null ||
+      !("scrollTrigger" in toVars)
+    ) return;
+
+    window.setTimeout(() => {
+      const focusedDescendant = target.querySelector<HTMLElement>(":focus");
+      focusAtRevealInitialization(focusedDescendant);
+      const usesAutoAlpha = [fromVars, toVars].some(
+        (vars) => typeof vars === "object" && vars !== null && "autoAlpha" in vars,
+      );
+      if (usesAutoAlpha) focusedDescendant?.blur();
+      deferredRevealInitialized();
+    }, 0);
   });
 
   render(
@@ -122,7 +132,11 @@ test("keeps the private-results heading focused when its reveal starts", async (
 
   await user.click(screen.getByRole("button", { name: /show my private results/i }));
 
-  expect(
-    screen.getByRole("heading", { name: /four health pillars you can inspect/i }),
-  ).toHaveFocus();
+  const heading = screen.getByRole("heading", {
+    name: /four health pillars you can inspect/i,
+  });
+  await waitFor(() => expect(deferredRevealInitialized).toHaveBeenCalledOnce());
+
+  expect(focusAtRevealInitialization).toHaveBeenCalledWith(heading);
+  expect(heading).toHaveFocus();
 });
