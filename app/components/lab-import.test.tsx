@@ -1,13 +1,29 @@
 import { render as testingRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { I18nProvider } from "../i18n/context";
 import * as labsModule from "../lib/labs";
 import { Assessment } from "./assessment";
 import { LabImport } from "./lab-import";
 import { LanguageSwitcher } from "./language-switcher";
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches: true,
+      media: "(prefers-reduced-motion: reduce)",
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  );
+});
 
 function render(ui: ReactElement) {
   return testingRender(<I18nProvider>{ui}</I18nProvider>);
