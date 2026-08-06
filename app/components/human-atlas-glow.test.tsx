@@ -30,3 +30,23 @@ test("keeps all four non-interactive glow layers mounted while changing active s
   expect(container.firstElementChild).toHaveAttribute("data-motion", "paused");
   expect(container.querySelectorAll("svg[data-atlas-glow]")).toHaveLength(4);
 });
+
+test("exposes only the existing strength paths as travelling signal targets", () => {
+  const { container } = render(
+    <HumanAtlasGlow activeScene="strength" motionAllowed />,
+  );
+
+  const strengthLayer = container.querySelector<SVGSVGElement>(
+    '[data-atlas-glow="strength"]',
+  );
+  const signalPaths = container.querySelectorAll<SVGPathElement>(
+    "[data-strength-signal]",
+  );
+
+  expect(signalPaths).toHaveLength(5);
+  signalPaths.forEach((path) => {
+    expect(path).toHaveAttribute("pathLength", "1");
+    expect(strengthLayer).toContainElement(path);
+  });
+  expect(container.querySelectorAll("[data-atlas-glow]:not([data-atlas-glow='strength']) [data-strength-signal]")).toHaveLength(0);
+});

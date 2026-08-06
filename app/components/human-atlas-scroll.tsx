@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 
-import { humanAtlasScenes } from "../data/human-atlas";
+import {
+  humanAtlasScenes,
+  type HumanAtlasSceneId,
+} from "../data/human-atlas";
 import {
   useActiveAtlasScene,
   type HumanAtlasSceneElements,
@@ -11,6 +14,15 @@ import {
 import { useDecorativeMotion } from "../hooks/use-decorative-motion";
 import { useI18n } from "../i18n/context";
 import { HumanAtlasGlow } from "./human-atlas-glow";
+
+type HumanAtlasScrollProps = Readonly<{
+  activeScene?: HumanAtlasSceneId;
+}>;
+
+type HumanAtlasScrollViewProps = Readonly<{
+  activeScene: HumanAtlasSceneId;
+  sceneElements?: RefObject<HumanAtlasSceneElements>;
+}>;
 
 export function HumanAtlasStaticStory() {
   const { t } = useI18n();
@@ -29,10 +41,11 @@ export function HumanAtlasStaticStory() {
   );
 }
 
-export function HumanAtlasScroll() {
+function HumanAtlasScrollView({
+  activeScene,
+  sceneElements,
+}: HumanAtlasScrollViewProps) {
   const { t } = useI18n();
-  const sceneElements = useRef<HumanAtlasSceneElements>({});
-  const activeScene = useActiveAtlasScene(sceneElements);
   const motionAllowed = useDecorativeMotion();
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -81,7 +94,7 @@ export function HumanAtlasScroll() {
             data-atlas-scene={scene.id}
             key={scene.id}
             ref={(node) => {
-              sceneElements.current[scene.id] = node;
+              if (sceneElements) sceneElements.current[scene.id] = node;
             }}
           >
             <div className="human-atlas-scene__card">
@@ -95,4 +108,24 @@ export function HumanAtlasScroll() {
       </div>
     </section>
   );
+}
+
+function HumanAtlasScrollUncontrolled() {
+  const sceneElements = useRef<HumanAtlasSceneElements>({});
+  const activeScene = useActiveAtlasScene(sceneElements);
+
+  return (
+    <HumanAtlasScrollView
+      activeScene={activeScene}
+      sceneElements={sceneElements}
+    />
+  );
+}
+
+export function HumanAtlasScroll({ activeScene }: HumanAtlasScrollProps) {
+  if (activeScene !== undefined) {
+    return <HumanAtlasScrollView activeScene={activeScene} />;
+  }
+
+  return <HumanAtlasScrollUncontrolled />;
 }

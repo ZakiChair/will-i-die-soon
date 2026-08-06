@@ -162,6 +162,38 @@ test("updates only the displayed scene state as observer entries advance", () =>
   }
 });
 
+test("uses controlled scene state without starting the observer fallback", () => {
+  const observer = vi.fn();
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor() {
+        observer();
+      }
+
+      disconnect = vi.fn();
+      observe = vi.fn();
+    },
+  );
+
+  const { container } = render(<HumanAtlasScroll activeScene="sleep" />);
+
+  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
+    "data-active-scene",
+    "sleep",
+  );
+  expect(container.querySelectorAll('.human-atlas-progress [data-active="true"]')).toHaveLength(1);
+  expect(container.querySelector('.human-atlas-progress [data-active="true"]')).toBe(
+    container.querySelectorAll(".human-atlas-progress span").item(2),
+  );
+  expect(container.querySelectorAll('svg[data-active="true"]')).toHaveLength(1);
+  expect(container.querySelector('[data-atlas-glow="sleep"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
+  expect(observer).not.toHaveBeenCalled();
+});
+
 test("pauses decorative glow motion for reduced motion and hidden documents without hiding copy", () => {
   const motion = installMotionPreference(false);
   Object.defineProperty(document, "hidden", {

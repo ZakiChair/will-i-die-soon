@@ -58,8 +58,8 @@ const glowLayers: Record<HumanAtlasSceneId, ReactNode> = {
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M696 94 C695 132 696 174 696 220 C696 276 696 331 696 390" strokeWidth="19" />
-        <path d="M696 144 C657 168 635 207 620 266 M696 144 C735 168 757 207 772 266 M696 284 C663 332 650 399 646 492 M696 284 C729 332 742 399 746 492" strokeWidth="13" />
+        <path data-strength-signal="true" d="M696 94 C695 132 696 174 696 220 C696 276 696 331 696 390" pathLength="1" strokeWidth="19" />
+        <path data-strength-signal="true" d="M696 144 C657 168 635 207 620 266 M696 144 C735 168 757 207 772 266 M696 284 C663 332 650 399 646 492 M696 284 C729 332 742 399 746 492" pathLength="1" strokeWidth="13" />
       </g>
       <g
         fill="none"
@@ -67,9 +67,9 @@ const glowLayers: Record<HumanAtlasSceneId, ReactNode> = {
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M696 94 C695 132 696 174 696 220 C696 276 696 331 696 390" strokeWidth="3.4" />
-        <path d="M696 144 C657 168 635 207 620 266 M696 144 C735 168 757 207 772 266 M696 284 C663 332 650 399 646 492 M696 284 C729 332 742 399 746 492" strokeWidth="2.4" />
-        <path d="M682 172 L657 185 M710 172 L735 185 M681 224 L648 241 M711 224 L744 241 M683 332 L660 355 M709 332 L732 355 M666 408 L644 430 M726 408 L748 430" opacity=".8" strokeWidth="1.5" />
+        <path data-strength-signal="true" d="M696 94 C695 132 696 174 696 220 C696 276 696 331 696 390" pathLength="1" strokeWidth="3.4" />
+        <path data-strength-signal="true" d="M696 144 C657 168 635 207 620 266 M696 144 C735 168 757 207 772 266 M696 284 C663 332 650 399 646 492 M696 284 C729 332 742 399 746 492" pathLength="1" strokeWidth="2.4" />
+        <path data-strength-signal="true" d="M682 172 L657 185 M710 172 L735 185 M681 224 L648 241 M711 224 L744 241 M683 332 L660 355 M709 332 L732 355 M666 408 L644 430 M726 408 L748 430" opacity=".8" pathLength="1" strokeWidth="1.5" />
       </g>
       <circle cx="696" cy="87" fill="#f4c95d" filter="url(#strengthNerveBlur)" opacity=".18" r="34" />
     </>
