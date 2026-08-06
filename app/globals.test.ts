@@ -222,8 +222,8 @@ describe("bioluminescent global visual contract", () => {
     );
   });
 
-  test("keeps scale targets at least 44 pixels wide through compact widths", () => {
-    expect(rulesForMedia("(max-width: 780px)")).toMatch(
+  test("keeps scale targets at least 44 pixels wide before the assessment becomes one column", () => {
+    expect(rulesForMedia("(max-width: 900px)")).toMatch(
       /\.scale-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6, minmax\(44px, 1fr\)\)/s,
     );
 

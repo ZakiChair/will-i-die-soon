@@ -577,7 +577,7 @@ h1, h2, h3 {
 .scale-grid label:has(input:checked) { color: var(--abyss); border-color: var(--current); background: var(--current); }
 .scale-grid input { position: absolute; opacity: 0; }
 
-@media (max-width: 780px) {
+@media (max-width: 900px) {
   .scale-grid { grid-template-columns: repeat(6, minmax(44px, 1fr)); }
 }
 
