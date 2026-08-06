@@ -6,6 +6,7 @@ import { useDecorativeMotion } from "../hooks/use-decorative-motion";
 import { useI18n } from "../i18n/context";
 import { uiCopyKeys } from "../i18n/ui-copy";
 import { HEALTH_PILLARS, type HealthPillar } from "../lib/health-pillars";
+import { MotionScreen } from "./motion-screen";
 
 export type IntermissionProps = {
   pillar: HealthPillar;
@@ -149,18 +150,20 @@ export function Intermission({
           ) : null
         )}
       </div>
-      <div className="intermission__panel">
-        <p className="data-label">
-          {t("intermission.eyebrow", { current: String(current).padStart(2, "0") })}
-        </p>
-        <h1 id="intermission-title" ref={heading} tabIndex={-1}>
-          {t("intermission.title", { pillar: t(uiCopyKeys.pillar[pillar]) })}
-        </h1>
-        <p>{t("intermission.body")}</p>
-        <button className="primary-action" type="button" onClick={onContinue}>
-          {t("intermission.continue")}
-        </button>
-      </div>
+      <MotionScreen key={pillar} screenKey={`intermission-${pillar}`}>
+        <div className="intermission__panel">
+          <p className="data-label">
+            {t("intermission.eyebrow", { current: String(current).padStart(2, "0") })}
+          </p>
+          <h1 id="intermission-title" ref={heading} tabIndex={-1}>
+            {t("intermission.title", { pillar: t(uiCopyKeys.pillar[pillar]) })}
+          </h1>
+          <p>{t("intermission.body")}</p>
+          <button className="primary-action" type="button" onClick={onContinue}>
+            {t("intermission.continue")}
+          </button>
+        </div>
+      </MotionScreen>
     </section>
   );
 }

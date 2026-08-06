@@ -1,7 +1,7 @@
 import { render as testingRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import Home from "../page";
 import { I18nProvider } from "../i18n/context";
@@ -12,6 +12,25 @@ import type { AnswerMap, RiskLeaf } from "../lib/types";
 import { LanguageSwitcher } from "./language-switcher";
 import { RiskTree } from "./risk-tree";
 import { Results } from "./results";
+
+function installReducedMotionPreference() {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches: true,
+      media: "(prefers-reduced-motion: reduce)",
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  );
+}
+
+beforeEach(installReducedMotionPreference);
+afterEach(() => vi.unstubAllGlobals());
 
 function render(ui: ReactElement) {
   return testingRender(<I18nProvider>{ui}</I18nProvider>);
@@ -92,6 +111,32 @@ const F1_ANSWERS: AnswerMap = {
   adherence_access_barriers: ["none"],
   interaction_shared_list: true,
 };
+
+test("marks existing result bands for progressive reveal without changing heading order", () => {
+  const { container } = render(
+    <Results
+      answers={{ ...F1_ANSWERS, urgent_chest_discomfort_now: true }}
+      assessmentDepth="deep"
+      confirmedLabs={[confirmedLab]}
+      profile={{ age: 35, countryCode: "CH" }}
+      onRestart={vi.fn()}
+    />,
+  );
+
+  const results = container.querySelector(".results");
+  expect(results?.querySelector(".results__intro")).toHaveAttribute("data-reveal");
+  expect(results?.querySelector(".results-urgent")).toHaveAttribute("data-reveal");
+  expect(results?.querySelector(".results-canopy")).toHaveAttribute("data-reveal");
+  expect(results?.querySelector(".score-sheet")).toHaveAttribute("data-reveal");
+  expect(results?.querySelector(".confirmed-labs")).toHaveAttribute("data-reveal");
+  expect(results?.querySelector(".result-tools")).toHaveAttribute("data-reveal");
+
+  const title = screen.getByRole("heading", { name: "Your health map, with the reasons attached." });
+  const urgent = screen.getByRole("heading", { name: "Act on these immediate signals now" });
+  const canopy = screen.getByRole("heading", { name: "Four health pillars you can inspect." });
+  expect(title.compareDocumentPosition(urgent) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(urgent.compareDocumentPosition(canopy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
 
 test("Express results keep shared tools while omitting the score and generic result surfaces", () => {
   render(
@@ -519,7 +564,7 @@ test("page completion hands depth into Results and restart clears the in-memory 
   expect(screen.getByText(/Quick assessment/i)).toBeVisible();
   await user.click(screen.getByRole("button", { name: /restart from the beginning/i }));
   expect(
-    screen.getByRole("heading", { name: "Your body is a system." }),
+    screen.getByRole("heading", { name: "Read the signals. Not a verdict." }),
   ).toBeVisible();
 });
 

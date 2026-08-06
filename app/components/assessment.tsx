@@ -25,6 +25,7 @@ import type {
 } from "../lib/types";
 import { Intermission } from "./intermission";
 import { LabImport } from "./lab-import";
+import { MotionScreen } from "./motion-screen";
 import { QuestionControl } from "./question-control";
 import {
   QUESTION_PROMPT_DETAIL_ID,
@@ -289,36 +290,38 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
             })}
           </progress>
         </aside>
-        <article className="question-sheet">
-          <p className="assessment__progress" aria-live="polite">
-            {t("assessment.question", { current: currentIndex + 1, total: queue.length })}
-          </p>
-          <p className="question-sheet__domain data-label">
-            {question ? t(uiCopyKeys.domain[question.domain]) : null}
-          </p>
-          {promptPresentation ? (
-            <QuestionPrompt
-              presentation={promptPresentation}
-              headingRef={questionHeading}
-            />
-          ) : null}
-          {question ? (
-            <QuestionControl
-              key={question.id}
-              question={presentedQuestion ?? question}
-              questionDescriptionId={
-                promptPresentation?.detail?.trim()
-                  ? QUESTION_PROMPT_DETAIL_ID
-                  : undefined
-              }
-              answer={answers[question.id]}
-              onAnswer={recordAnswer}
-              canGoBack={currentIndex > 0}
-              onBack={() => setCurrentIndex((index) => Math.max(0, index - 1))}
-              skipLabelKey={isExpress ? "question.skip.express" : undefined}
-            />
-          ) : null}
-        </article>
+        {question ? (
+          <MotionScreen key={question.id} screenKey={`question-${question.id}`}>
+            <article className="question-sheet">
+              <p className="assessment__progress" aria-live="polite">
+                {t("assessment.question", { current: currentIndex + 1, total: queue.length })}
+              </p>
+              <p className="question-sheet__domain data-label">
+                {t(uiCopyKeys.domain[question.domain])}
+              </p>
+              {promptPresentation ? (
+                <QuestionPrompt
+                  presentation={promptPresentation}
+                  headingRef={questionHeading}
+                />
+              ) : null}
+              <QuestionControl
+                key={question.id}
+                question={presentedQuestion ?? question}
+                questionDescriptionId={
+                  promptPresentation?.detail?.trim()
+                    ? QUESTION_PROMPT_DETAIL_ID
+                    : undefined
+                }
+                answer={answers[question.id]}
+                onAnswer={recordAnswer}
+                canGoBack={currentIndex > 0}
+                onBack={() => setCurrentIndex((index) => Math.max(0, index - 1))}
+                skipLabelKey={isExpress ? "question.skip.express" : undefined}
+              />
+            </article>
+          </MotionScreen>
+        ) : null}
       </div>
     </section>
   );

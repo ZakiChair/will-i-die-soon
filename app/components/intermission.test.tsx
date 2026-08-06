@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { I18nProvider, useI18n } from "../i18n/context";
 import { LanguageSwitcher } from "./language-switcher";
@@ -36,6 +36,9 @@ function installMotionPreference(initiallyReduced = false): MotionPreference {
     },
   };
 }
+
+beforeEach(() => installMotionPreference(true));
+afterEach(() => vi.unstubAllGlobals());
 
 function LocalizedIntermission() {
   const { locale } = useI18n();
@@ -95,6 +98,41 @@ test("moves focus to the entering chapter heading instead of its Continue button
   expect(heading).toHaveFocus();
   expect(continueButton).not.toHaveFocus();
   expect(heading).toHaveAttribute("tabindex", "-1");
+});
+
+test("remounts the chapter panel in a motion screen keyed by the pillar ID", () => {
+  const { container, rerender } = render(
+    <I18nProvider>
+      <Intermission
+        pillar="cardio-energy"
+        completed={8}
+        total={20}
+        onContinue={vi.fn()}
+      />
+    </I18nProvider>,
+  );
+
+  const cardioScreen = container.querySelector(
+    '[data-motion-screen="intermission-cardio-energy"]',
+  );
+  expect(cardioScreen?.querySelector(".intermission__panel")).toBeInTheDocument();
+
+  rerender(
+    <I18nProvider>
+      <Intermission
+        pillar="sleep-circadian"
+        completed={12}
+        total={20}
+        onContinue={vi.fn()}
+      />
+    </I18nProvider>,
+  );
+
+  const sleepScreen = container.querySelector(
+    '[data-motion-screen="intermission-sleep-circadian"]',
+  );
+  expect(sleepScreen?.querySelector(".intermission__panel")).toBeInTheDocument();
+  expect(sleepScreen).not.toBe(cardioScreen);
 });
 
 test("uses a local Cardio loop only after its poster can play", () => {

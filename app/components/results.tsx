@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "../i18n/context";
+import { useSectionReveal } from "../hooks/use-section-reveal";
 import {
   localizeActions,
   localizeProtectiveRoots,
@@ -44,7 +45,12 @@ function UrgentSummary({ leaves }: { readonly leaves: ReadonlyArray<RiskLeaf> })
   const { t } = useI18n();
   if (leaves.length === 0) return null;
   return (
-    <section className="results-urgent" role="alert" aria-labelledby="results-urgent-title">
+    <section
+      className="results-urgent"
+      role="alert"
+      aria-labelledby="results-urgent-title"
+      data-reveal
+    >
       <p className="data-label">{t("results.urgent.eyebrow")}</p>
       <h2 id="results-urgent-title">{t("results.urgent.title")}</h2>
       <ul>
@@ -63,7 +69,7 @@ function UrgentSummary({ leaves }: { readonly leaves: ReadonlyArray<RiskLeaf> })
 function ScoreLedger({ score }: { readonly score: PresentedAdultPurityScoreResult }) {
   const { t } = useI18n();
   return (
-    <section className="score-sheet" aria-labelledby="score-title">
+    <section className="score-sheet" aria-labelledby="score-title" data-reveal>
       <p className="data-label">{t("score.version", { version: score.scoreVersion })}</p>
       <h2 id="score-title">{score.label}</h2>
       <p className="score-sheet__readout">
@@ -121,7 +127,11 @@ function CoverageReflection({
   const { t } = useI18n();
   if (score.reason === "quick-assessment") {
     return (
-      <section className="score-sheet score-sheet--reflection" aria-labelledby="reflection-title">
+      <section
+        className="score-sheet score-sheet--reflection"
+        aria-labelledby="reflection-title"
+        data-reveal
+      >
         <p className="data-label">{t("score.quick.eyebrow")}</p>
         <h2 id="reflection-title">{t("score.quick.title")}</h2>
         <p className="score-sheet__coverage">
@@ -132,7 +142,11 @@ function CoverageReflection({
     );
   }
   return (
-    <section className="score-sheet score-sheet--reflection" aria-labelledby="coverage-title">
+    <section
+      className="score-sheet score-sheet--reflection"
+      aria-labelledby="coverage-title"
+      data-reveal
+    >
       <p className="data-label">{t("score.gate.eyebrow", { version: score.scoreVersion })}</p>
       <h2 id="coverage-title">{score.label}</h2>
       <p className="score-sheet__coverage">
@@ -170,7 +184,7 @@ function AdolescentHabitsMap({ answers }: { readonly answers: AnswerMap }) {
   });
 
   return (
-    <section className="habits-map" aria-labelledby="habits-map-title">
+    <section className="habits-map" aria-labelledby="habits-map-title" data-reveal>
       <p className="data-label">{t("adolescent.eyebrow")}</p>
       <h2 id="habits-map-title">{t("adolescent.title")}</h2>
       <p>{t("adolescent.intro")}</p>
@@ -204,7 +218,7 @@ function AdolescentHabitsMap({ answers }: { readonly answers: AnswerMap }) {
 function ChildGuide({ onRestart }: { readonly onRestart: () => void }) {
   const { t } = useI18n();
   return (
-    <section className="child-guide" aria-labelledby="child-guide-title">
+    <section className="child-guide" aria-labelledby="child-guide-title" data-reveal>
       <p className="data-label">{t("child.eyebrow")}</p>
       <h2 id="child-guide-title">{t("child.title")}</h2>
       <p>{t("child.body")}</p>
@@ -222,7 +236,11 @@ function PrivateResultsHandoff({
 }) {
   const { t } = useI18n();
   return (
-    <section className="private-results-handoff" aria-labelledby="private-results-title">
+    <section
+      className="private-results-handoff"
+      aria-labelledby="private-results-title"
+      data-reveal
+    >
       <p className="data-label">{t("handoff.eyebrow")}</p>
       <h2 id="private-results-title">{t("handoff.title")}</h2>
       <p>{t("handoff.body")}</p>
@@ -238,7 +256,7 @@ function ActionPlan({ actions }: { readonly actions: ReadonlyArray<ActionItem> }
   const { t } = useI18n();
   if (actions.length === 0) return null;
   return (
-    <section className="action-plan" aria-labelledby="action-plan-title">
+    <section className="action-plan" aria-labelledby="action-plan-title" data-reveal>
       <p className="data-label">{t("actions.eyebrow")}</p>
       <h2 id="action-plan-title">{t("actions.title")}</h2>
       <ol>
@@ -267,7 +285,12 @@ function ConfirmedLabs({ values }: { readonly values: ReadonlyArray<ConfirmedLab
   const { t } = useI18n();
   if (values.length === 0) return null;
   return (
-    <section className="confirmed-labs" role="region" aria-labelledby="confirmed-labs-title">
+    <section
+      className="confirmed-labs"
+      role="region"
+      aria-labelledby="confirmed-labs-title"
+      data-reveal
+    >
       <p className="data-label">{t("labsConfirmed.eyebrow")}</p>
       <h2 id="confirmed-labs-title">{t("labsConfirmed.title")}</h2>
       <p>{t("labsConfirmed.body")}</p>
@@ -313,7 +336,9 @@ export function Results({
   const [privateResultsVisible, setPrivateResultsVisible] = useState(
     () => !needsPrivateHandoff,
   );
+  const resultsRoot = useRef<HTMLElement>(null);
   const revealedResultsHeading = useRef<HTMLHeadingElement>(null);
+  useSectionReveal(resultsRoot);
   const leaves = useMemo(
     () => evaluateRisks(answers, profile, prototypePolicy),
     [answers, profile],
@@ -390,14 +415,18 @@ export function Results({
   const presentedDepth = locale === "fr" ? depthLabel.toLocaleLowerCase("fr") : depthLabel;
 
   return (
-    <section className="journey results" aria-labelledby="results-title">
+    <section
+      ref={resultsRoot}
+      className="journey results"
+      aria-labelledby="results-title"
+    >
       <header className="journey__header results__header">
         <div className="wordmark">Will I Die <strong>Soon?</strong></div>
         <p className="prototype-label data-label">
           {t("results.header", { depth: presentedDepth })}
         </p>
       </header>
-      <div className="results__intro">
+      <div className="results__intro" data-reveal>
         <p className="data-label">{t("results.eyebrow")}</p>
         <h1 id="results-title">{t("results.title")}</h1>
         <p>{t("results.intro")}</p>
@@ -418,7 +447,11 @@ export function Results({
             <ExpressResults answers={answers} />
           ) : (
             <>
-              <section className="results-canopy" aria-labelledby="results-canopy-title">
+              <section
+                className="results-canopy"
+                aria-labelledby="results-canopy-title"
+                data-reveal
+              >
                 <div className="section-heading">
                   <p className="data-label">{t("results.canopy.eyebrow")}</p>
                   <h2 id="results-canopy-title" ref={revealedResultsHeading} tabIndex={-1}>
@@ -441,7 +474,11 @@ export function Results({
           )}
           <ConfirmedLabs values={confirmedLabs} />
 
-          <section className="result-tools" aria-labelledby="result-tools-title">
+          <section
+            className="result-tools"
+            aria-labelledby="result-tools-title"
+            data-reveal
+          >
             <p className="data-label">{t("tools.eyebrow")}</p>
             <h2 id="result-tools-title">{t("tools.title")}</h2>
             <p>{t("tools.body")}</p>

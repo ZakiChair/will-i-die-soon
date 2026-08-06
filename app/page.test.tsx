@@ -37,6 +37,43 @@ test.each([0, 1])("focuses consent heading after Express CTA %i replaces the lan
   expect(screen.getByRole("heading", { name: "Before we begin" })).toHaveFocus();
 });
 
+test("replaces each in-memory journey screen inside its stable motion boundary", async () => {
+  const user = userEvent.setup();
+  const { container } = render(<Home />);
+
+  const landing = container.querySelector('[data-motion-screen="landing"]');
+  expect(landing).toBeInTheDocument();
+
+  await user.click(screen.getAllByRole("button", { name: "Start Express" })[0]);
+  const consent = container.querySelector('[data-motion-screen="consent"]');
+  expect(consent).toBeInTheDocument();
+  expect(consent).not.toBe(landing);
+
+  await user.type(screen.getByRole("spinbutton", { name: "How old are you?" }), "35");
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Country or region" }),
+    "CH",
+  );
+  await user.click(
+    screen.getByRole("checkbox", { name: "I understand and want to continue" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Start Express assessment" }));
+
+  const assessment = container.querySelector('[data-motion-screen="assessment"]');
+  expect(assessment).toBeInTheDocument();
+  expect(assessment).not.toBe(consent);
+
+  for (let answered = 0; answered < 9; answered += 1) {
+    await user.click(
+      screen.getByRole("button", { name: /prefer not to (?:say|answer)/i }),
+    );
+  }
+
+  const results = container.querySelector('[data-motion-screen="results"]');
+  expect(results).toBeInTheDocument();
+  expect(results).not.toBe(assessment);
+});
+
 async function continuePastChapterIntro(user: ReturnType<typeof userEvent.setup>) {
   const button = screen.queryByRole("button", { name: "Continue assessment" });
   if (button) await user.click(button);

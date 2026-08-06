@@ -5,6 +5,7 @@ import { Assessment } from "./components/assessment";
 import { ConsentScreen } from "./components/consent-screen";
 import { Landing } from "./components/landing";
 import { LanguageSwitcher } from "./components/language-switcher";
+import { MotionScreen } from "./components/motion-screen";
 import { Results } from "./components/results";
 import { I18nProvider } from "./i18n/context";
 import type { ConfirmedLabValue } from "./lib/labs";
@@ -38,7 +39,9 @@ function HomeExperience() {
   if (screen.kind === "landing") {
     return (
       <main>
-        <Landing onStart={(depth) => setScreen({ kind: "consent", depth })} />
+        <MotionScreen key="landing" screenKey="landing">
+          <Landing onStart={(depth) => setScreen({ kind: "consent", depth })} />
+        </MotionScreen>
       </main>
     );
   }
@@ -46,12 +49,14 @@ function HomeExperience() {
   if (screen.kind === "consent") {
     return (
       <main>
-        <ConsentScreen
-          depth={screen.depth}
-          onAccept={(profile, depth) =>
-            setScreen({ kind: "assessment", depth, profile })
-          }
-        />
+        <MotionScreen key="consent" screenKey="consent">
+          <ConsentScreen
+            depth={screen.depth}
+            onAccept={(profile, depth) =>
+              setScreen({ kind: "assessment", depth, profile })
+            }
+          />
+        </MotionScreen>
       </main>
     );
   }
@@ -59,32 +64,36 @@ function HomeExperience() {
   if (screen.kind === "assessment") {
     return (
       <main>
-        <Assessment
-          depth={screen.depth}
-          profile={screen.profile}
-          onComplete={(answers, confirmedLabs) =>
-            setScreen({
-              kind: "results",
-              depth: screen.depth,
-              answers,
-              confirmedLabs,
-              profile: screen.profile,
-            })
-          }
-        />
+        <MotionScreen key="assessment" screenKey="assessment">
+          <Assessment
+            depth={screen.depth}
+            profile={screen.profile}
+            onComplete={(answers, confirmedLabs) =>
+              setScreen({
+                kind: "results",
+                depth: screen.depth,
+                answers,
+                confirmedLabs,
+                profile: screen.profile,
+              })
+            }
+          />
+        </MotionScreen>
       </main>
     );
   }
 
   return (
     <main>
-      <Results
-        answers={screen.answers}
-        assessmentDepth={screen.depth}
-        confirmedLabs={screen.confirmedLabs}
-        profile={screen.profile}
-        onRestart={() => setScreen({ kind: "landing" })}
-      />
+      <MotionScreen key="results" screenKey="results">
+        <Results
+          answers={screen.answers}
+          assessmentDepth={screen.depth}
+          confirmedLabs={screen.confirmedLabs}
+          profile={screen.profile}
+          onRestart={() => setScreen({ kind: "landing" })}
+        />
+      </MotionScreen>
     </main>
   );
 }

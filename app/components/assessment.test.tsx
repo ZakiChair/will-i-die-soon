@@ -1,7 +1,7 @@
 import { render as testingRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { questionBank } from "../data/questions";
 import { I18nProvider } from "../i18n/context";
@@ -10,6 +10,25 @@ import Home from "../page";
 import { Assessment } from "./assessment";
 import { LanguageSwitcher } from "./language-switcher";
 import { QuestionControl } from "./question-control";
+
+function installReducedMotionPreference() {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({
+      addEventListener: vi.fn(),
+      addListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      matches: true,
+      media: "(prefers-reduced-motion: reduce)",
+      onchange: null,
+      removeEventListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  );
+}
+
+beforeEach(installReducedMotionPreference);
+afterEach(() => vi.unstubAllGlobals());
 
 function render(ui: ReactElement) {
   return testingRender(<I18nProvider>{ui}</I18nProvider>);
@@ -121,6 +140,31 @@ test("introduces the first available chapter before the first adult Quick questi
   expect(chapters).toHaveTextContent("Strength, nervous system & recovery");
   expect(chapters).toHaveTextContent("Sleep & circadian rhythm");
   expect(chapters).toHaveTextContent("Nutrition & metabolic health");
+});
+
+test("remounts the question sheet in a motion screen keyed by the active question ID", async () => {
+  const user = userEvent.setup();
+  const { container } = render(
+    <Assessment depth="quick" profile={adultProfile} onComplete={vi.fn()} />,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Continue assessment" }));
+
+  const firstQuestionScreen = container.querySelector(
+    '[data-motion-screen^="question-"]',
+  );
+  expect(firstQuestionScreen?.querySelector(".question-sheet")).toBeInTheDocument();
+  const firstQuestionKey = firstQuestionScreen?.getAttribute("data-motion-screen");
+
+  await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+
+  const secondQuestionScreen = container.querySelector(
+    '[data-motion-screen^="question-"]',
+  );
+  expect(secondQuestionScreen?.getAttribute("data-motion-screen")).not.toBe(
+    firstQuestionKey,
+  );
+  expect(secondQuestionScreen).not.toBe(firstQuestionScreen);
 });
 
 test("keeps a single quantitative answered-question progress bar during a question", async () => {
