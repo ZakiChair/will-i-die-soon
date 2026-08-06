@@ -197,6 +197,42 @@ describe("global interaction styles", () => {
     );
   });
 
+  test("hands the Atlas story into conversion without a framed card or failed sticky void", () => {
+    const sceneCard = css.match(
+      /\.human-atlas-scene__card\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+    const conversion = css.match(
+      /\.landing__atlas-conversion\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+    const failedStory = css.match(
+      /\.human-atlas-scroll--failed\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+    const failedStage = css.match(
+      /\.human-atlas-scroll--failed \.human-atlas-stage\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+    const failedHero = css.match(
+      /\.landing__atlas-experience:has\(\.human-atlas-scroll--failed\) \.landing__atlas-hero\s*\{(?<declarations>[^}]+)\}/s,
+    )?.groups?.declarations;
+
+    expect(sceneCard).toMatch(/border:\s*0/);
+    expect(sceneCard).toMatch(/box-shadow:\s*none/);
+    expect(sceneCard).toMatch(/linear-gradient\(90deg/);
+    expect(conversion).toMatch(/margin-top:\s*0/);
+    expect(failedStory).toMatch(/min-height:\s*0/);
+    expect(failedStage).toMatch(/position:\s*relative/);
+    expect(failedStage).toMatch(/height:\s*auto/);
+    expect(failedStage).toMatch(/min-height:\s*240px/);
+    expect(failedHero).toMatch(/position:\s*relative/);
+    expect(failedHero).toMatch(/top:\s*auto/);
+    expect(failedHero).toMatch(/left:\s*auto/);
+    expect(css).toMatch(
+      /\.human-atlas-scroll--failed \.human-atlas-scenes\s*\{[^}]*margin:\s*0[^}]*padding:/s,
+    );
+    expect(css).toMatch(
+      /\.human-atlas-scroll--failed \.human-atlas-scene\s*\{[^}]*min-height:\s*0[^}]*opacity:\s*1[^}]*transform:\s*none/s,
+    );
+  });
+
   test("shows only the static breath glow when reduced motion is requested", () => {
     const reducedMotionRules = css.match(
       /@media \(prefers-reduced-motion: reduce\)\s*\{(?<rules>[\s\S]*?)\n}\n\n\[data-motion="paused"\]/,

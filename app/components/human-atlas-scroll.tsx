@@ -39,7 +39,7 @@ export function HumanAtlasScroll() {
   return (
     <section
       aria-label={t("landing.atlas.story.aria")}
-      className="human-atlas-scroll"
+      className={`human-atlas-scroll${imageFailed ? " human-atlas-scroll--failed" : ""}`}
       data-active-scene={activeScene}
     >
       <div className={`human-atlas-stage${imageFailed ? " human-atlas-stage--failed" : ""}`}>

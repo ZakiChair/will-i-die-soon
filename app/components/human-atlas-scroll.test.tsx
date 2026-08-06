@@ -197,6 +197,9 @@ test("keeps the full explanation when the decorative image fails", () => {
 
   fireEvent.error(image);
 
+  expect(container.querySelector(".human-atlas-scroll")).toHaveClass(
+    "human-atlas-scroll--failed",
+  );
   expect(container.querySelectorAll("svg[data-atlas-glow]")).toHaveLength(0);
   expect(screen.getByText("The atlas image is unavailable; the four-part explanation remains below.")).toBeVisible();
   expect(screen.getByText("The atlas image is unavailable; the four-part explanation remains below.")).not.toHaveAttribute("role", "alert");
