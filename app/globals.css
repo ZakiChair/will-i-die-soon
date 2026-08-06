@@ -318,6 +318,7 @@ h1, h2, h3 {
   .human-atlas-static { grid-template-columns: 1fr; padding-inline: 14px; }
   .human-atlas-progress { right: 14px; }
   .landing__primary-cta, .depth-card button { min-height: 48px; }
+  .scale-grid { grid-template-columns: repeat(6, minmax(44px, 1fr)); }
 }
 
 .privacy-panel { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(30px, 8vw, 100px); margin-top: clamp(60px, 10vw, 142px); padding: clamp(34px, 5vw, 62px) 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--mist); background: transparent; }
@@ -1190,6 +1191,7 @@ h1, h2, h3 {
   .risk-canopy-layout { grid-template-columns: 1fr; }
   .risk-tree, .risk-tree__branch, .risk-tree__foundation, .risk-tree__leaves button, .risk-evidence, .results-urgent, .score-category, .express-result-card, .habits-map__cards article, .action-plan > ol > li, .confirmed-labs table { color: var(--abyss); background: transparent; }
   .express-result-card h3, .confirmed-labs thead th { color: var(--abyss); background: transparent; }
+  .express-results__context dd, .express-result-card > p:first-of-type, .express-result-card dd { color: var(--abyss); }
   .risk-evidence { position: static; min-height: 0; color: var(--abyss); background: var(--mist); border: 1px solid var(--line); }
   .risk-evidence > .data-label, .risk-evidence dt { color: var(--abyss); }
   .risk-evidence__copy, .risk-evidence dd, .risk-evidence span { color: var(--abyss); }

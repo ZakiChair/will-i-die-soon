@@ -211,6 +211,12 @@ describe("bioluminescent global visual contract", () => {
     );
   });
 
+  test("keeps scale targets at least 44 pixels wide through compact widths", () => {
+    expect(rulesForMedia("(max-width: 780px)")).toMatch(
+      /\.scale-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6, minmax\(44px, 1fr\)\)/s,
+    );
+  });
+
   test("keeps intermission media and poster fallbacks stable", () => {
     expect(declarationsFor(".intermission__media img, .intermission__media video")).toMatch(/object-fit:\s*cover/);
     expect(declarationsFor(".intermission__poster--covered")).toMatch(/opacity:\s*0/);
@@ -278,6 +284,20 @@ describe("bioluminescent global visual contract", () => {
     expect(print).toMatch(/\.human-atlas-scene\s*\{[^}]*opacity:\s*1[^}]*transform:\s*none/s);
     expect(print).toMatch(/\.language-switcher\s*\{[^}]*display:\s*none/s);
     expect(print).toMatch(/\.results__header, \.result-tools\s*\{[^}]*display:\s*none !important/s);
+  });
+
+  test("prints Express context and primary readings in Abyss ink", () => {
+    const print = rulesForMedia("print");
+
+    expect(print).toMatch(
+      /\.express-results__context dd[^{}]*\{[^}]*color:\s*var\(--abyss\)/s,
+    );
+    expect(print).toMatch(
+      /\.express-result-card > p:first-of-type[^{}]*\{[^}]*color:\s*var\(--abyss\)/s,
+    );
+    expect(print).toMatch(
+      /\.express-result-card dd[^{}]*\{[^}]*color:\s*var\(--abyss\)/s,
+    );
   });
 
   test("contains no retired scanner, HUD, gradient-orb, or canopy-control selectors", () => {
