@@ -93,3 +93,36 @@ test("registers only newly mounted private-result bands after the handoff", asyn
   ]);
   expect(mountedTargets.some((target) => initialTargets.includes(target))).toBe(false);
 });
+
+test("keeps the private-results heading focused when its reveal starts", async () => {
+  const user = userEvent.setup();
+  mockFromTo.mockImplementation((target, fromVars) => {
+    if (
+      target instanceof HTMLElement &&
+      typeof fromVars === "object" &&
+      fromVars !== null &&
+      "autoAlpha" in fromVars &&
+      fromVars.autoAlpha === 0
+    ) {
+      target.querySelector<HTMLElement>(":focus")?.blur();
+    }
+  });
+
+  render(
+    <I18nProvider>
+      <Results
+        answers={{ adolescent_nicotine_support: "find_service" }}
+        assessmentDepth="detailed"
+        confirmedLabs={[]}
+        profile={{ age: 15, countryCode: "CH", assistedMinor: true }}
+        onRestart={vi.fn()}
+      />
+    </I18nProvider>,
+  );
+
+  await user.click(screen.getByRole("button", { name: /show my private results/i }));
+
+  expect(
+    screen.getByRole("heading", { name: /four health pillars you can inspect/i }),
+  ).toHaveFocus();
+});

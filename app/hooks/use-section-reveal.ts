@@ -18,7 +18,7 @@ export function useSectionReveal(
       scope.current.querySelectorAll<HTMLElement>(selector).forEach((target) => {
         gsap.fromTo(
           target,
-          { autoAlpha: 0, y: 20 },
+          { opacity: 0, y: 20 },
           {
             autoAlpha: 1,
             duration: 0.5,
