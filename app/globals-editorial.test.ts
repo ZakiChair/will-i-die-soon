@@ -156,3 +156,24 @@ test("uses the fixed display and question hierarchy", () => {
     expect(css).toMatch(new RegExp(`${escapedSelector}\\s*\\{[^}]*font-size:\\s*2\\.5rem[^}]*line-height:\\s*1\\.04`, "s"));
   }
 });
+
+test("forces focused reveal content into its visible final state", () => {
+  expect(declarationsFor(css, "[data-reveal-item]:focus-within")).toMatch(
+    /opacity:\s*1 !important[\s\S]*transform:\s*none !important/,
+  );
+  expect(
+    declarationsFor(css, "[data-reveal]:not(:has([data-reveal-item])):focus-within"),
+  ).toMatch(/opacity:\s*1 !important[\s\S]*transform:\s*none !important/);
+});
+
+test.each([
+  ["reduced motion", css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"), css.indexOf("@media screen"))],
+  ["print", css.slice(css.indexOf("@media print"))],
+])("forces semantic reveal items into their final state for %s", (_name, mediaCss) => {
+  expect(declarationsFor(mediaCss, "[data-reveal-item]")).toMatch(
+    /opacity:\s*1 !important[\s\S]*visibility:\s*visible !important[\s\S]*transform:\s*none !important/,
+  );
+  expect(declarationsFor(mediaCss, '[data-reveal-item="rule"]')).toMatch(
+    /transform:\s*scaleX\(1\) !important/,
+  );
+});

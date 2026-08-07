@@ -1,17 +1,44 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-const { mockFromTo, mockRevert, mockUseGSAP } = vi.hoisted(() => ({
-  mockFromTo: vi.fn(),
-  mockRevert: vi.fn(),
-  mockUseGSAP: vi.fn(),
-}));
+type TimelineDouble = Readonly<{
+  fromTo: ReturnType<typeof vi.fn<(target: unknown, from: Record<string, unknown>, to: Record<string, unknown>) => TimelineDouble>>;
+  kill: ReturnType<typeof vi.fn>;
+}>;
+
+type TriggerConfig = Readonly<{
+  animation: TimelineDouble;
+  trigger: Element;
+}>;
+
+const { mockRevert, mockTimeline, mockTriggerCreate, mockUseGSAP } = vi.hoisted(() => {
+  const mockTimeline = vi.fn(() => {
+    const timeline: TimelineDouble = {
+      fromTo: vi.fn((...args) => {
+        void args;
+        return timeline;
+      }),
+      kill: vi.fn(),
+    };
+    return timeline;
+  });
+
+  return {
+    mockRevert: vi.fn(),
+    mockTimeline,
+    mockTriggerCreate: vi.fn((config: TriggerConfig) => {
+      void config;
+      return { kill: vi.fn() };
+    }),
+    mockUseGSAP: vi.fn(),
+  };
+});
 
 vi.mock("../lib/gsap-client", () => ({
-  gsap: { fromTo: mockFromTo },
-  ScrollTrigger: {},
+  gsap: { timeline: mockTimeline },
+  ScrollTrigger: { create: mockTriggerCreate },
   useGSAP: mockUseGSAP,
 }));
 
@@ -19,22 +46,26 @@ import { I18nProvider } from "../i18n/context";
 import { Results } from "./results";
 
 function useMockGSAP(
-  callback: () => void,
+  callback: (context: { revert: typeof mockRevert }) => void | (() => void),
   options: { readonly dependencies: ReadonlyArray<unknown> },
 ) {
   const callbackRef = useRef(callback);
-  const [decorativeMotion, selector] = options.dependencies;
+  const context = useMemo(() => ({ revert: mockRevert }), []);
+  const [mode, selector] = options.dependencies;
 
   useLayoutEffect(() => {
     callbackRef.current = callback;
   }, [callback]);
 
   useLayoutEffect(() => {
-    callbackRef.current();
-    return mockRevert;
-  }, [decorativeMotion, selector]);
+    const cleanup = callbackRef.current(context);
+    return () => {
+      mockRevert();
+      cleanup?.();
+    };
+  }, [context, mode, selector]);
 
-  return { context: { revert: mockRevert }, ...options };
+  return { context, ...options };
 }
 
 beforeEach(() => {
@@ -52,6 +83,17 @@ beforeEach(() => {
     })),
   );
   Object.defineProperty(document, "hidden", { configurable: true, value: false });
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(() => ({
+    bottom: window.innerHeight + 200,
+    height: 100,
+    left: 0,
+    right: 100,
+    top: window.innerHeight + 100,
+    width: 100,
+    x: 0,
+    y: window.innerHeight + 100,
+    toJSON: () => ({}),
+  }));
   mockUseGSAP.mockImplementation(useMockGSAP);
 });
 
@@ -75,7 +117,9 @@ test("registers only newly mounted private-result bands after the handoff", asyn
     </I18nProvider>,
   );
 
-  const initialTargets = mockFromTo.mock.calls.map(([target]) => target as HTMLElement);
+  const initialTargets = mockTriggerCreate.mock.calls.map(
+    ([{ trigger }]) => trigger as HTMLElement,
+  );
   expect(initialTargets.map(({ className }) => className)).toEqual([
     "results__intro",
     "private-results-handoff",
@@ -83,9 +127,9 @@ test("registers only newly mounted private-result bands after the handoff", asyn
 
   await user.click(screen.getByRole("button", { name: /show my private results/i }));
 
-  const mountedTargets = mockFromTo.mock.calls
+  const mountedTargets = mockTriggerCreate.mock.calls
     .slice(initialTargets.length)
-    .map(([target]) => target as HTMLElement);
+    .map(([{ trigger }]) => trigger as HTMLElement);
   expect(mountedTargets.map(({ className }) => className)).toEqual([
     "results-canopy",
     "habits-map",
@@ -98,24 +142,24 @@ test("keeps the private-results heading focused when its deferred reveal starts"
   const user = userEvent.setup();
   const focusAtRevealInitialization = vi.fn();
   const deferredRevealInitialized = vi.fn();
-  mockFromTo.mockImplementation((target, fromVars, toVars) => {
+  mockTriggerCreate.mockImplementation(({ animation, trigger }) => {
     if (
-      !(target instanceof HTMLElement) ||
-      !target.classList.contains("results-canopy") ||
-      typeof toVars !== "object" ||
-      toVars === null ||
-      !("scrollTrigger" in toVars)
-    ) return;
+      !(trigger instanceof HTMLElement) ||
+      !trigger.classList.contains("results-canopy")
+    ) return { kill: vi.fn() };
 
     window.setTimeout(() => {
-      const focusedDescendant = target.querySelector<HTMLElement>(":focus");
+      const focusedDescendant = trigger.querySelector<HTMLElement>(":focus");
       focusAtRevealInitialization(focusedDescendant);
-      const usesAutoAlpha = [fromVars, toVars].some(
-        (vars) => typeof vars === "object" && vars !== null && "autoAlpha" in vars,
+      const usesAutoAlpha = animation.fromTo.mock.calls.some(
+        ([, fromVars, toVars]) => [fromVars, toVars].some(
+          (vars) => typeof vars === "object" && vars !== null && "autoAlpha" in vars,
+        ),
       );
       if (usesAutoAlpha) focusedDescendant?.blur();
       deferredRevealInitialized();
     }, 0);
+    return { kill: vi.fn() };
   });
 
   render(
