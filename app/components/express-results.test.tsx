@@ -31,7 +31,18 @@ function renderExpressResults(answers: AnswerMap = completeAnswers) {
 test("renders four transparent English Express summaries in their specified order", () => {
   const { container } = renderExpressResults();
 
-  expect(container.querySelector(".express-results")).toHaveAttribute("data-reveal");
+  const section = container.querySelector<HTMLElement>(".express-results");
+  const heading = section?.querySelector<HTMLElement>(".express-results__heading");
+  const grid = section?.querySelector<HTMLElement>(".express-results__grid");
+  expect(section).not.toHaveAttribute("data-reveal");
+  expect(heading).toHaveAttribute("data-reveal", "heading");
+  expect(grid).toHaveAttribute("data-reveal", "group");
+  expect(heading?.parentElement).toBe(section);
+  expect(grid?.parentElement).toBe(section);
+  expect(heading?.querySelector("[data-reveal]")).toBeNull();
+  expect(grid?.querySelector("[data-reveal]")).toBeNull();
+  expect(heading?.querySelectorAll(":scope > [data-reveal-item]")).toHaveLength(3);
+  expect(grid?.querySelectorAll(":scope > [data-reveal-item]")).toHaveLength(4);
   expect(screen.getByRole("heading", { name: "Your Express snapshot" })).toBeVisible();
   expect(screen.getAllByRole("article")).toHaveLength(4);
   expect(screen.getByRole("heading", { name: "VO₂ max" })).toBeVisible();
@@ -40,6 +51,7 @@ test("renders four transparent English Express summaries in their specified orde
   expect(screen.getByRole("heading", { name: "Nutrition" })).toBeVisible();
   expect(screen.getByText("1.54 × body weight")).toBeVisible();
   expect(screen.getByText("2.26 × body weight")).toBeVisible();
+  expect(screen.getByText("48.5 ml/kg/min")).not.toHaveAttribute("data-count-from");
   expect(document.body.textContent).not.toMatch(/BMI|poor|average|good|excellent|elite|\/ 100/i);
 });
 

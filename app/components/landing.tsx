@@ -78,29 +78,30 @@ export function Landing({ onStart }: LandingProps) {
         <section
           aria-labelledby="atlas-conversion-title"
           className="landing__atlas-conversion"
-          data-reveal
+          data-reveal="heading"
         >
-          <p className="data-label">{t("landing.atlas.conversion.eyebrow")}</p>
-          <h2 id="atlas-conversion-title">{t("landing.atlas.conversion.title")}</h2>
-          <p>{t("landing.atlas.conversion.body")}</p>
-          <button className="landing__primary-cta" type="button" onClick={startExpress}>
+          <p className="data-label" data-reveal-item>{t("landing.atlas.conversion.eyebrow")}</p>
+          <h2 id="atlas-conversion-title" data-reveal-item>{t("landing.atlas.conversion.title")}</h2>
+          <p data-reveal-item>{t("landing.atlas.conversion.body")}</p>
+          <button className="landing__primary-cta" type="button" onClick={startExpress} data-reveal-item>
             {t("landing.atlas.conversion.cta")}
           </button>
+          <span aria-hidden="true" className="reveal-rule" data-reveal-item="rule" />
         </section>
 
-        <section className="depth-section" aria-labelledby="depth-title" data-reveal>
-          <div className="section-heading">
-            <p className="data-label">{t("landing.atlas.other.eyebrow")}</p>
-            <h2 id="depth-title">{t("landing.atlas.other.title")}</h2>
+        <section className="depth-section" aria-labelledby="depth-title">
+          <div className="section-heading" data-reveal="heading">
+            <p className="data-label" data-reveal-item>{t("landing.atlas.other.eyebrow")}</p>
+            <h2 id="depth-title" data-reveal-item>{t("landing.atlas.other.title")}</h2>
           </div>
-          <div className="depth-grid">
+          <div className="depth-grid" data-reveal="group">
             {depths.map((depth) => {
               const depthLabel = t(uiCopyKeys.depth[depth.id]);
               const inlineDepth =
                 locale === "fr" ? depthLabel.toLocaleLowerCase("fr") : depthLabel;
 
               return (
-                <article className={`depth-card depth-card--${depth.id}`} key={depth.id}>
+                <article className={`depth-card depth-card--${depth.id}`} key={depth.id} data-reveal-item>
                   <p className="depth-card__eyebrow">{t(depth.detailKey)}</p>
                   <h3>{depthLabel}</h3>
                   <p>{t(depth.descriptionKey)}</p>
@@ -113,21 +114,21 @@ export function Landing({ onStart }: LandingProps) {
           </div>
         </section>
 
-        <section className="privacy-panel" aria-labelledby="privacy-title" data-reveal>
-          <div>
-            <p className="privacy-panel__eyebrow">{t("landing.privacy.eyebrow")}</p>
-            <h2 id="privacy-title">{t("landing.privacy.title")}</h2>
+        <section className="privacy-panel" aria-labelledby="privacy-title">
+          <div data-reveal="heading">
+            <p className="privacy-panel__eyebrow" data-reveal-item>{t("landing.privacy.eyebrow")}</p>
+            <h2 id="privacy-title" data-reveal-item>{t("landing.privacy.title")}</h2>
           </div>
-          <dl className="privacy-panel__facts">
-            <div>
+          <dl className="privacy-panel__facts" data-reveal="group">
+            <div data-reveal-item>
               <dt>{t("landing.privacy.local.title")}</dt>
               <dd>{t("landing.privacy.local.body")}</dd>
             </div>
-            <div>
+            <div data-reveal-item>
               <dt>{t("landing.privacy.evidence.title")}</dt>
               <dd>{t("landing.privacy.evidence.body")}</dd>
             </div>
-            <div>
+            <div data-reveal-item>
               <dt>{t("landing.privacy.boundary.title")}</dt>
               <dd>{t("landing.privacy.boundary.body")}</dd>
             </div>
@@ -135,7 +136,7 @@ export function Landing({ onStart }: LandingProps) {
         </section>
       </div>
 
-      <footer className="landing__footnote" data-reveal>{t("landing.urgent")}</footer>
+      <footer className="landing__footnote" data-reveal="single">{t("landing.urgent")}</footer>
     </div>
   );
 }

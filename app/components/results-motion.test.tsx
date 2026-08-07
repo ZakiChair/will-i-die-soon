@@ -13,7 +13,7 @@ type TriggerConfig = Readonly<{
   trigger: Element;
 }>;
 
-const { mockRevert, mockTimeline, mockTriggerCreate, mockUseGSAP } = vi.hoisted(() => {
+const { mockRefresh, mockRevert, mockTimeline, mockTriggerCreate, mockUseGSAP } = vi.hoisted(() => {
   const mockTimeline = vi.fn(() => {
     const timeline: TimelineDouble = {
       fromTo: vi.fn((...args) => {
@@ -26,6 +26,7 @@ const { mockRevert, mockTimeline, mockTriggerCreate, mockUseGSAP } = vi.hoisted(
   });
 
   return {
+    mockRefresh: vi.fn(),
     mockRevert: vi.fn(),
     mockTimeline,
     mockTriggerCreate: vi.fn((config: TriggerConfig) => {
@@ -38,12 +39,15 @@ const { mockRevert, mockTimeline, mockTriggerCreate, mockUseGSAP } = vi.hoisted(
 
 vi.mock("../lib/gsap-client", () => ({
   gsap: { timeline: mockTimeline },
-  ScrollTrigger: { create: mockTriggerCreate },
+  ScrollTrigger: { create: mockTriggerCreate, refresh: mockRefresh },
   useGSAP: mockUseGSAP,
 }));
 
 import { I18nProvider } from "../i18n/context";
 import { Results } from "./results";
+
+let rootTop = 0;
+let animationFrames: FrameRequestCallback[] = [];
 
 function useMockGSAP(
   callback: (context: { revert: typeof mockRevert }) => void | (() => void),
@@ -69,6 +73,16 @@ function useMockGSAP(
 }
 
 beforeEach(() => {
+  rootTop = window.innerHeight + 100;
+  animationFrames = [];
+  vi.stubGlobal(
+    "requestAnimationFrame",
+    vi.fn((callback: FrameRequestCallback) => {
+      animationFrames.push(callback);
+      return animationFrames.length;
+    }),
+  );
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
   vi.stubGlobal(
     "matchMedia",
     vi.fn(() => ({
@@ -88,10 +102,10 @@ beforeEach(() => {
     height: 100,
     left: 0,
     right: 100,
-    top: window.innerHeight + 100,
+    top: rootTop,
     width: 100,
     x: 0,
-    y: window.innerHeight + 100,
+    y: rootTop,
     toJSON: () => ({}),
   }));
   mockUseGSAP.mockImplementation(useMockGSAP);
@@ -103,9 +117,9 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-test("registers only newly mounted private-result bands after the handoff", async () => {
+test("registers only newly mounted private-result bands and refreshes once next frame", async () => {
   const user = userEvent.setup();
-  render(
+  const { unmount } = render(
     <I18nProvider>
       <Results
         answers={{ adolescent_nicotine_support: "find_service" }}
@@ -125,17 +139,27 @@ test("registers only newly mounted private-result bands after the handoff", asyn
     "private-results-handoff",
   ]);
 
+  rootTop = 0;
   await user.click(screen.getByRole("button", { name: /show my private results/i }));
 
   const mountedTargets = mockTriggerCreate.mock.calls
     .slice(initialTargets.length)
     .map(([{ trigger }]) => trigger as HTMLElement);
   expect(mountedTargets.map(({ className }) => className)).toEqual([
-    "results-canopy",
-    "habits-map",
+    "section-heading",
+    "habits-map__heading",
+    "habits-map__cards",
     "result-tools",
   ]);
   expect(mountedTargets.some((target) => initialTargets.includes(target))).toBe(false);
+  expect(mockRefresh).not.toHaveBeenCalled();
+  expect(requestAnimationFrame).toHaveBeenCalledOnce();
+
+  animationFrames[0](0);
+  expect(mockRefresh).toHaveBeenCalledOnce();
+
+  unmount();
+  expect(cancelAnimationFrame).toHaveBeenCalledWith(1);
 });
 
 test("keeps the private-results heading focused when its deferred reveal starts", async () => {
@@ -145,7 +169,7 @@ test("keeps the private-results heading focused when its deferred reveal starts"
   mockTriggerCreate.mockImplementation(({ animation, trigger }) => {
     if (
       !(trigger instanceof HTMLElement) ||
-      !trigger.classList.contains("results-canopy")
+      !trigger.classList.contains("section-heading")
     ) return { kill: vi.fn() };
 
     window.setTimeout(() => {

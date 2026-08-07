@@ -31,10 +31,10 @@ const newsreaderSelectors = [
   ".results__intro h1",
   ".results-canopy > .section-heading h2",
   ".score-sheet h2",
-  ".express-results > h2",
-  ".habits-map > h2",
-  ".action-plan > h2",
-  ".confirmed-labs > h2",
+  ".express-results__heading h2",
+  ".habits-map__heading h2",
+  ".action-plan__heading h2",
+  ".confirmed-labs__heading h2",
 ];
 
 test.each(newsreaderSelectors)("assigns Newsreader to %s", (selector) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useI18n } from "../i18n/context";
 import { useSectionReveal } from "../hooks/use-section-reveal";
@@ -16,6 +16,7 @@ import type {
 } from "../i18n/presentation";
 import { uiCopyKeys } from "../i18n/ui-copy";
 import { createRedactedExport } from "../lib/export";
+import { ScrollTrigger } from "../lib/gsap-client";
 import type { ConfirmedLabValue } from "../lib/labs";
 import { prototypePolicy } from "../lib/release-policy";
 import { evaluateRisks } from "../lib/risk-engine";
@@ -49,7 +50,7 @@ function UrgentSummary({ leaves }: { readonly leaves: ReadonlyArray<RiskLeaf> })
       className="results-urgent"
       role="alert"
       aria-labelledby="results-urgent-title"
-      data-reveal
+      data-reveal="single"
     >
       <p className="data-label">{t("results.urgent.eyebrow")}</p>
       <h2 id="results-urgent-title">{t("results.urgent.title")}</h2>
@@ -69,16 +70,18 @@ function UrgentSummary({ leaves }: { readonly leaves: ReadonlyArray<RiskLeaf> })
 function ScoreLedger({ score }: { readonly score: PresentedAdultPurityScoreResult }) {
   const { t } = useI18n();
   return (
-    <section className="score-sheet" aria-labelledby="score-title" data-reveal>
-      <p className="data-label">{t("score.version", { version: score.scoreVersion })}</p>
-      <h2 id="score-title">{score.label}</h2>
-      <p className="score-sheet__readout">
-        {t("score.readout", { score: score.score, coverage: score.coverage })}
-      </p>
-      <p className="score-sheet__scope">{t("score.scope")}</p>
-      <div className="score-categories">
+    <section className="score-sheet" aria-labelledby="score-title">
+      <div className="score-sheet__heading" data-reveal="heading">
+        <p className="data-label" data-reveal-item>{t("score.version", { version: score.scoreVersion })}</p>
+        <h2 id="score-title" data-reveal-item>{score.label}</h2>
+        <p className="score-sheet__readout" data-reveal-item>
+          {t("score.readout", { score: score.score, coverage: score.coverage })}
+        </p>
+        <p className="score-sheet__scope" data-reveal-item>{t("score.scope")}</p>
+      </div>
+      <div className="score-categories" data-reveal="group">
         {score.categories.map((category) => (
-          <details key={category.id} className="score-category">
+          <details key={category.id} className="score-category" data-reveal-item>
             <summary>
               <span>{category.label}</span>
               <span>
@@ -130,14 +133,14 @@ function CoverageReflection({
       <section
         className="score-sheet score-sheet--reflection"
         aria-labelledby="reflection-title"
-        data-reveal
+        data-reveal="heading"
       >
-        <p className="data-label">{t("score.quick.eyebrow")}</p>
-        <h2 id="reflection-title">{t("score.quick.title")}</h2>
-        <p className="score-sheet__coverage">
+        <p className="data-label" data-reveal-item>{t("score.quick.eyebrow")}</p>
+        <h2 id="reflection-title" data-reveal-item>{t("score.quick.title")}</h2>
+        <p className="score-sheet__coverage" data-reveal-item>
           {t("score.coverage", { coverage: score.coverage })}
         </p>
-        <p>{t("score.quick.body")}</p>
+        <p data-reveal-item>{t("score.quick.body")}</p>
       </section>
     );
   }
@@ -145,15 +148,15 @@ function CoverageReflection({
     <section
       className="score-sheet score-sheet--reflection"
       aria-labelledby="coverage-title"
-      data-reveal
+      data-reveal="heading"
     >
-      <p className="data-label">{t("score.gate.eyebrow", { version: score.scoreVersion })}</p>
-      <h2 id="coverage-title">{score.label}</h2>
-      <p className="score-sheet__coverage">
+      <p className="data-label" data-reveal-item>{t("score.gate.eyebrow", { version: score.scoreVersion })}</p>
+      <h2 id="coverage-title" data-reveal-item>{score.label}</h2>
+      <p className="score-sheet__coverage" data-reveal-item>
         {t("score.coverage", { coverage: score.coverage })}
       </p>
-      <p>{t("score.gate.body")}</p>
-      {score.reason === "unresolved-core-gate" ? <p>{t("score.gate.core")}</p> : null}
+      <p data-reveal-item>{t("score.gate.body")}</p>
+      {score.reason === "unresolved-core-gate" ? <p data-reveal-item>{t("score.gate.core")}</p> : null}
     </section>
   );
 }
@@ -184,12 +187,14 @@ function AdolescentHabitsMap({ answers }: { readonly answers: AnswerMap }) {
   });
 
   return (
-    <section className="habits-map" aria-labelledby="habits-map-title" data-reveal>
-      <p className="data-label">{t("adolescent.eyebrow")}</p>
-      <h2 id="habits-map-title">{t("adolescent.title")}</h2>
-      <p>{t("adolescent.intro")}</p>
-      <div className="habits-map__cards">
-        <article>
+    <section className="habits-map" aria-labelledby="habits-map-title">
+      <div className="habits-map__heading" data-reveal="heading">
+        <p className="data-label" data-reveal-item>{t("adolescent.eyebrow")}</p>
+        <h2 id="habits-map-title" data-reveal-item>{t("adolescent.title")}</h2>
+        <p data-reveal-item>{t("adolescent.intro")}</p>
+      </div>
+      <div className="habits-map__cards" data-reveal="group">
+        <article data-reveal-item>
           <h3>{t("adolescent.goingWell.title")}</h3>
           {goingWell.length > 0 ? (
             <ul>{goingWell.map((item) => <li key={item}>{item}</li>)}</ul>
@@ -197,11 +202,11 @@ function AdolescentHabitsMap({ answers }: { readonly answers: AnswerMap }) {
             <p>{t("adolescent.goingWell.fallback")}</p>
           )}
         </article>
-        <article>
+        <article data-reveal-item>
           <h3>{t("adolescent.optional.title")}</h3>
           <p>{optionalHabit}</p>
         </article>
-        <article>
+        <article data-reveal-item>
           <h3>{t("adolescent.support.title")}</h3>
           {support.length > 0 ? (
             <ul>{support.map((item) => <li key={item}>{item}</li>)}</ul>
@@ -218,7 +223,7 @@ function AdolescentHabitsMap({ answers }: { readonly answers: AnswerMap }) {
 function ChildGuide({ onRestart }: { readonly onRestart: () => void }) {
   const { t } = useI18n();
   return (
-    <section className="child-guide" aria-labelledby="child-guide-title" data-reveal>
+    <section className="child-guide" aria-labelledby="child-guide-title" data-reveal="single">
       <p className="data-label">{t("child.eyebrow")}</p>
       <h2 id="child-guide-title">{t("child.title")}</h2>
       <p>{t("child.body")}</p>
@@ -239,7 +244,7 @@ function PrivateResultsHandoff({
     <section
       className="private-results-handoff"
       aria-labelledby="private-results-title"
-      data-reveal
+      data-reveal="single"
     >
       <p className="data-label">{t("handoff.eyebrow")}</p>
       <h2 id="private-results-title">{t("handoff.title")}</h2>
@@ -256,12 +261,14 @@ function ActionPlan({ actions }: { readonly actions: ReadonlyArray<ActionItem> }
   const { t } = useI18n();
   if (actions.length === 0) return null;
   return (
-    <section className="action-plan" aria-labelledby="action-plan-title" data-reveal>
-      <p className="data-label">{t("actions.eyebrow")}</p>
-      <h2 id="action-plan-title">{t("actions.title")}</h2>
-      <ol>
+    <section className="action-plan" aria-labelledby="action-plan-title">
+      <div className="action-plan__heading" data-reveal="heading">
+        <p className="data-label" data-reveal-item>{t("actions.eyebrow")}</p>
+        <h2 id="action-plan-title" data-reveal-item>{t("actions.title")}</h2>
+      </div>
+      <ol data-reveal="group">
         {actions.map((action) => (
-          <li key={action.id}>
+          <li key={action.id} data-reveal-item>
             <h3>{action.title}</h3>
             <p><strong>{t("actions.reason")}</strong> {action.reason}</p>
             <p><strong>{t("actions.next")}</strong> {action.nextStep}</p>
@@ -289,13 +296,14 @@ function ConfirmedLabs({ values }: { readonly values: ReadonlyArray<ConfirmedLab
       className="confirmed-labs"
       role="region"
       aria-labelledby="confirmed-labs-title"
-      data-reveal
     >
-      <p className="data-label">{t("labsConfirmed.eyebrow")}</p>
-      <h2 id="confirmed-labs-title">{t("labsConfirmed.title")}</h2>
-      <p>{t("labsConfirmed.body")}</p>
-      <div className="confirmed-labs__table-wrap">
-        <table>
+      <div className="confirmed-labs__heading" data-reveal="heading">
+        <p className="data-label" data-reveal-item>{t("labsConfirmed.eyebrow")}</p>
+        <h2 id="confirmed-labs-title" data-reveal-item>{t("labsConfirmed.title")}</h2>
+        <p data-reveal-item>{t("labsConfirmed.body")}</p>
+      </div>
+      <div className="confirmed-labs__table-wrap" data-reveal="group">
+        <table data-reveal-item>
           <thead>
             <tr>
               <th scope="col">{t("labsConfirmed.marker")}</th>
@@ -324,7 +332,13 @@ function ConfirmedLabs({ values }: { readonly values: ReadonlyArray<ConfirmedLab
 
 function PrivateResultsRevealBoundary({ children }: { readonly children: ReactNode }) {
   const scope = useRef<HTMLDivElement>(null);
-  useSectionReveal(scope);
+  useSectionReveal(scope, "[data-reveal]", "new-content");
+  useLayoutEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      if (typeof ScrollTrigger.refresh === "function") ScrollTrigger.refresh();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   return <div ref={scope} data-private-results-reveal>{children}</div>;
 }
@@ -429,11 +443,10 @@ export function Results({
           <section
             className="results-canopy"
             aria-labelledby="results-canopy-title"
-            data-reveal
           >
-            <div className="section-heading">
-              <p className="data-label">{t("results.canopy.eyebrow")}</p>
-              <h2 id="results-canopy-title" ref={revealedResultsHeading} tabIndex={-1}>
+            <div className="section-heading" data-reveal="heading">
+              <p className="data-label" data-reveal-item>{t("results.canopy.eyebrow")}</p>
+              <h2 id="results-canopy-title" ref={revealedResultsHeading} tabIndex={-1} data-reveal-item>
                 {t("results.canopy.title")}
               </h2>
             </div>
@@ -456,7 +469,7 @@ export function Results({
       <section
         className="result-tools"
         aria-labelledby="result-tools-title"
-        data-reveal
+        data-reveal="single"
       >
         <p className="data-label">{t("tools.eyebrow")}</p>
         <h2 id="result-tools-title">{t("tools.title")}</h2>
@@ -497,10 +510,10 @@ export function Results({
           {t("results.header", { depth: presentedDepth })}
         </p>
       </header>
-      <div className="results__intro" data-reveal>
-        <p className="data-label">{t("results.eyebrow")}</p>
-        <h1 id="results-title">{t("results.title")}</h1>
-        <p>{t("results.intro")}</p>
+      <div className="results__intro" data-reveal="heading">
+        <p className="data-label" data-reveal-item>{t("results.eyebrow")}</p>
+        <h1 id="results-title" data-reveal-item>{t("results.title")}</h1>
+        <p data-reveal-item>{t("results.intro")}</p>
       </div>
 
       <UrgentSummary leaves={urgentLeaves} />

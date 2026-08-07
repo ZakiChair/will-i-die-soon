@@ -64,7 +64,20 @@ test("makes Express the primary adult route outside decorative content", async (
     ]);
   expect(screen.getAllByRole("heading", { level: 3 }).slice(-3).map(({ textContent }) => textContent))
     .toEqual(["Quick", "Detailed", "Deep"]);
-  expect(container.querySelectorAll("[data-reveal]")).toHaveLength(4);
+  const roots = [...container.querySelectorAll<HTMLElement>("[data-reveal]")];
+  expect(roots.map((root) => root.dataset.reveal)).toEqual([
+    "heading",
+    "heading",
+    "group",
+    "heading",
+    "group",
+    "single",
+  ]);
+  for (const root of roots) expect(root.querySelector("[data-reveal]")).toBeNull();
+  expect(container.querySelector('[data-reveal-item="rule"]')).toHaveAttribute(
+    "aria-hidden",
+    "true",
+  );
   expect(container.querySelector("video")).not.toBeInTheDocument();
   expect(container.querySelector("img")?.getAttribute("src")).toContain("human-atlas-hero.webp");
   expect(expressButtons.every((button) => !button.closest(".landing__atlas-decorative"))).toBe(true);

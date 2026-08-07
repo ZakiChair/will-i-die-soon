@@ -112,7 +112,7 @@ const F1_ANSWERS: AnswerMap = {
   interaction_shared_list: true,
 };
 
-test("marks existing result bands for progressive reveal without changing heading order", () => {
+test("marks result reading units as non-nested sibling roots without changing heading order", () => {
   const { container } = render(
     <Results
       answers={{ ...F1_ANSWERS, urgent_chest_discomfort_now: true }}
@@ -124,12 +124,36 @@ test("marks existing result bands for progressive reveal without changing headin
   );
 
   const results = container.querySelector(".results");
-  expect(results?.querySelector(".results__intro")).toHaveAttribute("data-reveal");
-  expect(results?.querySelector(".results-urgent")).toHaveAttribute("data-reveal");
-  expect(results?.querySelector(".results-canopy")).toHaveAttribute("data-reveal");
-  expect(results?.querySelector(".score-sheet")).toHaveAttribute("data-reveal");
-  expect(results?.querySelector(".confirmed-labs")).toHaveAttribute("data-reveal");
-  expect(results?.querySelector(".result-tools")).toHaveAttribute("data-reveal");
+  expect(results?.querySelector(".results__intro")).toHaveAttribute("data-reveal", "heading");
+  expect(results?.querySelector(".results-urgent")).toHaveAttribute("data-reveal", "single");
+  expect(results?.querySelector(".results-canopy")).not.toHaveAttribute("data-reveal");
+  expect(results?.querySelector(".results-canopy > .section-heading")).toHaveAttribute(
+    "data-reveal",
+    "heading",
+  );
+
+  const siblingRootPairs = [
+    [".score-sheet", ".score-sheet__heading", ".score-categories"],
+    [".confirmed-labs", ".confirmed-labs__heading", ".confirmed-labs__table-wrap"],
+  ] as const;
+  for (const [sectionSelector, headingSelector, groupSelector] of siblingRootPairs) {
+    const section = results?.querySelector<HTMLElement>(sectionSelector);
+    const headingRoot = results?.querySelector<HTMLElement>(headingSelector);
+    const groupRoot = results?.querySelector<HTMLElement>(groupSelector);
+    expect(section).not.toHaveAttribute("data-reveal");
+    expect(headingRoot).toHaveAttribute("data-reveal", "heading");
+    expect(groupRoot).toHaveAttribute("data-reveal", "group");
+    expect(headingRoot?.parentElement).toBe(section);
+    expect(groupRoot?.parentElement).toBe(section);
+  }
+  expect(results?.querySelector(".result-tools")).toHaveAttribute("data-reveal", "single");
+
+  const roots = [...(results?.querySelectorAll<HTMLElement>("[data-reveal]") ?? [])];
+  for (const root of roots) expect(root.querySelector("[data-reveal]")).toBeNull();
+
+  const scoreReadout = screen.getByText(/100 \/ 100 · 100% answer coverage/i);
+  expect(scoreReadout).toHaveAttribute("data-reveal-item");
+  expect(scoreReadout).not.toHaveAttribute("data-count-from");
 
   const title = screen.getByRole("heading", { name: "Your health map, with the reasons attached." });
   const urgent = screen.getByRole("heading", { name: "Act on these immediate signals now" });
@@ -165,7 +189,38 @@ test("Express results keep shared tools while omitting the score and generic res
   expect(screen.queryByText(/Purity Score/i)).not.toBeInTheDocument();
   expect(screen.queryByText(/wellness habits reflection/i)).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: /actions you can choose/i })).not.toBeInTheDocument();
-  expect(container.querySelector(".results .express-results")).toHaveAttribute("data-reveal");
+  const express = container.querySelector(".results .express-results");
+  expect(express).not.toHaveAttribute("data-reveal");
+  expect(express?.querySelector(".express-results__heading")).toHaveAttribute(
+    "data-reveal",
+    "heading",
+  );
+  expect(express?.querySelector(".express-results__grid")).toHaveAttribute(
+    "data-reveal",
+    "group",
+  );
+});
+
+test("marks adolescent habits as sibling heading and card-group reading units", () => {
+  const { container } = render(
+    <Results
+      answers={{ adolescent_nicotine_support: "find_service" }}
+      assessmentDepth="detailed"
+      confirmedLabs={[]}
+      profile={{ age: 15, countryCode: "CH" }}
+      onRestart={vi.fn()}
+    />,
+  );
+
+  const section = container.querySelector<HTMLElement>(".habits-map");
+  const heading = section?.querySelector<HTMLElement>(".habits-map__heading");
+  const cards = section?.querySelector<HTMLElement>(".habits-map__cards");
+  expect(section).not.toHaveAttribute("data-reveal");
+  expect(heading).toHaveAttribute("data-reveal", "heading");
+  expect(cards).toHaveAttribute("data-reveal", "group");
+  expect(heading?.parentElement).toBe(section);
+  expect(cards?.parentElement).toBe(section);
+  expect(cards?.querySelectorAll(":scope > [data-reveal-item]")).toHaveLength(3);
 });
 
 const confirmedLab: ConfirmedLabValue = {
@@ -293,7 +348,7 @@ test("urgent-chest remains in the urgent summary and Cardio with its canonical e
 });
 
 test("a merged support action renders every applicable reason and source link", () => {
-  render(
+  const { container } = render(
     <Results
       answers={{
         ...F1_ANSWERS,
@@ -323,6 +378,16 @@ test("a merged support action renders every applicable reason and source link", 
     "href",
     "https://www.who.int/initiatives/medication-without-harm",
   );
+
+  const section = container.querySelector<HTMLElement>(".action-plan");
+  const heading = section?.querySelector<HTMLElement>(".action-plan__heading");
+  const list = section?.querySelector<HTMLOListElement>(":scope > ol");
+  expect(section).not.toHaveAttribute("data-reveal");
+  expect(heading).toHaveAttribute("data-reveal", "heading");
+  expect(list).toHaveAttribute("data-reveal", "group");
+  expect(heading?.parentElement).toBe(section);
+  expect(list?.parentElement).toBe(section);
+  expect(list?.querySelectorAll(":scope > [data-reveal-item]").length).toBeGreaterThan(0);
 });
 
 test("Quick shows a habits reflection and coverage but never a numeric score", () => {

@@ -26,11 +26,12 @@ export function ExpressResults({ answers }: { readonly answers: AnswerMap }) {
     <section
       className="express-results"
       aria-labelledby="express-results-title"
-      data-reveal
     >
-      <p className="data-label">{t("expressResults.eyebrow")}</p>
-      <h2 id="express-results-title">{t("expressResults.title")}</h2>
-      <p className="express-results__intro">{t("expressResults.intro")}</p>
+      <div className="express-results__heading" data-reveal="heading">
+        <p className="data-label" data-reveal-item>{t("expressResults.eyebrow")}</p>
+        <h2 id="express-results-title" data-reveal-item>{t("expressResults.title")}</h2>
+        <p className="express-results__intro" data-reveal-item>{t("expressResults.intro")}</p>
+      </div>
       <p className="express-results__context-title">{t("expressResults.context.title")}</p>
       <dl className="express-results__context">
         <div>
@@ -42,13 +43,13 @@ export function ExpressResults({ answers }: { readonly answers: AnswerMap }) {
           <dd>{metric(summary.bodyContext.weightKg, "kg")}</dd>
         </div>
       </dl>
-      <div className="express-results__grid">
-        <article className="express-result-card">
+      <div className="express-results__grid" data-reveal="group">
+        <article className="express-result-card" data-reveal-item>
           <h3>{t("expressResults.vo2.title")}</h3>
           <p>{metric(summary.vo2Max, "ml/kg/min")}</p>
           <p>{t("expressResults.vo2.note")}</p>
         </article>
-        <article className="express-result-card">
+        <article className="express-result-card" data-reveal-item>
           <h3>{t("expressResults.strength.title")}</h3>
           <dl>
             <div>
@@ -71,12 +72,12 @@ export function ExpressResults({ answers }: { readonly answers: AnswerMap }) {
             </div>
           </dl>
         </article>
-        <article className="express-result-card">
+        <article className="express-result-card" data-reveal-item>
           <h3>{t("expressResults.sleep.title")}</h3>
           <p>{t("expressResults.sleep.hours")}: {metric(summary.sleep.hours, t("expressResults.unit.hours"))}</p>
           <p>{t("expressResults.sleep.refreshed")}: {metric(summary.sleep.refreshed, "/ 10")}</p>
         </article>
-        <article className="express-result-card">
+        <article className="express-result-card" data-reveal-item>
           <h3>{t("expressResults.nutrition.title")}</h3>
           <p>{t("expressResults.nutrition.plants")}: {metric(summary.nutrition.plantPortions, t("expressResults.unit.portions"))}</p>
           <p>{t("expressResults.nutrition.ultraProcessed")}: {frequency}</p>
