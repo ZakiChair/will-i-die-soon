@@ -2,10 +2,13 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import {
+  observeDecorativeMotion,
+  readDecorativeMotionStatus,
   useDecorativeMotion,
   useDecorativeMotionStatus,
   type DecorativeMotionStatus,
 } from "./use-decorative-motion";
+import { installMotionEnvironment } from "../test/motion-fixture";
 
 type MotionPreference = {
   readonly media: MediaQueryList;
@@ -58,6 +61,122 @@ function MotionStatusProbe({ states }: { readonly states: DecorativeMotionStatus
 afterEach(() => {
   Reflect.deleteProperty(document, "hidden");
   vi.unstubAllGlobals();
+});
+
+test("reads the current motion status synchronously", () => {
+  const environment = installMotionEnvironment();
+
+  expect(readDecorativeMotionStatus()).toBe("running");
+
+  environment.restore();
+});
+
+test("observes reduced motion and document visibility changes", () => {
+  const environment = installMotionEnvironment();
+  const listener = vi.fn();
+  const observation = observeDecorativeMotion(listener);
+
+  expect(observation.status).toBe("running");
+
+  environment.setReduced(true);
+  expect(listener).toHaveBeenLastCalledWith("reduced");
+
+  environment.setReduced(false);
+  environment.setHidden(true);
+  expect(listener).toHaveBeenLastCalledWith("hidden");
+
+  observation.dispose();
+  expect(environment.removeMediaListener).toHaveBeenCalledWith("change", expect.any(Function));
+
+  environment.restore();
+});
+
+test("returns unsupported when matchMedia is missing or non-callable", () => {
+  Reflect.deleteProperty(window, "matchMedia");
+  expect(readDecorativeMotionStatus()).toBe("unsupported");
+  expect(observeDecorativeMotion(vi.fn()).status).toBe("unsupported");
+
+  vi.stubGlobal("matchMedia", {});
+  expect(readDecorativeMotionStatus()).toBe("unsupported");
+  expect(observeDecorativeMotion(vi.fn()).status).toBe("unsupported");
+});
+
+test("returns unsupported when matchMedia throws", () => {
+  vi.stubGlobal("matchMedia", () => {
+    throw new Error("unavailable");
+  });
+
+  expect(readDecorativeMotionStatus()).toBe("unsupported");
+  expect(observeDecorativeMotion(vi.fn()).status).toBe("unsupported");
+});
+
+test("returns unsupported when media listener APIs are unavailable", () => {
+  const environment = installMotionEnvironment();
+  Object.assign(environment.media, {
+    addEventListener: undefined,
+    removeEventListener: undefined,
+  });
+
+  expect(observeDecorativeMotion(vi.fn()).status).toBe("unsupported");
+
+  environment.restore();
+});
+
+test("cleans up a partial observer setup when media listener installation throws", () => {
+  const environment = installMotionEnvironment();
+  const addMediaListener = environment.media.addEventListener as ReturnType<typeof vi.fn>;
+  addMediaListener.mockImplementationOnce(() => {
+    throw new Error("cannot listen");
+  });
+
+  const observation = observeDecorativeMotion(vi.fn());
+
+  expect(observation.status).toBe("unsupported");
+  expect(environment.removeMediaListener).toHaveBeenCalledWith("change", expect.any(Function));
+  observation.dispose();
+  expect(environment.removeMediaListener).toHaveBeenCalledTimes(1);
+
+  environment.restore();
+});
+
+test("cleans up a partial observer setup when visibility listener installation throws", () => {
+  const environment = installMotionEnvironment();
+  const removeVisibilityListener = vi.spyOn(document, "removeEventListener");
+  const originalAddEventListener = document.addEventListener.bind(document);
+  const addVisibilityListener = vi.spyOn(document, "addEventListener").mockImplementation((
+    type,
+    ...args
+  ) => {
+    if (type === "visibilitychange") throw new Error("cannot listen");
+    originalAddEventListener(type, ...args);
+  });
+
+  try {
+    const observation = observeDecorativeMotion(vi.fn());
+
+    expect(observation.status).toBe("unsupported");
+    expect(environment.removeMediaListener).toHaveBeenCalledWith("change", expect.any(Function));
+    expect(removeVisibilityListener).toHaveBeenCalledWith(
+      "visibilitychange",
+      expect.any(Function),
+    );
+    observation.dispose();
+    expect(environment.removeMediaListener).toHaveBeenCalledTimes(1);
+  } finally {
+    addVisibilityListener.mockRestore();
+    environment.restore();
+  }
+});
+
+test("makes observer disposal idempotent", () => {
+  const environment = installMotionEnvironment();
+  const observation = observeDecorativeMotion(vi.fn());
+
+  observation.dispose();
+  observation.dispose();
+
+  expect(environment.removeMediaListener).toHaveBeenCalledTimes(1);
+  environment.restore();
 });
 
 test("starts false before enabling visible pages without reduced motion", () => {
