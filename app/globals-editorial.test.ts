@@ -94,6 +94,22 @@ test.each(monoSelectors)("assigns IBM Plex Mono to %s", (selector) => {
   expect(declarationsFor(css, selector)).toMatch(/font-family:\s*var\(--font-data\)/);
 });
 
+test("keeps print scene copy in Manrope while retaining mono metadata", () => {
+  const printCss = css.slice(css.indexOf("@media print"));
+  const printCopySelectors = [
+    ".landing__atlas-hero > p:not(.data-label)",
+    ".landing__atlas-conversion > p:not(.data-label)",
+    ".human-atlas-scene__card > p:not(.data-label)",
+  ];
+
+  for (const selector of printCopySelectors) {
+    expect(declarationsFor(printCss, selector)).not.toMatch(/var\(--font-data\)/);
+  }
+  expect(declarationsFor(printCss, ".human-atlas-scene small")).toMatch(
+    /font-family:\s*var\(--font-data\)/,
+  );
+});
+
 test("uses accessible, stable editorial type measurements", () => {
   const remFontSizes = [...css.matchAll(/font-size:\s*(\d*\.?\d+)rem/g)]
     .map((match) => Number(match[1]));
