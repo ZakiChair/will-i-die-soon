@@ -100,16 +100,16 @@ describe("bioluminescent global visual contract", () => {
     expect(css).not.toMatch(/--(?:paper|ink|deep-water|electric-blue|living-coral|signal-amber|motif-canopy)/);
   });
 
-  test("uses the Space and Geist variables without compressed tracking or viewport-sized type", () => {
+  test("uses the Manrope and data variables without compressed tracking or viewport-sized type", () => {
     expect(css).not.toContain("--font-editorial");
     expect(declarationsFor("body")).toMatch(
       /font-family:\s*var\(--font-body\), Arial, sans-serif/,
     );
     expect(declarationsFor("h1, h2, h3")).toMatch(
-      /font-family:\s*var\(--font-display\), Arial, sans-serif/,
+      /font-family:\s*var\(--font-body\), Arial, sans-serif/,
     );
     expect(declarationsFor(".wordmark")).toMatch(
-      /font-family:\s*var\(--font-display\), Arial, sans-serif/,
+      /font-family:\s*var\(--font-body\), Arial, sans-serif/,
     );
     expect(declarationsFor(".data-label")).toMatch(
       /font-family:\s*var\(--font-data\), monospace/,
@@ -217,7 +217,7 @@ describe("bioluminescent global visual contract", () => {
       /grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/,
     );
     expect(declarationsFor(".human-atlas-scene small, .human-atlas-static small")).toMatch(
-      /font-size:\s*\.6875rem/,
+      /font-size:\s*\.75rem/,
     );
   });
 

@@ -1,14 +1,33 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
+import { IBM_Plex_Mono, Manrope, Newsreader } from "next/font/google";
 import { resolveMetadataOrigin } from "./lib/metadata";
 import "./globals.css";
 
-const display = Space_Grotesk({ variable: "--font-display", subsets: ["latin"] });
+const display = Newsreader({
+  axes: ["opsz"],
+  display: "swap",
+  style: "normal",
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: "variable",
+});
 
-const body = Geist({ variable: "--font-body", subsets: ["latin"] });
+const body = Manrope({
+  display: "swap",
+  style: "normal",
+  subsets: ["latin"],
+  variable: "--font-body",
+  weight: "variable",
+});
 
-const mono = Geist_Mono({ variable: "--font-data", subsets: ["latin"] });
+const mono = IBM_Plex_Mono({
+  display: "swap",
+  style: "normal",
+  subsets: ["latin"],
+  variable: "--font-data",
+  weight: ["400", "500", "600", "700"],
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

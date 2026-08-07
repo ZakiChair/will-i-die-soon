@@ -1,18 +1,20 @@
 import { readFileSync } from "node:fs";
 import { afterEach, expect, test, vi } from "vitest";
 
+const { ibmPlexMono, manrope, newsreader } = vi.hoisted(() => ({
+  ibmPlexMono: vi.fn(() => ({ variable: "--font-data" })),
+  manrope: vi.fn(() => ({ variable: "--font-body" })),
+  newsreader: vi.fn(() => ({ variable: "--font-display" })),
+}));
+
 const requestHeaders = vi.hoisted(() => ({
   get: vi.fn<(name: string) => string | null>(),
 }));
 
 vi.mock("next/font/google", () => ({
-  Bricolage_Grotesque: () => ({ variable: "--font-display" }),
-  Geist: () => ({ variable: "--font-body" }),
-  Geist_Mono: () => ({ variable: "--font-data" }),
-  IBM_Plex_Mono: () => ({ variable: "--font-data" }),
-  Manrope: () => ({ variable: "--font-body" }),
-  Newsreader: () => ({ variable: "--font-editorial" }),
-  Space_Grotesk: () => ({ variable: "--font-display" }),
+  IBM_Plex_Mono: ibmPlexMono,
+  Manrope: manrope,
+  Newsreader: newsreader,
 }));
 
 vi.mock("next/headers", () => ({
@@ -90,18 +92,31 @@ test("falls back locally when configured and request values are hostile", async 
   expect(metadata.openGraph?.url).toEqual(new URL("http://localhost:3000/"));
 });
 
-test("uses the bioluminescent font variable contract", () => {
+test("uses the editorial font variable contract", async () => {
+  await import("./layout");
   const source = readFileSync("app/layout.tsx", "utf8");
 
-  expect(source).toContain("Space_Grotesk");
-  expect(source).toContain("Geist");
-  expect(source).toContain("Geist_Mono");
+  expect(newsreader).toHaveBeenCalledWith(expect.objectContaining({
+    axes: ["opsz"],
+    style: "normal",
+    subsets: ["latin"],
+    variable: "--font-display",
+    weight: "variable",
+  }));
+  expect(manrope).toHaveBeenCalledWith(expect.objectContaining({
+    style: "normal",
+    variable: "--font-body",
+    weight: "variable",
+  }));
+  expect(ibmPlexMono).toHaveBeenCalledWith(expect.objectContaining({
+    style: "normal",
+    variable: "--font-data",
+    weight: ["400", "500", "600", "700"],
+  }));
   expect(source).toContain("--font-display");
   expect(source).toContain("--font-body");
   expect(source).toContain("--font-data");
-  expect(source).not.toMatch(
-    /Newsreader|Bricolage_Grotesque|Manrope|IBM_Plex_Mono|--font-editorial/,
-  );
+  expect(source).not.toMatch(/Space_Grotesk|Geist_Mono|\bGeist\b/);
 });
 
 test("applies only the display, body, and data font variables", async () => {
