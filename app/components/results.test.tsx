@@ -665,7 +665,7 @@ test("renders the complete adult result presentation in French while preserving 
     }),
   ).toBeVisible();
   expect(screen.getByText("Habitudes alimentaires")).toBeVisible();
-  const scoreReadout = screen.getByText(/\d+ \/ 100/);
+  const scoreReadout = screen.getByText(/\d+ \/ 100 ·/);
   expect(scoreReadout).toBeVisible();
   expect(scoreReadout.textContent).toMatch(
     /^\d+ \/ 100 · \d+\u202f% de couverture des réponses$/,

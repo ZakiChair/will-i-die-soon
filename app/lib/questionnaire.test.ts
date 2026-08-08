@@ -742,7 +742,17 @@ describe("adaptive branches", () => {
     expect(
       medicationsYes.queue.filter((question) => question.id.startsWith("med_detail_")),
     ).toHaveLength(5);
-    expect(medicationsYes.queue).not.toContainEqual(initial.queue.at(-1));
+    const activatedBranchCount =
+      medicationsYes.queue.filter((question) => question.condition !== undefined)
+        .length -
+      initial.queue.filter((question) => question.condition !== undefined).length;
+    expect(activatedBranchCount).toBeGreaterThanOrEqual(5);
+    expect(
+      initial.queue.filter(
+        (question) =>
+          !medicationsYes.queue.some((candidate) => candidate.id === question.id),
+      ),
+    ).toHaveLength(activatedBranchCount);
     expect(
       medicationsNo.queue.some((question) => question.id.startsWith("med_detail_")),
     ).toBe(false);

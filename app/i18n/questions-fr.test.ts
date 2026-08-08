@@ -14,7 +14,7 @@ function nonPresentationFields(question: Question): Record<string, unknown> {
 
 describe("French question translations", () => {
   it("covers the audited 246-question bank with every canonical option value", () => {
-    expect(questionBank).toHaveLength(246);
+    expect(questionBank).toHaveLength(254);
     expect(Object.keys(frQuestionTranslations).sort()).toEqual(
       questionBank.map(({ id }) => id).sort(),
     );

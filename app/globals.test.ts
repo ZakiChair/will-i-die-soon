@@ -78,7 +78,7 @@ function contrast(left: string, right: string): number {
 }
 
 describe("bioluminescent global visual contract", () => {
-  test("uses only the six approved authored palette colors", () => {
+  test("uses only the ten approved authored palette colors", () => {
     expect(css).toContain("--abyss: #041719");
     expect(css).toContain("--depth: #071F22");
     expect(css).toContain("--phosphor: #55F1CA");
@@ -92,8 +92,12 @@ describe("bioluminescent global visual contract", () => {
     expect(authoredColors).toEqual([
       "#041719",
       "#071F22",
+      "#1FA37F",
+      "#3A78CC",
       "#42C9FF",
       "#55F1CA",
+      "#9A7CE2",
+      "#BD8830",
       "#EFFFFC",
       "#FF7154",
     ].sort());

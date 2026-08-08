@@ -69,9 +69,9 @@ test("keeps every conditional gate in the same or an earlier pillar", () => {
       }
     }
   }
-  expect(questionBank).toHaveLength(246);
-  expect(conditionalQuestions).toBe(88);
-  expect(gateEdges).toBe(98);
+  expect(questionBank).toHaveLength(254);
+  expect(conditionalQuestions).toBe(90);
+  expect(gateEdges).toBe(101);
   expect(violations).toEqual([]);
 });
 

@@ -24,6 +24,7 @@ import { buildActionPlan, calculatePurityScore } from "../lib/scoring";
 import type { ActionItem } from "../lib/scoring";
 import type { AnalysisDepth, AnswerMap, ProfileContext, RiskLeaf } from "../lib/types";
 import { ExpressResults } from "./express-results";
+import { LongevitySynthesis } from "./longevity-synthesis";
 import { RiskTree } from "./risk-tree";
 
 export type ResultsProps = {
@@ -440,6 +441,10 @@ export function Results({
         <ExpressResults answers={answers} />
       ) : (
         <>
+          {profile.age >= 18 &&
+          (assessmentDepth === "detailed" || assessmentDepth === "deep") ? (
+            <LongevitySynthesis answers={answers} profile={profile} />
+          ) : null}
           <section
             className="results-canopy"
             aria-labelledby="results-canopy-title"
