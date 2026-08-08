@@ -72,7 +72,7 @@
 - Consumes: `next/font/google` and the existing `--font-display`, `--font-body`, `--font-data` body class contract.
 - Produces: Newsreader variable normal + `opsz`, Manrope variable normal, IBM Plex Mono normal 400/500/600/700, and the exact selector map from the approved specification.
 
-- [ ] **Step 1: Replace the font-loader assertions and add the focused CSS test**
+- [x] **Step 1: Replace the font-loader assertions and add the focused CSS test**
 
 Hoist loader mocks so the test can assert exact options, then invert the old Space/Geist prohibition:
 
@@ -198,13 +198,13 @@ const remFontSizes = [...css.matchAll(/font-size:\s*(\d*\.?\d+)rem/g)]
 expect(Math.min(...remFontSizes)).toBeGreaterThanOrEqual(0.75);
 ```
 
-- [ ] **Step 2: Run the font/CSS tests and verify RED**
+- [x] **Step 2: Run the font/CSS tests and verify RED**
 
 Run: `npm test -- app/layout.test.ts app/globals.test.ts app/globals-editorial.test.ts`
 
 Expected: FAIL because `layout.tsx` still loads Space Grotesk/Geist/Geist Mono and the CSS still makes every heading/wordmark use `--font-display`.
 
-- [ ] **Step 3: Implement the three font loaders and selector hierarchy**
+- [x] **Step 3: Implement the three font loaders and selector hierarchy**
 
 Use these loaders in `app/layout.tsx`:
 
@@ -261,13 +261,13 @@ h1, h2, h3 { font-family: var(--font-body), Arial, sans-serif; }
 
 Normalize all mono rules to 400/500/600/700, raise sub-`0.75rem` metadata, add tabular lining numerals, and change global heading wrapping from `overflow-wrap: anywhere` to `overflow-wrap: break-word; hyphens: auto`. Apply the fixed hierarchy directly: landing hero `5.75rem/0.92` desktop and `3rem/0.98` compact; every other approved Newsreader heading `4rem/0.98` desktop and `2.5rem/1.04` compact; question prompt Manrope `2.75rem/1.08` desktop and `2rem/1.12` compact; body copy at least `1rem/1.65`; metadata at least `0.75rem/1.45`. Use Newsreader weight 500 for the landing/results H1s and 600 for the approved H2s.
 
-- [ ] **Step 4: Run the typography and questionnaire regression group**
+- [x] **Step 4: Run the typography and questionnaire regression group**
 
 Run: `npm test -- app/layout.test.ts app/globals.test.ts app/globals-editorial.test.ts app/components/question-prompt.test.tsx app/components/question-control.test.tsx app/components/pillar-progress.test.tsx app/components/lab-import.test.tsx`
 
 Expected: PASS; the questionnaire has no new motion and its measurement exceptions remain mono.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/layout.tsx app/layout.test.ts app/globals.css app/globals.test.ts app/globals-editorial.test.ts
@@ -285,7 +285,7 @@ git commit -m "feat: adopt editorial typography"
 - Preserves: `useDecorativeMotion(): boolean`; `useDecorativeMotionStatus(): DecorativeMotionStatus` and its initial `pending` render.
 - Produces: `type SettledDecorativeMotionStatus = Exclude<DecorativeMotionStatus, "pending">`; `readDecorativeMotionStatus(): SettledDecorativeMotionStatus`; `observeDecorativeMotion(onChange): DecorativeMotionObservation`.
 
-- [ ] **Step 1: Add the reusable browser fixture and failing observer tests**
+- [x] **Step 1: Add the reusable browser fixture and failing observer tests**
 
 Create the fixture with controllable preference and visibility:
 
@@ -374,13 +374,13 @@ expect(environment.removeMediaListener).toHaveBeenCalled();
 
 Cover missing `matchMedia`, non-callable `matchMedia`, a throwing `matchMedia`, a throwing media listener installation, and partial-listener cleanup. Keep the existing hook tests proving `pending → running`, boolean no-rerender under reduced motion, and live visibility behavior.
 
-- [ ] **Step 2: Run the observer tests and verify RED**
+- [x] **Step 2: Run the observer tests and verify RED**
 
 Run: `npm test -- app/hooks/use-decorative-motion.test.tsx`
 
 Expected: FAIL because the synchronous reader, observer type, and observer function do not exist.
 
-- [ ] **Step 3: Implement the observer without changing existing hook semantics**
+- [x] **Step 3: Implement the observer without changing existing hook semantics**
 
 Add these exact public shapes:
 
@@ -462,13 +462,13 @@ export function observeDecorativeMotion(
 
 Refactor both existing hooks to create/dispose this observer inside their existing `useEffect`; do not change their return types or initial values.
 
-- [ ] **Step 4: Run motion foundation regressions**
+- [x] **Step 4: Run motion foundation regressions**
 
 Run: `npm test -- app/hooks/use-decorative-motion.test.tsx app/components/motion-screen.test.tsx app/components/intermission.test.tsx app/components/human-atlas-glow.test.tsx`
 
 Expected: PASS with listeners removed on unmount and no questionnaire/screen behavior change.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/test/motion-fixture.ts app/hooks/use-decorative-motion.ts app/hooks/use-decorative-motion.test.tsx
@@ -488,7 +488,7 @@ git commit -m "feat: add synchronous motion preflight"
 - Produces: `type SectionRevealMode = "document" | "new-content"`; `useSectionReveal(scope, selector = "[data-reveal]", mode = "document"): void`.
 - Consumes: `observeDecorativeMotion`, `gsap.timeline`, callable `ScrollTrigger.create`, `[data-reveal-item]`, and `[data-reveal-item="rule"]`.
 
-- [ ] **Step 1: Replace the two legacy tests with the semantic matrix**
+- [x] **Step 1: Replace the two legacy tests with the semantic matrix**
 
 Use real rectangle stubs and callable GSAP/ScrollTrigger mocks:
 
@@ -522,13 +522,13 @@ expect(ruleFrom).toEqual(expect.objectContaining({ opacity: 1, scaleX: 0 }));
 
 Also test bare `data-reveal` as `single`, nested parent/child roots both skipped/final, unrelated roots still active, missing/non-callable ScrollTrigger before any initial state, setup exception cleanup, live reduced-motion cancellation, and no replay when preference returns.
 
-- [ ] **Step 2: Run the reveal tests and verify RED**
+- [x] **Step 2: Run the reveal tests and verify RED**
 
 Run: `npm test -- app/hooks/use-section-reveal.test.tsx app/globals-editorial.test.ts`
 
 Expected: FAIL on the old `gsap.fromTo`, `top 86%`, uniform 500 ms behavior and absent semantic CSS.
 
-- [ ] **Step 3: Implement one timeline per eligible root**
+- [x] **Step 3: Implement one timeline per eligible root**
 
 Use the preserved overload and these exact variant constants:
 
@@ -586,13 +586,13 @@ Add CSS final-state overrides that beat inline values:
 }
 ```
 
-- [ ] **Step 4: Run semantic, focus, print, and existing GSAP regressions**
+- [x] **Step 4: Run semantic, focus, print, and existing GSAP regressions**
 
 Run: `npm test -- app/hooks/use-section-reveal.test.tsx app/globals.test.ts app/globals-editorial.test.ts app/lib/gsap-client.test.ts`
 
 Expected: PASS, including zero trigger creation for invalid or already-visible `document` roots.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/hooks/use-section-reveal.ts app/hooks/use-section-reveal.test.tsx app/globals.css app/globals-editorial.test.ts
@@ -617,7 +617,7 @@ git commit -m "feat: implement semantic section reveals"
 - Produces: non-nested `heading`, `group`, and `single` roots with explicit `data-reveal-item`; one next-frame refresh for `PrivateResultsRevealBoundary`.
 - Preserves: every CTA callback, result condition, heading ID, focus call, list/table semantic, and `content-visibility: auto` section.
 
-- [ ] **Step 1: Write the marker and private-boundary tests first**
+- [x] **Step 1: Write the marker and private-boundary tests first**
 
 Update landing expectations to enforce sibling roots and the decorative rule:
 
@@ -632,13 +632,13 @@ expect(container.querySelector('[data-reveal-item="rule"]')).toHaveAttribute("ar
 
 For results, assert heading/group roots are siblings in score, Express, habits, actions, and labs; numeric readouts are never initialized to a different value. In `results-motion.test.tsx`, stub initial document roots below the viewport, expose `ScrollTrigger.refresh`, stub `requestAnimationFrame`, reveal private results, then assert only new roots initialize and `refresh` runs once in the next frame.
 
-- [ ] **Step 2: Run landing/results tests and verify RED**
+- [x] **Step 2: Run landing/results tests and verify RED**
 
 Run: `npm test -- app/components/landing.test.tsx app/components/results-motion.test.tsx app/components/results.test.tsx app/components/express-results.test.tsx`
 
 Expected: FAIL because all current sections use bare roots and `PrivateResultsRevealBoundary` still uses default mode without refresh.
 
-- [ ] **Step 3: Apply the semantic markup without nesting roots**
+- [x] **Step 3: Apply the semantic markup without nesting roots**
 
 Apply this exact landing root map:
 
@@ -675,13 +675,13 @@ function PrivateResultsRevealBoundary({ children }: { readonly children: ReactNo
 
 Adjust CSS grid wrappers without introducing cards around sections. Keep result values final from the first render and do not modify questionnaire components.
 
-- [ ] **Step 4: Run result, focus, and questionnaire non-regressions**
+- [x] **Step 4: Run result, focus, and questionnaire non-regressions**
 
 Run: `npm test -- app/components/landing.test.tsx app/components/results-motion.test.tsx app/components/results.test.tsx app/components/express-results.test.tsx app/components/assessment.test.tsx app/components/motion-screen.test.tsx`
 
 Expected: PASS with the private results heading still focused and no nested reveal roots.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/components/landing.tsx app/components/landing.test.tsx app/components/results.tsx app/components/results.test.tsx app/components/results-motion.test.tsx app/components/express-results.tsx app/components/express-results.test.tsx app/globals.css app/globals-editorial.test.ts
@@ -707,7 +707,7 @@ git commit -m "feat: choreograph landing and result bands"
 - Preserves: `useLandingTimeline(scope): HumanAtlasSceneId`, both Express buttons, and the existing Atlas ScrollTrigger.
 - Consumes: `observeDecorativeMotion` and `suppressHydrationWarning` on the root `<html>`.
 
-- [ ] **Step 1: Write bootstrap and exact hero timeline tests**
+- [x] **Step 1: Write bootstrap and exact hero timeline tests**
 
 Execute the exported script in JSDOM with fake timers and the shared motion fixture. Prove:
 
@@ -736,13 +736,13 @@ expect(tree.props.suppressHydrationWarning).toBe(true);
 
 In the landing timeline test, distinguish the entrance timeline from the scroll-triggered timeline and assert these calls: eyebrow `{opacity:0,y:12}` at `0`; H1 `{opacity:0,y:32,duration:.62}` at `.08`; body `{y:18,duration:.42}` at `.26`; action `{y:14,duration:.36}` at `.38`; hint `{y:10,duration:.32}` at `.5`; all `power3.out`, final opacity 1/y 0, total `.82`. Make `gsap.timeline` or `ScrollTrigger.create` non-callable in separate cases and assert a pending bootstrap becomes `static` before any `gsap.set` or `fromTo` call.
 
-- [ ] **Step 2: Run bootstrap/hero tests and verify RED**
+- [x] **Step 2: Run bootstrap/hero tests and verify RED**
 
 Run: `npm test -- app/lib/motion-bootstrap.test.ts app/layout.test.ts app/components/landing.test.tsx app/hooks/use-landing-timeline.test.tsx app/globals-editorial.test.ts`
 
 Expected: FAIL because the bootstrap module, root script, hero markers, title mask, and entrance timeline do not exist.
 
-- [ ] **Step 3: Implement the exception-safe bootstrap and hero targets**
+- [x] **Step 3: Implement the exception-safe bootstrap and hero targets**
 
 Export an inline script with this state machine:
 
@@ -820,7 +820,7 @@ Add a component test proving no element matches both `[data-hero-item]` and `[da
 
 Remove the bootstrap attribute on entrance completion, and change `ready → static` on entrance unmount, Strict Mode replay, hidden document, reduced preference, or setup error. Returning to no-preference must not replay the entrance. The continuous timeline may translate every `data-hero-handoff` target, but only `data-hero-title` may receive the `.82` opacity endpoint.
 
-- [ ] **Step 4: Add CSS bootstrap/focus/static states and run regressions**
+- [x] **Step 4: Add CSS bootstrap/focus/static states and run regressions**
 
 ```css
 html[data-motion-bootstrap="pending"] [data-hero-item] { opacity: 0; }
@@ -852,7 +852,7 @@ Run: `npm test -- app/lib/motion-bootstrap.test.ts app/layout.test.ts app/hooks/
 
 Expected: PASS with SSR/static hero content visible and no test console warning.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/lib/motion-bootstrap.ts app/lib/motion-bootstrap.test.ts app/layout.tsx app/layout.test.ts app/components/landing.tsx app/components/landing.test.tsx app/hooks/use-landing-timeline.ts app/hooks/use-landing-timeline.test.tsx app/globals.css app/globals-editorial.test.ts
@@ -874,7 +874,7 @@ git commit -m "feat: orchestrate the bootstrapped hero"
 - Produces: `atlasMotionLimits(width: number): { heroY: number; imageScale: number; imageY: number }`; `[data-atlas-camera]`; `[data-atlas-progress-fill]`.
 - Preserves: `atlasSceneFromProgress`, one Atlas ScrollTrigger with `scrub: 0.8`, four marker states, strength signals, and uncontrolled Atlas fallback.
 
-- [ ] **Step 1: Add failing limits, target, and raw-progress tests**
+- [x] **Step 1: Add failing limits, target, and raw-progress tests**
 
 ```ts
 expect(atlasMotionLimits(1440)).toEqual({ heroY: 36, imageScale: 1.035, imageY: 8 });
@@ -890,13 +890,13 @@ Assert the scroll timeline still has `scrub: 0.8`, camera targets the image rath
 
 Drive the shared motion fixture from visible to hidden and back to visible. Assert the first continuous timeline is reverted, no second hero entrance timeline is created, and exactly one replacement continuous timeline is attached. Invoke its `onRefresh({ progress: 0.6 })` callback and assert the fill is `.6` and the active scene is `sleep`; a temporary hidden state must not reset the prior scene to `breath`.
 
-- [ ] **Step 2: Run Atlas camera tests and verify RED**
+- [x] **Step 2: Run Atlas camera tests and verify RED**
 
 Run: `npm test -- app/hooks/use-landing-timeline.test.tsx app/components/human-atlas-scroll.test.tsx app/globals.test.ts app/globals-editorial.test.ts`
 
 Expected: FAIL because no camera/fill targets or responsive limit helper exist.
 
-- [ ] **Step 3: Add stable targets and extend the existing trigger**
+- [x] **Step 3: Add stable targets and extend the existing trigger**
 
 Use explicit markup:
 
@@ -933,7 +933,7 @@ Use explicit markup:
 
 Create one `syncAtlasProgress({ progress })` callback that clamps raw progress, calls `gsap.set(fill, { scaleX: progress })`, and derives the scene from the same raw value. Register it as both `onUpdate` and `onRefresh` on the continuous trigger so a recreated trigger immediately reflects the current scroll position. Do not reset `activeScene` when `motionAllowed` becomes false; `onLeaveBack` remains the only explicit reset to `breath`. Keep the camera/hero/strength motion on the smoothed timeline. Animate the image from scale 1/y 0 to the selected `atlasMotionLimits`; translate `[data-hero-handoff]`, fade only `[data-hero-title]` to `.82`, and exclude the CTA.
 
-- [ ] **Step 4: Implement responsive/static CSS and run the Atlas regression group**
+- [x] **Step 4: Implement responsive/static CSS and run the Atlas regression group**
 
 Make the fill transform from the left without affecting marker dimensions. `atlasMotionLimits(window.innerWidth)` selects compact values at widths up to and including 850 px; CSS preserves the existing compact layout rather than attempting to encode those JavaScript amplitudes. Under reduced motion, image failure, and print force the image transform to none and the progress fill to `scaleX(1)`. Apply `will-change` only to the active camera target and clear it on hook cleanup.
 
@@ -941,7 +941,7 @@ Run: `npm test -- app/hooks/use-landing-timeline.test.tsx app/components/human-a
 
 Expected: PASS with one continuous trigger and the original image intact.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/hooks/use-landing-timeline.ts app/hooks/use-landing-timeline.test.tsx app/components/human-atlas-scroll.tsx app/components/human-atlas-scroll.test.tsx app/globals.css app/globals.test.ts app/globals-editorial.test.ts
@@ -962,7 +962,7 @@ git commit -m "feat: extend the Human Atlas camera"
 - Produces: `useAtlasSceneTransition(scope: RefObject<HTMLElement | null>, activeScene: HumanAtlasSceneId): void`; `[data-atlas-scene-item]`.
 - Consumes: `observeDecorativeMotion`, the controlled/uncontrolled scene ID, and scoped GSAP context.
 
-- [ ] **Step 1: Write failing initial, ordinary, interrupted, and disabled tests**
+- [x] **Step 1: Write failing initial, ordinary, interrupted, and disabled tests**
 
 Render a hook harness with four marked items in the active scene. Assert initial mount calls no entrance timeline and all items are final. Rerender to a new scene and assert:
 
@@ -978,13 +978,13 @@ expect(mockFromTo).toHaveBeenCalledWith(
 
 Make `timeline.isActive()` return true before another scene change; assert cleanup order is `kill → context.revert → final-state cleanup`, the next entrance is skipped, and its children are opacity 1/y 0 before paint. Trigger reduced motion during an active entrance and prove returning to no-preference does not replay it. Make `gsap.timeline` missing and throwing in separate cases and assert no initial opacity/transform is retained.
 
-- [ ] **Step 2: Run chapter tests and verify RED**
+- [x] **Step 2: Run chapter tests and verify RED**
 
 Run: `npm test -- app/hooks/use-atlas-scene-transition.test.tsx app/components/human-atlas-scroll.test.tsx`
 
 Expected: FAIL because the hook and scene item markers do not exist.
 
-- [ ] **Step 3: Implement the focused hook and markers**
+- [x] **Step 3: Implement the focused hook and markers**
 
 Use a root ref on `.human-atlas-scroll`, mark eyebrow/H3/body/source with `data-atlas-scene-item`, and call:
 
@@ -994,7 +994,7 @@ useAtlasSceneTransition(atlasRef, activeScene);
 
 Inside the hook, keep `initialMountRef`, `interruptedRef`, `motionCancelledRef`, and the owned timeline/context. Always clear every scene child to final before deciding whether to animate. On an interrupted change set `interruptedRef` during cleanup and skip exactly the next entrance. The four-item sequence must end at `0.38 + 3 × 0.06 = 0.56s`.
 
-- [ ] **Step 4: Add static CSS coverage and run regressions**
+- [x] **Step 4: Add static CSS coverage and run regressions**
 
 Extend reduced-motion/print/image-failure rules to `[data-atlas-scene-item]` with opacity 1 and transform none `!important`. Do not change scene DOM order, text, active attributes, glow behavior, or the uncontrolled IntersectionObserver fallback.
 
@@ -1002,7 +1002,7 @@ Run: `npm test -- app/hooks/use-atlas-scene-transition.test.tsx app/components/h
 
 Expected: PASS for initial static render, ordinary 560 ms entry, interruption, unmount, and reduced motion.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/hooks/use-atlas-scene-transition.ts app/hooks/use-atlas-scene-transition.test.tsx app/components/human-atlas-scroll.tsx app/components/human-atlas-scroll.test.tsx app/globals.css app/globals-editorial.test.ts
@@ -1023,7 +1023,7 @@ git commit -m "feat: sequence Human Atlas chapters"
 - Produces: `useRiskTreeConstruction(scope: RefObject<HTMLElement | null>): void`; `data-risk-tree-trunk`, `data-risk-tree-branch`, and `data-risk-tree-item` markers; custom properties `--risk-trunk-progress` and `--risk-branch-progress`.
 - Preserves: the navigation landmark, four-pillar order, buttons/lists, `aria-pressed`, `aria-controls`, foundation section, empty states, and missing-pillar error.
 
-- [ ] **Step 1: Write viewport, timing, cleanup, and focus tests first**
+- [x] **Step 1: Write viewport, timing, cleanup, and focus tests first**
 
 Set the tree rectangle to `top: window.innerHeight` and then `top: window.innerHeight + 100`. At `top <= innerHeight`, assert no timeline/trigger and final custom properties. At `top > innerHeight`, assert one trigger at `top 84%` and exact values:
 
@@ -1037,13 +1037,13 @@ expect(mockSet).toHaveBeenCalledWith(foundation, { opacity: 0, y: 12 });
 
 Assert the trigger uses `once: true`; trunk/branch tweens are 550 ms; branches start at `.16,.24,.32,.40`; content uses 380 ms/60 ms stagger; foundation ends at `1.10`; and reduced motion mid-tween kills/reverts/settles. Make `ScrollTrigger.create` missing and throwing in separate tests and assert no initial tree state remains. Component/CSS tests focus a leaf during construction and require both marked ancestors to match the `!important` final-state rule.
 
-- [ ] **Step 2: Run tree construction tests and verify RED**
+- [x] **Step 2: Run tree construction tests and verify RED**
 
 Run: `npm test -- app/hooks/use-risk-tree-construction.test.tsx app/components/risk-tree.test.tsx app/globals-editorial.test.ts`
 
 Expected: FAIL because the construction hook, custom properties, markers, and focus override are absent.
 
-- [ ] **Step 3: Implement the once-only tree timeline**
+- [x] **Step 3: Implement the once-only tree timeline**
 
 Attach a ref to the existing `.risk-tree` nav and mark both branch blocks and nested leaf groups. `LeafList` adds `data-risk-tree-item` directly to both its populated and empty `<ul>` return paths; it does not gain a generic prop-forwarding API. Use this exact outer structure:
 
@@ -1100,7 +1100,7 @@ Attach a ref to the existing `.risk-tree` nav and mark both branch blocks and ne
 
 Call `useRiskTreeConstruction(treeRef)` in `RiskTree`. Build one GSAP timeline only when `gsap.timeline` and `ScrollTrigger.create` are callable, the synchronous motion observation is `running`, and the measured tree is strictly below the viewport. Use these exact positions: trunk at `0` for `.55s`; the four branch connectors at `.16`, `.24`, `.32`, and `.40` for `.55s`; the four pillar blocks from `.22` for `.38s` with `.06s` stagger; the four leaf groups from `.38` for `.38s` with `.06s` stagger; foundation at `.72` for `.38s`, ending the sequence at `1.10s`. Use default CSS custom property value `1` so unsupported/static rendering is fully drawn. Kill the timeline and its trigger, revert context, remove inline custom properties/opacity/transform, and unsubscribe on every terminal path.
 
-- [ ] **Step 4: Implement origins/focus/print CSS and run regressions**
+- [x] **Step 4: Implement origins/focus/print CSS and run regressions**
 
 ```css
 .risk-tree::before {
@@ -1122,7 +1122,7 @@ Reduced motion and print must force both custom properties to `1 !important` and
 
 Expected: PASS with navigation and selection semantics unchanged.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/hooks/use-risk-tree-construction.ts app/hooks/use-risk-tree-construction.test.tsx app/components/risk-tree.tsx app/components/risk-tree.test.tsx app/globals.css app/globals-editorial.test.ts
@@ -1145,7 +1145,7 @@ git commit -m "feat: construct the risk tree on entry"
 - Produces: `useEvidenceTransition(scope: RefObject<HTMLElement | null>, evidenceKey: string | undefined): void`; `[data-evidence-transition]`; `riskTree.evidence.selected` in EN/FR.
 - Preserves: evidence region labeling/content, selected-button focus, `aria-pressed`, `aria-controls`, and immediate React content commit.
 
-- [ ] **Step 1: Write failing transition and live-status tests**
+- [x] **Step 1: Write failing transition and live-status tests**
 
 The hook test skips initial mount, then rerenders with a new key and expects:
 
@@ -1172,13 +1172,13 @@ expect(screen.getByRole("status")).not.toHaveTextContent("Second signal copy");
 
 Switch to French before selection and expect `Preuve sélectionnée : Second signal`. Rapidly select two leaves and assert only the final title remains in the atomic polite status. Make `gsap.timeline` missing and throwing in separate hook tests and assert the newly committed evidence stays at full opacity and zero transform.
 
-- [ ] **Step 2: Run evidence/i18n tests and verify RED**
+- [x] **Step 2: Run evidence/i18n tests and verify RED**
 
 Run: `npm test -- app/hooks/use-evidence-transition.test.tsx app/components/risk-tree.test.tsx app/i18n/ui-copy.test.ts app/globals-editorial.test.ts`
 
 Expected: FAIL because the transition hook, content wrapper, status, copy key, and focus CSS are absent.
 
-- [ ] **Step 3: Implement transition ownership and concise announcement**
+- [x] **Step 3: Implement transition ownership and concise announcement**
 
 In both branches of `EvidencePanel`, add an `evidenceRef` prop and place exactly one `<div ref={evidenceRef} className="risk-evidence__content" data-evidence-transition>` inside the existing `<aside>`. Move the current data label, heading or empty prompt, copy, and ledger into that wrapper without changing their content or order. Keep `id="risk-evidence-panel"`, `role="region"`, and `aria-labelledby={headingId}` on the populated `<aside>`.
 
@@ -1191,7 +1191,7 @@ Call `useEvidenceTransition(evidenceRef, selectedLeaf?.id)`. Replace direct `set
 
 Render `<p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</p>`. Do not place the complete evidence body in the live region.
 
-- [ ] **Step 4: Add opacity/focus/static CSS and run the full result regression group**
+- [x] **Step 4: Add opacity/focus/static CSS and run the full result regression group**
 
 ```css
 [data-evidence-transition]:focus-within {
@@ -1211,7 +1211,7 @@ Run: `npm test -- app/hooks/use-evidence-transition.test.tsx app/components/risk
 
 Expected: PASS with immediate semantic updates, one concise announcement, focus retained, and panel opacity never below `.82`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/hooks/use-evidence-transition.ts app/hooks/use-evidence-transition.test.tsx app/components/risk-tree.tsx app/components/risk-tree.test.tsx app/i18n/ui-copy.ts app/i18n/ui-copy.test.ts app/globals.css app/globals-editorial.test.ts
@@ -1228,7 +1228,7 @@ git commit -m "feat: transition and announce risk evidence"
 - Consumes: Tasks 1-9 and the approved specification.
 - Produces: fresh release-gate output, exact-build HTTP smoke evidence, desktop/mobile EN/FR visual evidence, and a clean Git worktree.
 
-- [ ] **Step 1: Run focused non-regression groups**
+- [x] **Step 1: Run focused non-regression groups**
 
 ```bash
 npm test -- app/layout.test.ts app/globals.test.ts app/globals-editorial.test.ts
@@ -1240,7 +1240,7 @@ npm test -- app/components/assessment.test.tsx app/components/motion-screen.test
 
 Expected: every command exits 0. Any failure gets a new focused RED test before its fix and a separate fix commit.
 
-- [ ] **Step 2: Run complete static, behavioral, build, and dependency gates**
+- [x] **Step 2: Run complete static, behavioral, build, and dependency gates**
 
 ```bash
 node --version
@@ -1254,7 +1254,7 @@ git diff --check
 
 Expected: Node satisfies `>=22.13.0`; TypeScript, ESLint, all Vitest files, and production build exit 0; production audit reports zero vulnerabilities; diff check is empty.
 
-- [ ] **Step 3: Start and smoke-test the exact production build**
+- [x] **Step 3: Start and smoke-test the exact production build**
 
 Use the first free port from 4189 through 4199:
 
@@ -1285,7 +1285,7 @@ done
 
 Expected: HTTP 200, no unexpected `Set-Cookie`, and `/media/human-atlas-hero.webp` decodes with its original dimensions. Keep this server running through browser QA and stop it before completion.
 
-- [ ] **Step 4: Verify normal motion and layout in Chrome**
+- [x] **Step 4: Verify normal motion and layout in Chrome**
 
 At `1440×900`, `390×844`, and `320×700`, in English and French, repeat the capture set once with normal motion and once with emulated `prefers-reduced-motion: reduce`:
 
@@ -1295,7 +1295,7 @@ At `1440×900`, `390×844`, and `320×700`, in English and French, repeat the ca
 4. Confirm no overlap, clipped word/accent/descender, green side rectangle, blank image, layout shift, or horizontal overflow (`document.documentElement.scrollWidth === innerWidth`).
 5. Inspect console and page errors for zero hydration, GSAP, asset, or React errors.
 
-- [ ] **Step 5: Verify focus, announcements, contrast, reflow, and print during active tweens**
+- [x] **Step 5: Verify focus, announcements, contrast, reflow, and print during active tweens**
 
 1. While the entrance/reveal is active, Tab to the hero CTA, a depth-card button, a risk-tree leaf, and a score disclosure. Each focused target and every animated ancestor must compute to opacity 1/transform none without moving focus.
 2. Select risk leaves with keyboard and VoiceOver, and confirm one concise localized polite announcement, retained button focus, correct `aria-pressed`, and immediate evidence region content. Record any unavailable screen-reader check rather than inferring it from DOM alone.
@@ -1303,15 +1303,15 @@ At `1440×900`, `390×844`, and `320×700`, in English and French, repeat the ca
 4. Test browser zoom 200%, 400% reflow, and inject: `*{line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important} p{margin-bottom:2em!important}`. Confirm the title mask is cleared when settled and EN/FR content remains uncut at 320 pixels.
 5. Emulate print while the hero, a reveal, tree construction, and evidence transition have inline tween values. Confirm hero/reveal/tree/evidence text is opacity 1, visible, untransformed, unclipped, connectors fully drawn, and the decorative Atlas stage remains handled by the existing print contract.
 
-- [ ] **Step 6: Verify progressive-enhancement failure modes**
+- [x] **Step 6: Verify progressive-enhancement failure modes**
 
 Before module load, separately test reduced motion, deleted `window.matchMedia`, throwing `matchMedia`, and an aborted Atlas image request. Confirm no pending/ready bootstrap remains, no entry replay after returning to no-preference, no hidden content, the four-chapter localized static story on image failure, and no console error. Hide/show the document during an entrance; entry content must settle final while the continuous Atlas may reattach at current raw progress.
 
-- [ ] **Step 7: Reconcile and review the final branch**
+- [x] **Step 7: Reconcile and review the final branch**
 
 Run a fresh independent code review using `superpowers:requesting-code-review`. Resolve every Critical/Important finding through RED/GREEN and a focused fix commit. Then rerun the affected focused tests and all commands from Step 2.
 
-- [ ] **Step 8: Stop servers and prove a clean final state**
+- [x] **Step 8: Stop servers and prove a clean final state**
 
 ```bash
 if test -f /tmp/editorial-motion-server.pid; then
