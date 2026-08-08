@@ -217,6 +217,12 @@ test("forces both marked risk-tree focus ancestors into their visible final stat
   );
 });
 
+test("forces focused evidence content into its visible final state", () => {
+  expect(declarationsFor(css, "[data-evidence-transition]:focus-within")).toMatch(
+    /opacity:\s*1 !important[\s\S]*transform:\s*none !important/,
+  );
+});
+
 test("forces hero layers and the title mask final for reduced motion and print", () => {
   expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\),\s*print\s*\{/);
   const finalStateCss = css.slice(
@@ -245,6 +251,9 @@ test("forces hero layers and the title mask final for reduced motion and print",
   );
   expect(declarationsFor(finalStateCss, "[data-risk-tree-item]")).toMatch(
     /opacity:\s*1 !important[\s\S]*transform:\s*none !important/,
+  );
+  expect(declarationsFor(finalStateCss, "[data-evidence-transition]")).toMatch(
+    /opacity:\s*1 !important[\s\S]*visibility:\s*visible !important[\s\S]*transform:\s*none !important/,
   );
 });
 

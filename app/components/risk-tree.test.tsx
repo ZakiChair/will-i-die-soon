@@ -228,6 +228,122 @@ test("marks both animated ancestors of a focused leaf during construction", () =
   expect(branch).toContainElement(document.activeElement as HTMLElement);
 });
 
+test("wraps each evidence-panel branch exactly once without changing content order", () => {
+  const populated = render(
+    <I18nProvider>
+      <RiskTree
+        leaves={[leaf("first", "urgent-chest", "First signal", [], "urgent")]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+  const region = screen.getByRole("region", { name: "First signal" });
+  const populatedWrappers = region.querySelectorAll("[data-evidence-transition]");
+  expect(populatedWrappers).toHaveLength(1);
+  expect(populatedWrappers[0]).toHaveClass("risk-evidence__content");
+  expect(Array.from(populatedWrappers[0].children, (child) => child.tagName)).toEqual([
+    "P",
+    "H3",
+    "P",
+    "DL",
+  ]);
+  expect(region).toHaveAttribute("id", "risk-evidence-panel");
+  expect(region).toHaveAttribute("aria-labelledby", "risk-evidence-first");
+  populated.unmount();
+
+  render(
+    <I18nProvider>
+      <RiskTree leaves={[]} protectiveRoots={[]} />
+    </I18nProvider>,
+  );
+  const emptyPanel = screen.getByLabelText("Evidence details");
+  const emptyWrappers = emptyPanel.querySelectorAll("[data-evidence-transition]");
+  expect(emptyWrappers).toHaveLength(1);
+  expect(emptyWrappers[0]).toHaveClass("risk-evidence__content");
+  expect(Array.from(emptyWrappers[0].children, (child) => child.tagName)).toEqual(["P", "P"]);
+});
+
+test("announces only the selected English title while retaining leaf focus and semantics", async () => {
+  const user = userEvent.setup();
+  render(
+    <I18nProvider>
+      <RiskTree
+        leaves={[
+          leaf("first", "urgent-chest", "First signal", [], "urgent"),
+          leaf("second", "adult-short-sleep", "Second signal", []),
+        ]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+  const status = screen.getByRole("status");
+  const second = screen.getByRole("button", { name: /Second signal/ });
+  expect(status).toBeEmptyDOMElement();
+  expect(status).toHaveAttribute("aria-live", "polite");
+  expect(status).toHaveAttribute("aria-atomic", "true");
+
+  await user.click(second);
+
+  expect(second).toHaveFocus();
+  expect(second).toHaveAttribute("aria-pressed", "true");
+  expect(second).toHaveAttribute("aria-controls", "risk-evidence-panel");
+  expect(screen.getByRole("region", { name: "Second signal" })).toHaveTextContent(
+    "Second signal copy",
+  );
+  expect(status).toHaveTextContent("Evidence selected: Second signal");
+  expect(status).not.toHaveTextContent("Second signal copy");
+});
+
+test("announces a user selection in the active French locale", async () => {
+  const user = userEvent.setup();
+  render(
+    <I18nProvider>
+      <LanguageSwitcher />
+      <RiskTree
+        leaves={[
+          leaf("first", "urgent-chest", "First signal", [], "urgent"),
+          leaf("second", "adult-short-sleep", "Second signal", []),
+        ]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  await user.click(screen.getByRole("button", { name: /Second signal/ }));
+
+  expect(screen.getByRole("status").textContent).toBe(
+    "Preuve sélectionnée\u00a0: Second signal",
+  );
+});
+
+test("keeps only the final title after rapid evidence selections", async () => {
+  const user = userEvent.setup();
+  render(
+    <I18nProvider>
+      <RiskTree
+        leaves={[
+          leaf("first", "urgent-chest", "First signal", [], "urgent"),
+          leaf("second", "urgent-breathing", "Second signal", []),
+          leaf("third", "adult-short-sleep", "Third signal", []),
+        ]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+
+  await user.click(screen.getByRole("button", { name: /Second signal/ }));
+  await user.click(screen.getByRole("button", { name: /Third signal/ }));
+
+  const status = screen.getByRole("status");
+  expect(status).toHaveTextContent("Evidence selected: Third signal");
+  expect(status).not.toHaveTextContent("Second signal");
+  expect(status).not.toHaveTextContent("Third signal copy");
+  expect(status).toHaveAttribute("aria-live", "polite");
+  expect(status).toHaveAttribute("aria-atomic", "true");
+});
+
 test("keeps leaf order, accessible selection, urgency, and evidence metadata functional", async () => {
   const user = userEvent.setup();
   render(

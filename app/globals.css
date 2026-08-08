@@ -924,7 +924,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   border-radius: 4px;
   background: var(--surface-strong);
 }
-.risk-evidence > .data-label { color: var(--phosphor); }
+.risk-evidence__content > .data-label { color: var(--phosphor); }
 .risk-evidence h3 {
   margin: 15px 0 19px;
   font-size: 2.75rem;
@@ -1206,6 +1206,11 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   transform: none !important;
 }
 
+[data-evidence-transition]:focus-within {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 [data-hero-item]:focus-within {
   opacity: 1 !important;
   transform: none !important;
@@ -1229,6 +1234,11 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   [data-risk-tree-trunk] { --risk-trunk-progress: 1 !important; }
   [data-risk-tree-branch] { --risk-branch-progress: 1 !important; }
   [data-risk-tree-item] { opacity: 1 !important; transform: none !important; }
+  [data-evidence-transition] {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1301,7 +1311,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   .express-result-card h3, .confirmed-labs thead th { color: var(--abyss); background: transparent; }
   .express-results__context dd, .express-result-card > p:first-of-type, .express-result-card dd { color: var(--abyss); }
   .risk-evidence { position: static; min-height: 0; color: var(--abyss); background: var(--mist); border: 1px solid var(--line); }
-  .risk-evidence > .data-label, .risk-evidence dt { color: var(--abyss); }
+  .risk-evidence__content > .data-label, .risk-evidence dt { color: var(--abyss); }
   .risk-evidence__copy, .risk-evidence dd, .risk-evidence span { color: var(--abyss); }
   .risk-evidence a { color: var(--abyss); }
   .score-category[open] { break-inside: avoid; }

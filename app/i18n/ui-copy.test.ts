@@ -245,6 +245,15 @@ describe("complete bilingual UI copy", () => {
     expect(uiCopy.fr["results.canopy.title"]).toBe("Quatre piliers de santé que vous pouvez examiner.");
   });
 
+  test("provides concise localized evidence-selection announcements", () => {
+    expect(uiCopy.en["riskTree.evidence.selected"]).toBe(
+      "Evidence selected: {title}",
+    );
+    expect(uiCopy.fr["riskTree.evidence.selected"]).toBe(
+      "Preuve sélectionnée\u00a0: {title}",
+    );
+  });
+
   test("provides the approved long and short chapter labels in both languages", () => {
     expect(uiCopy.en["pillar.cardio-energy"]).toBe(
       "Cardio, VO₂ max & cellular energy",

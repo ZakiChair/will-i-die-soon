@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 
 import { questionBank } from "../data/questions";
 import { useI18n } from "../i18n/context";
@@ -8,6 +8,7 @@ import { localizeQuestion } from "../i18n/questions-fr";
 import { uiCopyKeys } from "../i18n/ui-copy";
 import { HEALTH_PILLARS, indexRiskLeavesByPillar } from "../lib/health-pillars";
 import type { RiskLeaf } from "../lib/types";
+import { useEvidenceTransition } from "../hooks/use-evidence-transition";
 import { useRiskTreeConstruction } from "../hooks/use-risk-tree-construction";
 
 export type RiskTreeProps = {
@@ -56,7 +57,13 @@ function LeafList({
   );
 }
 
-function EvidencePanel({ leaf }: { readonly leaf: RiskLeaf | undefined }) {
+function EvidencePanel({
+  evidenceRef,
+  leaf,
+}: {
+  readonly evidenceRef: RefObject<HTMLDivElement | null>;
+  readonly leaf: RiskLeaf | undefined;
+}) {
   const { locale, t } = useI18n();
 
   function missingInputLabel(questionId: string) {
@@ -72,8 +79,14 @@ function EvidencePanel({ leaf }: { readonly leaf: RiskLeaf | undefined }) {
         className="risk-evidence risk-evidence--empty"
         aria-label={t("riskTree.evidence.aria")}
       >
-        <p className="data-label">{t("riskTree.notebook")}</p>
-        <p>{t("riskTree.select")}</p>
+        <div
+          ref={evidenceRef}
+          className="risk-evidence__content"
+          data-evidence-transition
+        >
+          <p className="data-label">{t("riskTree.notebook")}</p>
+          <p>{t("riskTree.select")}</p>
+        </div>
       </aside>
     );
   }
@@ -86,80 +99,86 @@ function EvidencePanel({ leaf }: { readonly leaf: RiskLeaf | undefined }) {
       role="region"
       aria-labelledby={headingId}
     >
-      <p className="data-label">{t("riskTree.notebook")}</p>
-      <h3 id={headingId}>{leaf.title}</h3>
-      <p className="risk-evidence__copy">{leaf.copy}</p>
-      <dl className="risk-evidence__ledger">
-        <div>
-          <dt>{t("riskTree.signal")}</dt>
-          <dd>
-            {t("riskTree.signal.qualifier", {
-              signal: t(uiCopyKeys.riskSignal[leaf.signal]),
-            })}
-          </dd>
-        </div>
-        <div>
-          <dt>{t("riskTree.urgency")}</dt>
-          <dd>{t(uiCopyKeys.riskUrgency[leaf.urgency])}</dd>
-        </div>
-        <div>
-          <dt>{t("riskTree.tier")}</dt>
-          <dd>{t(uiCopyKeys.evidenceTier[leaf.evidenceTier])}</dd>
-        </div>
-        <div>
-          <dt>{t("riskTree.ruleset")}</dt>
-          <dd>{leaf.rulesetVersion}</dd>
-        </div>
-        <div>
-          <dt>{t("riskTree.factors")}</dt>
-          <dd>
-            {leaf.factors.length > 0 ? (
-              <ul>
-                {leaf.factors.map((factor) => (
-                  <li key={factor}>{factor}</li>
-                ))}
-              </ul>
-            ) : (
-              t("riskTree.noFactors")
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>{t("riskTree.missing")}</dt>
-          <dd>
-            {leaf.missingInputs.length > 0 ? (
-              <ul>
-                {leaf.missingInputs.map((questionId) => (
-                  <li key={questionId}>{missingInputLabel(questionId)}</li>
-                ))}
-              </ul>
-            ) : (
-              t("riskTree.noMissing")
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>{t("riskTree.sources")}</dt>
-          <dd>
-            {leaf.sources.length > 0 ? (
-              <ul>
-                {leaf.sources.map((source) => (
-                  <li key={source.id}>
-                    <span className="data-label">{t("riskTree.source.open")}</span>{" "}
-                    <a href={source.url} target="_blank" rel="noreferrer">
-                      {source.title}
-                    </a>
-                    <span>{t("riskTree.source.publisher", { publisher: source.publisher })}</span>
-                    <span>{t("riskTree.source.reviewed", { date: source.reviewedAt })}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              t("riskTree.noSources")
-            )}
-          </dd>
-        </div>
-      </dl>
+      <div
+        ref={evidenceRef}
+        className="risk-evidence__content"
+        data-evidence-transition
+      >
+        <p className="data-label">{t("riskTree.notebook")}</p>
+        <h3 id={headingId}>{leaf.title}</h3>
+        <p className="risk-evidence__copy">{leaf.copy}</p>
+        <dl className="risk-evidence__ledger">
+          <div>
+            <dt>{t("riskTree.signal")}</dt>
+            <dd>
+              {t("riskTree.signal.qualifier", {
+                signal: t(uiCopyKeys.riskSignal[leaf.signal]),
+              })}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("riskTree.urgency")}</dt>
+            <dd>{t(uiCopyKeys.riskUrgency[leaf.urgency])}</dd>
+          </div>
+          <div>
+            <dt>{t("riskTree.tier")}</dt>
+            <dd>{t(uiCopyKeys.evidenceTier[leaf.evidenceTier])}</dd>
+          </div>
+          <div>
+            <dt>{t("riskTree.ruleset")}</dt>
+            <dd>{leaf.rulesetVersion}</dd>
+          </div>
+          <div>
+            <dt>{t("riskTree.factors")}</dt>
+            <dd>
+              {leaf.factors.length > 0 ? (
+                <ul>
+                  {leaf.factors.map((factor) => (
+                    <li key={factor}>{factor}</li>
+                  ))}
+                </ul>
+              ) : (
+                t("riskTree.noFactors")
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("riskTree.missing")}</dt>
+            <dd>
+              {leaf.missingInputs.length > 0 ? (
+                <ul>
+                  {leaf.missingInputs.map((questionId) => (
+                    <li key={questionId}>{missingInputLabel(questionId)}</li>
+                  ))}
+                </ul>
+              ) : (
+                t("riskTree.noMissing")
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("riskTree.sources")}</dt>
+            <dd>
+              {leaf.sources.length > 0 ? (
+                <ul>
+                  {leaf.sources.map((source) => (
+                    <li key={source.id}>
+                      <span className="data-label">{t("riskTree.source.open")}</span>{" "}
+                      <a href={source.url} target="_blank" rel="noreferrer">
+                        {source.title}
+                      </a>
+                      <span>{t("riskTree.source.publisher", { publisher: source.publisher })}</span>
+                      <span>{t("riskTree.source.reviewed", { date: source.reviewedAt })}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                t("riskTree.noSources")
+              )}
+            </dd>
+          </div>
+        </dl>
+      </div>
     </aside>
   );
 }
@@ -167,13 +186,23 @@ function EvidencePanel({ leaf }: { readonly leaf: RiskLeaf | undefined }) {
 export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
   const { t } = useI18n();
   const treeRef = useRef<HTMLElement>(null);
+  const evidenceRef = useRef<HTMLDivElement>(null);
   useRiskTreeConstruction(treeRef);
   const [requestedLeafId, setRequestedLeafId] = useState<string | undefined>(
     leaves[0]?.id,
   );
+  const [announcement, setAnnouncement] = useState("");
   const selectedLeaf =
     leaves.find((leaf) => leaf.id === requestedLeafId) ?? leaves[0];
+  useEvidenceTransition(evidenceRef, selectedLeaf?.id);
   const leavesByPillar = indexRiskLeavesByPillar(leaves);
+
+  const handleSelect = (id: string) => {
+    const nextLeaf = leaves.find((leaf) => leaf.id === id);
+    if (!nextLeaf) return;
+    setRequestedLeafId(id);
+    setAnnouncement(t("riskTree.evidence.selected", { title: nextLeaf.title }));
+  };
 
   return (
     <div className="risk-canopy-layout">
@@ -201,7 +230,7 @@ export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
               <LeafList
                 leaves={leavesByPillar[pillar]}
                 selectedId={selectedLeaf?.id}
-                onSelect={setRequestedLeafId}
+                onSelect={handleSelect}
               />
             </li>
           ))}
@@ -221,7 +250,10 @@ export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
           </ul>
         </section>
       </nav>
-      <EvidencePanel leaf={selectedLeaf} />
+      <EvidencePanel evidenceRef={evidenceRef} leaf={selectedLeaf} />
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
     </div>
   );
 }
