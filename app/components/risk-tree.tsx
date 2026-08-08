@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { questionBank } from "../data/questions";
 import { useI18n } from "../i18n/context";
@@ -8,6 +8,7 @@ import { localizeQuestion } from "../i18n/questions-fr";
 import { uiCopyKeys } from "../i18n/ui-copy";
 import { HEALTH_PILLARS, indexRiskLeavesByPillar } from "../lib/health-pillars";
 import type { RiskLeaf } from "../lib/types";
+import { useRiskTreeConstruction } from "../hooks/use-risk-tree-construction";
 
 export type RiskTreeProps = {
   readonly leaves: ReadonlyArray<RiskLeaf>;
@@ -28,14 +29,14 @@ function LeafList({
   const { t } = useI18n();
   if (leaves.length === 0) {
     return (
-      <ul className="risk-tree__leaves risk-tree__leaves--empty">
+      <ul className="risk-tree__leaves risk-tree__leaves--empty" data-risk-tree-item>
         <li>{t("riskTree.emptyBranch")}</li>
       </ul>
     );
   }
 
   return (
-    <ul className="risk-tree__leaves">
+    <ul className="risk-tree__leaves" data-risk-tree-item>
       {leaves.map((leaf) => (
         <li key={leaf.id}>
           <button
@@ -165,6 +166,8 @@ function EvidencePanel({ leaf }: { readonly leaf: RiskLeaf | undefined }) {
 
 export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
   const { t } = useI18n();
+  const treeRef = useRef<HTMLElement>(null);
+  useRiskTreeConstruction(treeRef);
   const [requestedLeafId, setRequestedLeafId] = useState<string | undefined>(
     leaves[0]?.id,
   );
@@ -174,7 +177,12 @@ export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
 
   return (
     <div className="risk-canopy-layout">
-      <nav className="risk-tree" aria-label={t("riskTree.aria")}>
+      <nav
+        ref={treeRef}
+        className="risk-tree"
+        aria-label={t("riskTree.aria")}
+        data-risk-tree-trunk
+      >
         <p className="risk-tree__root">{t("riskTree.root")}</p>
         <p className="data-label">{t("riskTree.signals")}</p>
         {leaves.length === 0 ? (
@@ -186,6 +194,8 @@ export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
               key={pillar}
               className={`risk-tree__branch risk-tree__branch--${pillar}`}
               aria-label={t("riskTree.pillar.aria", { pillar: t(uiCopyKeys.pillar[pillar]) })}
+              data-risk-tree-branch
+              data-risk-tree-item
             >
               <span className="risk-tree__branch-label">{t(uiCopyKeys.pillar[pillar])}</span>
               <LeafList
@@ -196,7 +206,11 @@ export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
             </li>
           ))}
         </ul>
-        <section className="risk-tree__foundation" aria-label={t("riskTree.protective")}>
+        <section
+          className="risk-tree__foundation"
+          aria-label={t("riskTree.protective")}
+          data-risk-tree-item
+        >
           <span className="risk-tree__branch-label">{t("riskTree.protective")}</span>
           <ul className="risk-tree__roots">
             {protectiveRoots.length > 0 ? (

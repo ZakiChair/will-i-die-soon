@@ -104,6 +104,7 @@ test("localizes empty branches and the protective fallback", async () => {
   await user.click(screen.getByRole("button", { name: "Français" }));
 
   expect(screen.getAllByText("Aucun signal correspondant dans cette branche.")).toHaveLength(4);
+  expect(document.querySelectorAll("ul.risk-tree__leaves--empty[data-risk-tree-item]")).toHaveLength(4);
   expect(
     screen.getByText(
       "Aucun signal qualitatif n'a atteint le seuil d'affichage dans les réponses fournies.",
@@ -170,6 +171,61 @@ test("renders exactly four labelled pillars in product order and keeps roots out
   );
   expect(within(navigation).queryByText("Medical review")).not.toBeInTheDocument();
   expect(within(navigation).queryByText("Longer-term domains")).not.toBeInTheDocument();
+});
+
+test("marks the trunk, branches, leaf groups, and foundation without changing their semantics", () => {
+  render(
+    <I18nProvider>
+      <RiskTree
+        leaves={[leaf("chest", "urgent-chest", "Chest signal", [], "urgent")]}
+        protectiveRoots={["Reliable social support"]}
+      />
+    </I18nProvider>,
+  );
+
+  const navigation = screen.getByRole("navigation", { name: /health signal pillars/i });
+  expect(navigation).toHaveAttribute("data-risk-tree-trunk");
+  const branches = within(navigation).getAllByRole("listitem", { name: /pillar/i });
+  expect(branches).toHaveLength(4);
+  for (const branch of branches) {
+    expect(branch).toHaveAttribute("data-risk-tree-branch");
+    expect(branch).toHaveAttribute("data-risk-tree-item");
+    const leafGroup = branch.querySelector(":scope > ul");
+    expect(leafGroup).toHaveAttribute("data-risk-tree-item");
+    expect(leafGroup?.tagName).toBe("UL");
+  }
+  expect(within(navigation).getByText("Protective roots").closest("section"))
+    .toHaveAttribute("data-risk-tree-item");
+});
+
+test("marks both animated ancestors of a focused leaf during construction", () => {
+  render(
+    <I18nProvider>
+      <RiskTree
+        leaves={[leaf("chest", "urgent-chest", "Chest signal", [], "urgent")]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+
+  const button = screen.getByRole("button", { name: /Chest signal/ });
+  const leafGroup = button.closest("ul");
+  const branch = button.closest("[data-risk-tree-branch]");
+  if (!(leafGroup instanceof HTMLElement) || !(branch instanceof HTMLElement)) {
+    throw new Error("Missing risk-tree focus ancestors");
+  }
+  leafGroup.style.opacity = "0";
+  leafGroup.style.transform = "translateY(10px)";
+  branch.style.opacity = "0";
+  branch.style.transform = "translateY(16px)";
+
+  button.focus();
+
+  expect(button).toHaveFocus();
+  expect(leafGroup).toHaveAttribute("data-risk-tree-item");
+  expect(branch).toHaveAttribute("data-risk-tree-item");
+  expect(leafGroup).toContainElement(document.activeElement as HTMLElement);
+  expect(branch).toContainElement(document.activeElement as HTMLElement);
 });
 
 test("keeps leaf order, accessible selection, urgency, and evidence metadata functional", async () => {

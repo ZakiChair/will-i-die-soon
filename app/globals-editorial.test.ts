@@ -196,6 +196,27 @@ test("forces focused Atlas chapter items into their visible final state", () => 
   );
 });
 
+test("draws risk-tree connectors from their trunk-facing origins with final defaults", () => {
+  expect(declarationsFor(css, ".risk-tree::before")).toMatch(
+    /transform:\s*translateX\(-50%\) scaleY\(var\(--risk-trunk-progress, 1\)\)[\s\S]*transform-origin:\s*top center/,
+  );
+  expect(declarationsFor(css, ".risk-tree__branch::before")).toMatch(
+    /transform:\s*scale\(var\(--risk-branch-progress, 1\)\)/,
+  );
+  expect(declarationsFor(css, ".risk-tree__branch:nth-child(odd)::before")).toMatch(
+    /transform-origin:\s*top right/,
+  );
+  expect(declarationsFor(css, ".risk-tree__branch:nth-child(even)::before")).toMatch(
+    /transform-origin:\s*top left/,
+  );
+});
+
+test("forces both marked risk-tree focus ancestors into their visible final state", () => {
+  expect(declarationsFor(css, "[data-risk-tree-item]:focus-within")).toMatch(
+    /opacity:\s*1 !important[\s\S]*transform:\s*none !important/,
+  );
+});
+
 test("forces hero layers and the title mask final for reduced motion and print", () => {
   expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\),\s*print\s*\{/);
   const finalStateCss = css.slice(
@@ -216,6 +237,23 @@ test("forces hero layers and the title mask final for reduced motion and print",
   expect(declarationsFor(finalStateCss, "[data-atlas-progress-fill]")).toMatch(
     /transform:\s*scaleX\(1\) !important/,
   );
+  expect(declarationsFor(finalStateCss, "[data-risk-tree-trunk]")).toMatch(
+    /--risk-trunk-progress:\s*1 !important/,
+  );
+  expect(declarationsFor(finalStateCss, "[data-risk-tree-branch]")).toMatch(
+    /--risk-branch-progress:\s*1 !important/,
+  );
+  expect(declarationsFor(finalStateCss, "[data-risk-tree-item]")).toMatch(
+    /opacity:\s*1 !important[\s\S]*transform:\s*none !important/,
+  );
+});
+
+test("keeps compact risk-tree connectors hidden", () => {
+  const compactCss = css.slice(
+    css.indexOf("@media (max-width: 560px)"),
+    css.indexOf("[data-reveal-item]:focus-within"),
+  );
+  expect(declarationsFor(compactCss, ".risk-tree__branch::before")).toMatch(/display:\s*none/);
 });
 
 test.each([

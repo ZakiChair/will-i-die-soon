@@ -796,7 +796,8 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   left: 50%;
   width: 6px;
   background: var(--line-strong);
-  transform: translateX(-50%);
+  transform: translateX(-50%) scaleY(var(--risk-trunk-progress, 1));
+  transform-origin: top center;
   content: "";
 }
 .risk-tree__root {
@@ -843,10 +844,11 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   width: 50%;
   height: 42px;
   border-top: 2px solid var(--line-strong);
+  transform: scale(var(--risk-branch-progress, 1));
   content: "";
 }
-.risk-tree__branch:nth-child(odd)::before { right: 0; border-left: 2px solid var(--line-strong); }
-.risk-tree__branch:nth-child(even)::before { left: 0; border-right: 2px solid var(--line-strong); }
+.risk-tree__branch:nth-child(odd)::before { right: 0; border-left: 2px solid var(--line-strong); transform-origin: top right; }
+.risk-tree__branch:nth-child(even)::before { left: 0; border-right: 2px solid var(--line-strong); transform-origin: top left; }
 .risk-tree__branch--cardio-energy { border-top-color: var(--flare); }
 .risk-tree__branch--strength-neural { border-top-color: var(--phosphor); }
 .risk-tree__branch--sleep-circadian { border-top-color: var(--current); }
@@ -1199,6 +1201,11 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   transform: none !important;
 }
 
+[data-risk-tree-item]:focus-within {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 [data-hero-item]:focus-within {
   opacity: 1 !important;
   transform: none !important;
@@ -1219,6 +1226,9 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   [data-atlas-camera] { transform: none !important; }
   [data-atlas-progress-fill] { transform: scaleX(1) !important; }
   [data-atlas-scene-item] { opacity: 1 !important; transform: none !important; }
+  [data-risk-tree-trunk] { --risk-trunk-progress: 1 !important; }
+  [data-risk-tree-branch] { --risk-branch-progress: 1 !important; }
+  [data-risk-tree-item] { opacity: 1 !important; transform: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
