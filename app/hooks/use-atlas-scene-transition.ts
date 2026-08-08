@@ -31,6 +31,7 @@ function clearAtlasSceneItems(items: readonly HTMLElement[]): void {
 export function useAtlasSceneTransition(
   scope: RefObject<HTMLElement | null>,
   activeScene: HumanAtlasSceneId,
+  enabled = true,
 ): void {
   const initialMountRef = useRef(true);
   const interruptedRef = useRef(false);
@@ -91,6 +92,12 @@ export function useAtlasSceneTransition(
     };
 
     if (!atlasScope) {
+      initialMountRef.current = false;
+      motionCancelledRef.current = true;
+      return;
+    }
+
+    if (!enabled) {
       initialMountRef.current = false;
       motionCancelledRef.current = true;
       return;
@@ -164,5 +171,5 @@ export function useAtlasSceneTransition(
     }
 
     return () => cleanup({ detectInterruption: true });
-  }, [activeScene, scope]);
+  }, [activeScene, enabled, scope]);
 }

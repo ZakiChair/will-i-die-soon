@@ -63,10 +63,12 @@ export function atlasMotionLimits(width: number): {
 
 export function useLandingTimeline(
   scope: RefObject<HTMLElement | null>,
+  disabled = false,
 ): HumanAtlasSceneId {
   const [activeScene, setActiveScene] = useState<HumanAtlasSceneId>("breath");
   const motionAllowed = useDecorativeMotion();
   const terminateEntrance = useRef<(() => void) | null>(null);
+  const atlasTerminated = useRef(false);
 
   useGSAP(
     (context) => {
@@ -79,6 +81,8 @@ export function useLandingTimeline(
       let timeline: ReturnType<typeof gsap.timeline> | undefined;
       let terminal = false;
       let ownedTerminator: (() => void) | undefined;
+
+      if (disabled) atlasTerminated.current = true;
 
       const cleanup = (revertContext: boolean): void => {
         if (terminal) return;
@@ -107,7 +111,7 @@ export function useLandingTimeline(
         settleHeroBootstrap();
       };
 
-      if (root.dataset.motionBootstrap !== "pending") {
+      if (atlasTerminated.current || root.dataset.motionBootstrap !== "pending") {
         terminateEntrance.current = null;
         clearInlineMotion(heroItems);
         settleHeroBootstrap();
@@ -191,7 +195,7 @@ export function useLandingTimeline(
 
       return () => cleanup(false);
     },
-    { dependencies: [], revertOnUpdate: true, scope },
+    { dependencies: [disabled], revertOnUpdate: true, scope },
   );
 
   useGSAP(
@@ -215,7 +219,38 @@ export function useLandingTimeline(
         clearInlineMotion(strengthSignals);
       };
       let timeline: ReturnType<typeof gsap.timeline> | undefined;
+      let active = true;
 
+      if (disabled) atlasTerminated.current = true;
+
+      const cleanup = (revertContext: boolean): void => {
+        if (!active) return;
+        active = false;
+        try {
+          timeline?.kill();
+        } catch {
+          // Context and DOM cleanup remain independently recoverable.
+        }
+        if (revertContext) {
+          try {
+            context.revert();
+          } catch {
+            // DOM final-state cleanup below must still run.
+          }
+        }
+        clearContinuousState();
+      };
+
+      if (atlasTerminated.current) {
+        try {
+          terminateEntrance.current?.();
+        } catch {
+          // Continuous final-state cleanup below must still run.
+        }
+        settleHeroBootstrap();
+        cleanup(false);
+        return;
+      }
       if (!motionAllowed) {
         clearContinuousState();
         return;
@@ -239,8 +274,8 @@ export function useLandingTimeline(
       }
 
       try {
-        const limits = atlasMotionLimits(window.innerWidth);
         const syncAtlasProgress = ({ progress }: { progress: number }) => {
+          if (!active) return;
           const finiteProgress = Number.isNaN(progress) ? 0 : progress;
           const clampedProgress = Math.min(1, Math.max(0, finiteProgress));
           if (progressFill) gsap.set(progressFill, { scaleX: clampedProgress });
@@ -251,7 +286,10 @@ export function useLandingTimeline(
         timeline = gsap.timeline({
           scrollTrigger: {
             end: "bottom bottom",
-            onLeaveBack: () => setActiveScene("breath"),
+            invalidateOnRefresh: true,
+            onLeaveBack: () => {
+              if (active) setActiveScene("breath");
+            },
             onRefresh: syncAtlasProgress,
             onUpdate: syncAtlasProgress,
             scrub: 0.8,
@@ -261,7 +299,15 @@ export function useLandingTimeline(
         });
 
         if (handoffTargets.length > 0) {
-          timeline.to(handoffTargets, { duration: 1, ease: "none", y: -limits.heroY }, 0);
+          timeline.to(
+            handoffTargets,
+            {
+              duration: 1,
+              ease: "none",
+              y: () => -atlasMotionLimits(window.innerWidth).heroY,
+            },
+            0,
+          );
         }
         if (title) {
           timeline.to(title, { duration: 1, ease: "none", opacity: 0.82 }, 0);
@@ -273,8 +319,8 @@ export function useLandingTimeline(
             {
               duration: 1,
               ease: "none",
-              scale: limits.imageScale,
-              y: limits.imageY,
+              scale: () => atlasMotionLimits(window.innerWidth).imageScale,
+              y: () => atlasMotionLimits(window.innerWidth).imageY,
             },
             0,
           );
@@ -290,28 +336,18 @@ export function useLandingTimeline(
             .set(strengthSignals, { strokeDashoffset: 0 }, 1);
         }
       } catch {
-        try {
-          timeline?.kill();
-        } catch {
-          // Context and DOM cleanup remain independently recoverable.
-        }
-        try {
-          context.revert();
-        } catch {
-          // DOM final-state cleanup below must still run.
-        }
+        cleanup(true);
         try {
           terminateEntrance.current?.();
         } catch {
           // Continuous final-state cleanup below must still run.
         }
         settleHeroBootstrap();
-        clearContinuousState();
       }
 
-      return clearContinuousState;
+      return () => cleanup(false);
     },
-    { dependencies: [motionAllowed], revertOnUpdate: true, scope },
+    { dependencies: [disabled, motionAllowed], revertOnUpdate: true, scope },
   );
 
   return activeScene;

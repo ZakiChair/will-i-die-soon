@@ -136,6 +136,7 @@ import {
 } from "./use-landing-timeline";
 
 type ScrollTriggerConfig = Readonly<{
+  invalidateOnRefresh: boolean;
   onLeaveBack: () => void;
   onRefresh: (trigger: { progress: number }) => void;
   onUpdate: (trigger: { progress: number }) => void;
@@ -143,19 +144,28 @@ type ScrollTriggerConfig = Readonly<{
   trigger: Element;
 }>;
 
+function resolvedTweenNumber(value: unknown): number {
+  if (typeof value !== "function") {
+    throw new Error("Expected a refreshable functional tween value");
+  }
+  return Number(value());
+}
+
 let motion: MotionEnvironment | undefined;
 
 function TimelineProbe({
   camera = true,
+  disabled = false,
   fill = true,
   hero = true,
 }: {
   camera?: boolean;
+  disabled?: boolean;
   fill?: boolean;
   hero?: boolean;
 }) {
   const scope = useRef<HTMLElement>(null);
-  const activeScene = useLandingTimeline(scope);
+  const activeScene = useLandingTimeline(scope, disabled);
 
   return (
     <section ref={scope}>
@@ -309,7 +319,7 @@ test("keeps entrance and continuous handoff motion on separate DOM layers", () =
   const opacityCalls = continuousCalls.filter((call) => call.to.opacity !== undefined);
 
   expect(handoffCall?.targets).toEqual(handoffs);
-  expect(handoffCall?.to).toEqual(expect.objectContaining({ y: expect.any(Number) }));
+  expect(handoffCall?.to).toEqual(expect.objectContaining({ y: expect.any(Function) }));
   expect(outerItems.some((item) => handoffCall?.targets.includes(item))).toBe(false);
   expect(opacityCalls).toHaveLength(1);
   expect(opacityCalls[0].targets).toEqual([title]);
@@ -331,26 +341,77 @@ test("targets the Atlas image layer with responsive camera motion", () => {
     from: { scale: 1, y: 0 },
     position: 0,
     targets: [camera],
-    to: expect.objectContaining({ duration: 1, ease: "none", scale: 1.018, y: 4 }),
+    to: expect.objectContaining({
+      duration: 1,
+      ease: "none",
+      scale: expect.any(Function),
+      y: expect.any(Function),
+    }),
   }));
+  expect(resolvedTweenNumber(cameraCall?.to.scale)).toBe(1.018);
+  expect(resolvedTweenNumber(cameraCall?.to.y)).toBe(4);
   expect(cameraCall?.targets).not.toContain(media);
   expect((camera as HTMLElement).style.willChange).toBe("transform");
   const handoffCall = continuousTimeline().calls.find((call) => (
     call.method === "to" && call.targets.length === 4
   ));
-  expect(handoffCall?.to).toEqual(expect.objectContaining({ y: -18 }));
+  expect(resolvedTweenNumber(handoffCall?.to.y)).toBe(-18);
 });
+
+test.each([
+  [1440, 320, { heroY: -36, imageScale: 1.035, imageY: 8 }, { heroY: -18, imageScale: 1.018, imageY: 4 }],
+  [320, 1440, { heroY: -18, imageScale: 1.018, imageY: 4 }, { heroY: -36, imageScale: 1.035, imageY: 8 }],
+] as const)(
+  "re-evaluates Atlas amplitudes on refresh from %i to %i pixels",
+  (initialWidth, refreshedWidth, initial, refreshed) => {
+    let width = initialWidth;
+    vi.spyOn(window, "innerWidth", "get").mockImplementation(() => width);
+    render(<TimelineProbe />);
+
+    const camera = document.querySelector("[data-atlas-camera]");
+    const cameraCall = continuousTimeline().calls.find((call) => (
+      call.method === "fromTo" && call.targets.includes(camera as Element)
+    ));
+    const handoffCall = continuousTimeline().calls.find((call) => (
+      call.method === "to" && call.targets.length === 4
+    ));
+
+    expect(scrollTriggerConfig().invalidateOnRefresh).toBe(true);
+    expect({
+      heroY: resolvedTweenNumber(handoffCall?.to.y),
+      imageScale: resolvedTweenNumber(cameraCall?.to.scale),
+      imageY: resolvedTweenNumber(cameraCall?.to.y),
+    }).toEqual(initial);
+
+    width = refreshedWidth;
+    act(() => scrollTriggerConfig().onRefresh({ progress: 0.6 }));
+
+    expect({
+      heroY: resolvedTweenNumber(handoffCall?.to.y),
+      imageScale: resolvedTweenNumber(cameraCall?.to.scale),
+      imageY: resolvedTweenNumber(cameraCall?.to.y),
+    }).toEqual(refreshed);
+    expect(continuousTimelines()).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent("sleep");
+  },
+);
 
 test("preserves one scoped scrubbed Atlas timeline and strength-signal state", () => {
   render(<TimelineProbe />);
 
   expect(useGsapConfigs.some((config) => (
-    Array.isArray(config.dependencies) && config.dependencies.length === 0
+    Array.isArray(config.dependencies) &&
+    config.dependencies.length === 1 &&
+    config.dependencies[0] === false
   ))).toBe(true);
   expect(useGsapConfigs.some((config) => (
-    Array.isArray(config.dependencies) && config.dependencies[0] === true
+    Array.isArray(config.dependencies) &&
+    config.dependencies.length === 2 &&
+    config.dependencies[0] === false &&
+    config.dependencies[1] === true
   ))).toBe(true);
   expect(scrollTriggerConfig()).toEqual(expect.objectContaining({
+    invalidateOnRefresh: true,
     scrub: 0.8,
     trigger: document.querySelector(".human-atlas-scroll"),
   }));
@@ -570,6 +631,51 @@ test("clears camera will-change and raw fill state on continuous cleanup", () =>
   expect(camera.style.willChange).toBe("");
   expect(camera.style.transform).toBe("");
   expect(fill.style.transform).toBe("");
+});
+
+test("terminally disables Atlas motion, clears every owned layer, and ignores stale updates", () => {
+  startPendingBootstrap();
+  const { rerender } = render(<TimelineProbe />);
+  const entrance = entranceTimeline();
+  const continuous = continuousTimeline();
+  const staleTrigger = scrollTriggerConfig();
+  const handoff = document.querySelector<HTMLElement>("[data-hero-handoff]");
+  const title = document.querySelector<HTMLElement>("[data-hero-title]");
+  const camera = document.querySelector<HTMLElement>("[data-atlas-camera]");
+  const fill = document.querySelector<HTMLElement>("[data-atlas-progress-fill]");
+  const signal = document.querySelector<SVGPathElement>("[data-strength-signal]");
+  if (!handoff || !title || !camera || !fill || !signal) {
+    throw new Error("Missing Atlas motion targets");
+  }
+
+  act(() => staleTrigger.onUpdate({ progress: 0.6 }));
+  handoff.style.transform = "translateY(-12px)";
+  title.style.opacity = "0.9";
+  camera.style.transform = "scale(1.02) translateY(4px)";
+  signal.style.strokeDashoffset = "0.4";
+
+  rerender(<TimelineProbe disabled />);
+
+  expect(document.documentElement).toHaveAttribute("data-motion-bootstrap", "static");
+  expect(entrance.kill).toHaveBeenCalledOnce();
+  expect(continuous.kill).toHaveBeenCalledOnce();
+  for (const target of [handoff, title, camera, fill, signal]) {
+    expect(target.style.opacity).toBe("");
+    expect(target.style.transform).toBe("");
+    expect(target.style.willChange).toBe("");
+  }
+  expect(signal.style.strokeDashoffset).toBe("");
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+
+  act(() => staleTrigger.onUpdate({ progress: 1 }));
+  act(() => staleTrigger.onLeaveBack());
+  expect(fill.style.transform).toBe("");
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+
+  rerender(<TimelineProbe disabled={false} />);
+  act(() => motion?.setHidden(true));
+  act(() => motion?.setHidden(false));
+  expect(continuousTimelines()).toHaveLength(1);
 });
 
 test.each(["absent", "static"])("does not prepare entrance for a %s bootstrap", (state) => {

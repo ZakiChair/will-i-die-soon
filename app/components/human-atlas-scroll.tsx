@@ -18,10 +18,15 @@ import { HumanAtlasGlow } from "./human-atlas-glow";
 
 type HumanAtlasScrollProps = Readonly<{
   activeScene?: HumanAtlasSceneId;
+  motionDisabled?: boolean;
+  onImageFailure?: () => void;
 }>;
 
 type HumanAtlasScrollViewProps = Readonly<{
   activeScene: HumanAtlasSceneId;
+  motionDisabled: boolean;
+  onImageFailure?: () => void;
+  sceneMotion: "parent" | "sequenced";
   sceneElements?: RefObject<HumanAtlasSceneElements>;
 }>;
 
@@ -44,6 +49,9 @@ export function HumanAtlasStaticStory() {
 
 function HumanAtlasScrollView({
   activeScene,
+  motionDisabled,
+  onImageFailure,
+  sceneMotion,
   sceneElements,
 }: HumanAtlasScrollViewProps) {
   const { t } = useI18n();
@@ -51,8 +59,22 @@ function HumanAtlasScrollView({
   const motionAllowed = motionStatus === "running";
   const staticFallback = motionStatus === "reduced" || motionStatus === "unsupported";
   const [imageFailed, setImageFailed] = useState(false);
+  const imageFailureReported = useRef(false);
   const atlasRef = useRef<HTMLElement>(null);
-  useAtlasSceneTransition(atlasRef, activeScene);
+  const staticMotion = staticFallback || motionDisabled || imageFailed;
+  const effectiveSceneMotion = staticMotion ? "static" : sceneMotion;
+  useAtlasSceneTransition(
+    atlasRef,
+    activeScene,
+    effectiveSceneMotion === "sequenced",
+  );
+
+  const handleImageFailure = () => {
+    if (imageFailureReported.current) return;
+    imageFailureReported.current = true;
+    setImageFailed(true);
+    onImageFailure?.();
+  };
 
   return (
     <section
@@ -60,7 +82,8 @@ function HumanAtlasScrollView({
       aria-label={t("landing.atlas.story.aria")}
       className={`human-atlas-scroll${imageFailed ? " human-atlas-scroll--failed" : ""}`}
       data-active-scene={activeScene}
-      data-motion={staticFallback ? "paused" : "running"}
+      data-motion={staticMotion ? "paused" : "running"}
+      data-scene-motion={effectiveSceneMotion}
     >
       <div className={`human-atlas-stage${imageFailed ? " human-atlas-stage--failed" : ""}`}>
         {!imageFailed ? (
@@ -74,7 +97,7 @@ function HumanAtlasScrollView({
               fetchPriority="high"
               height={941}
               loading="eager"
-              onError={() => setImageFailed(true)}
+              onError={handleImageFailure}
               sizes="100vw"
               src="/media/human-atlas-hero.webp"
               unoptimized
@@ -126,22 +149,44 @@ function HumanAtlasScrollView({
   );
 }
 
-function HumanAtlasScrollUncontrolled() {
+function HumanAtlasScrollUncontrolled({
+  motionDisabled,
+  onImageFailure,
+}: Pick<HumanAtlasScrollProps, "motionDisabled" | "onImageFailure">) {
   const sceneElements = useRef<HumanAtlasSceneElements>({});
   const activeScene = useActiveAtlasScene(sceneElements);
 
   return (
     <HumanAtlasScrollView
       activeScene={activeScene}
+      motionDisabled={motionDisabled ?? false}
+      onImageFailure={onImageFailure}
+      sceneMotion="parent"
       sceneElements={sceneElements}
     />
   );
 }
 
-export function HumanAtlasScroll({ activeScene }: HumanAtlasScrollProps) {
+export function HumanAtlasScroll({
+  activeScene,
+  motionDisabled = false,
+  onImageFailure,
+}: HumanAtlasScrollProps) {
   if (activeScene !== undefined) {
-    return <HumanAtlasScrollView activeScene={activeScene} />;
+    return (
+      <HumanAtlasScrollView
+        activeScene={activeScene}
+        motionDisabled={motionDisabled}
+        onImageFailure={onImageFailure}
+        sceneMotion="sequenced"
+      />
+    );
   }
 
-  return <HumanAtlasScrollUncontrolled />;
+  return (
+    <HumanAtlasScrollUncontrolled
+      motionDisabled={motionDisabled}
+      onImageFailure={onImageFailure}
+    />
+  );
 }

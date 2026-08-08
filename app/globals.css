@@ -236,6 +236,8 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   padding-left: clamp(18px, 4vw, 54px);
 }
 .human-atlas-scene { display: flex; align-items: center; min-height: var(--atlas-stage-height); opacity: .34; transform: translateY(18px); transition: opacity .55s ease, transform .55s ease; }
+.human-atlas-scroll[data-scene-motion="sequenced"] .human-atlas-scene { transition: none; }
+.human-atlas-scroll[data-scene-motion="static"] .human-atlas-scene { opacity: 1; transform: none; transition: none; }
 .human-atlas-scene[data-active="true"] { opacity: 1; transform: translateY(0); }
 .human-atlas-scene__card {
   padding: 22px 32px 24px 24px;

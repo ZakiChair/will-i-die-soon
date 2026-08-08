@@ -222,6 +222,29 @@ test("forces focused Atlas chapter items into their visible final state", () => 
   );
 });
 
+test("keeps sequenced Atlas parents final while children own the entrance", () => {
+  const parentOwner = declarationsFor(css, ".human-atlas-scene");
+  const sequencedParent = declarationsFor(
+    css,
+    '.human-atlas-scroll[data-scene-motion="sequenced"] .human-atlas-scene',
+  );
+
+  expect(parentOwner).toMatch(
+    /opacity:\s*\.34[\s\S]*transform:\s*translateY\(18px\)[\s\S]*transition:/,
+  );
+  expect(sequencedParent).toMatch(/transition:\s*none/);
+  expect(sequencedParent).not.toMatch(/opacity:\s*\.34|translateY\(18px\)/);
+});
+
+test("forces terminal Atlas scene parents into a static final state", () => {
+  expect(declarationsFor(
+    css,
+    '.human-atlas-scroll[data-scene-motion="static"] .human-atlas-scene',
+  )).toMatch(
+    /opacity:\s*1[\s\S]*transform:\s*none[\s\S]*transition:\s*none/,
+  );
+});
+
 test("draws risk-tree connectors from their trunk-facing origins with final defaults", () => {
   expect(declarationsFor(css, ".risk-tree::before")).toMatch(
     /transform:\s*translateX\(-50%\) scaleY\(var\(--risk-trunk-progress, 1\)\)[\s\S]*transform-origin:\s*top center/,

@@ -1,10 +1,18 @@
-import { render as testingRender, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as testingRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 vi.mock("gsap/ScrollTrigger", () => ({
   ScrollTrigger: { name: "ScrollTrigger", register: vi.fn() },
+}));
+
+const { mockUseLandingTimeline } = vi.hoisted(() => ({
+  mockUseLandingTimeline: vi.fn(() => "breath"),
+}));
+
+vi.mock("../hooks/use-landing-timeline", () => ({
+  useLandingTimeline: mockUseLandingTimeline,
 }));
 
 import { I18nProvider } from "../i18n/context";
@@ -36,7 +44,11 @@ function installReducedMotionPreference() {
   );
 }
 
-beforeEach(installReducedMotionPreference);
+beforeEach(() => {
+  mockUseLandingTimeline.mockClear();
+  mockUseLandingTimeline.mockReturnValue("breath");
+  installReducedMotionPreference();
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -109,6 +121,19 @@ test("separates hero entrance items from continuous handoff layers", () => {
   expect(title).toHaveAttribute("data-hero-handoff");
   expect(items[3].querySelector("[data-hero-handoff]")).toBeNull();
   expect(handoffs.every((handoff) => handoff.tagName === "SPAN")).toBe(true);
+});
+
+test("propagates Atlas image failure to the terminal landing timeline owner", async () => {
+  const { container } = render(<Landing onStart={vi.fn()} />);
+  const image = container.querySelector<HTMLImageElement>("[data-atlas-camera]");
+  if (!image) throw new Error("Missing Human Atlas image");
+
+  expect(mockUseLandingTimeline).toHaveBeenLastCalledWith(expect.any(Object), false);
+  fireEvent.error(image);
+
+  await waitFor(() => {
+    expect(mockUseLandingTimeline).toHaveBeenLastCalledWith(expect.any(Object), true);
+  });
 });
 
 test("keeps both Express routes usable and marks the controlled Atlas paused without matchMedia", async () => {

@@ -81,13 +81,15 @@ let motion: MotionEnvironment | undefined;
 
 function AtlasProbe({
   activeScene,
+  enabled = true,
   seeded = false,
 }: {
   activeScene: HumanAtlasSceneId;
+  enabled?: boolean;
   seeded?: boolean;
 }) {
   const scope = useRef<HTMLElement>(null);
-  useAtlasSceneTransition(scope, activeScene);
+  useAtlasSceneTransition(scope, activeScene, enabled);
 
   return (
     <main ref={scope}>
@@ -244,6 +246,26 @@ test("terminally settles a live entrance when reduced motion starts", () => {
   rerender(<AtlasProbe activeScene="sleep" />);
   expect(mockTimeline).toHaveBeenCalledOnce();
   expectFinalInlineState(sceneItems(container, "sleep"));
+});
+
+test("terminally settles an active entrance when disabled and never replays it", () => {
+  const { container, rerender } = render(
+    <AtlasProbe activeScene="breath" />,
+  );
+  rerender(<AtlasProbe activeScene="strength" />);
+  const activeTimeline = timelines[0];
+
+  rerender(<AtlasProbe activeScene="strength" enabled={false} seeded />);
+
+  expect(activeTimeline.kill).toHaveBeenCalledOnce();
+  expect(contexts.at(-1)?.revert).toHaveBeenCalled();
+  expectFinalInlineState(allItems(container));
+
+  rerender(<AtlasProbe activeScene="sleep" enabled />);
+  rerender(<AtlasProbe activeScene="energy" enabled />);
+
+  expect(mockTimeline).toHaveBeenCalledOnce();
+  expectFinalInlineState(allItems(container));
 });
 
 test("keeps synchronous reduced motion terminal and final", () => {

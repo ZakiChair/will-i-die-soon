@@ -222,6 +222,21 @@ test("uses controlled scene state without starting the observer fallback", () =>
     "true",
   );
   expect(observer).not.toHaveBeenCalled();
+  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
+    "data-scene-motion",
+    "sequenced",
+  );
+});
+
+test("keeps the observer fallback on the parent scene owner", () => {
+  installObserver();
+
+  const { container } = render(<HumanAtlasScroll />);
+
+  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
+    "data-scene-motion",
+    "parent",
+  );
 });
 
 test("pauses decorative glow motion for reduced motion and hidden documents without hiding copy", () => {
@@ -280,6 +295,44 @@ test("keeps the full explanation when the decorative image fails", () => {
     expect(item.style.opacity).toBe("");
     expect(item.style.transform).toBe("");
   }
+});
+
+test("reports image failure once and terminally switches controlled motion to static", () => {
+  const onImageFailure = vi.fn();
+  const { container } = render(
+    <HumanAtlasScroll activeScene="strength" onImageFailure={onImageFailure} />,
+  );
+  const image = container.querySelector<HTMLImageElement>(".human-atlas-stage img");
+  if (!image) throw new Error("Missing Human Atlas image");
+
+  fireEvent.error(image);
+  fireEvent.error(image);
+
+  expect(onImageFailure).toHaveBeenCalledOnce();
+  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
+    "data-scene-motion",
+    "static",
+  );
+  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
+    "data-motion",
+    "paused",
+  );
+});
+
+test("keeps externally disabled controlled chapters static without removing the story", () => {
+  const { container } = render(
+    <HumanAtlasScroll activeScene="sleep" motionDisabled />,
+  );
+
+  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
+    "data-scene-motion",
+    "static",
+  );
+  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
+    "data-motion",
+    "paused",
+  );
+  expect(headings()).toHaveLength(4);
 });
 
 test("keeps breath active and story source order when IntersectionObserver is unavailable", () => {

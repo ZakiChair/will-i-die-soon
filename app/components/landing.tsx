@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { DecorativeSectionBoundary } from "./decorative-section-boundary";
 import { HumanAtlasScroll, HumanAtlasStaticStory } from "./human-atlas-scroll";
@@ -40,9 +40,11 @@ export function Landing({ onStart }: LandingProps) {
   const { locale, t } = useI18n();
   const landingRef = useRef<HTMLDivElement>(null);
   const atlasExperienceRef = useRef<HTMLElement>(null);
-  const activeScene = useLandingTimeline(atlasExperienceRef);
+  const [atlasFailed, setAtlasFailed] = useState(false);
+  const activeScene = useLandingTimeline(atlasExperienceRef, atlasFailed);
   useSectionReveal(landingRef);
   const startExpress = () => onStart("express");
+  const handleAtlasImageFailure = useCallback(() => setAtlasFailed(true), []);
 
   return (
     <div className="landing" ref={landingRef}>
@@ -85,7 +87,11 @@ export function Landing({ onStart }: LandingProps) {
           </div>
           <div className="landing__atlas-decorative">
             <DecorativeSectionBoundary fallback={<HumanAtlasStaticStory />}>
-              <HumanAtlasScroll activeScene={activeScene} />
+              <HumanAtlasScroll
+                activeScene={activeScene}
+                motionDisabled={atlasFailed}
+                onImageFailure={handleAtlasImageFailure}
+              />
             </DecorativeSectionBoundary>
           </div>
         </section>
