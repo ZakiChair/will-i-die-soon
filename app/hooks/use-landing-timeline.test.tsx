@@ -23,6 +23,7 @@ type TimelineDouble = Readonly<{
 };
 
 const {
+  continuousTweenError,
   contexts,
   mockGsap,
   mockGsapSet,
@@ -33,6 +34,7 @@ const {
   timelines,
   useGsapConfigs,
 } = vi.hoisted(() => {
+  const continuousTweenError = { current: false };
   const timelines: TimelineDouble[] = [];
   const contexts: Array<{ revert: ReturnType<typeof vi.fn> }> = [];
   const useGsapConfigs: Array<Record<string, unknown>> = [];
@@ -68,6 +70,10 @@ const {
       to: vi.fn((targets, to, position) => {
         const nodes = elements(targets);
         calls.push({ method: "to", targets: nodes, to, position });
+        if ("scrollTrigger" in options && continuousTweenError.current) {
+          apply(nodes, to);
+          throw new Error("cannot add continuous tween");
+        }
         return timeline;
       }),
     } as TimelineDouble;
@@ -97,6 +103,7 @@ const {
   });
 
   return {
+    continuousTweenError,
     contexts,
     mockGsap,
     mockGsapSet,
@@ -193,6 +200,7 @@ function expectFinalHeroInlineState(): void {
 }
 
 beforeEach(() => {
+  continuousTweenError.current = false;
   Object.assign(mockGsap, { set: mockGsapSet, timeline: mockTimeline });
   Object.assign(mockScrollTrigger, { create: mockTriggerCreate });
   document.documentElement.removeAttribute("data-motion-bootstrap");
@@ -406,6 +414,50 @@ test("kills and reverts a partial continuous timeline when tween setup throws", 
   expect(partialTimeline.kill).toHaveBeenCalledOnce();
   expect(contexts.some((context) => context.revert.mock.calls.length > 0)).toBe(true);
   expectFinalHeroInlineState();
+});
+
+test("terminally finalizes an active entrance when continuous setup throws", () => {
+  startPendingBootstrap();
+  continuousTweenError.current = true;
+
+  render(<TimelineProbe />);
+
+  const entrance = entranceTimeline();
+  const continuous = continuousTimeline();
+  const allHeroLayers = Array.from(document.querySelectorAll<HTMLElement>(
+    "[data-hero-item], [data-hero-handoff]",
+  ));
+
+  expect(document.documentElement).toHaveAttribute("data-motion-bootstrap", "static");
+  expect(continuous.kill).toHaveBeenCalledOnce();
+  expect(entrance.kill).toHaveBeenCalledOnce();
+  expect(contexts[0].revert).toHaveBeenCalledOnce();
+  for (const node of allHeroLayers) {
+    expect(node.style.opacity).toBe("");
+    expect(node.style.transform).toBe("");
+    expect(node.style.visibility).toBe("");
+    expect(node.style.willChange).toBe("");
+    expect(node.style.clipPath).toBe("");
+  }
+
+  continuousTweenError.current = false;
+  act(() => motion?.setHidden(true));
+  act(() => motion?.setHidden(false));
+  expect(timelines.filter((timeline) => !("scrollTrigger" in timeline.options))).toHaveLength(1);
+});
+
+test("recreates only continuous motion after a completed entrance is hidden", () => {
+  startPendingBootstrap();
+  render(<TimelineProbe />);
+  const complete = entranceTimeline().options as { onComplete?: () => void };
+  act(() => complete.onComplete?.());
+  expect(document.documentElement).not.toHaveAttribute("data-motion-bootstrap");
+
+  act(() => motion?.setHidden(true));
+  act(() => motion?.setHidden(false));
+
+  expect(timelines.filter((timeline) => !("scrollTrigger" in timeline.options))).toHaveLength(1);
+  expect(timelines.filter((timeline) => "scrollTrigger" in timeline.options)).toHaveLength(2);
 });
 
 test.each(["absent", "static"])("does not prepare entrance for a %s bootstrap", (state) => {

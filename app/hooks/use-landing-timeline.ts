@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type RefObject } from "react";
+import { useRef, useState, type RefObject } from "react";
 
 import {
   humanAtlasSceneIds,
@@ -56,6 +56,7 @@ export function useLandingTimeline(
 ): HumanAtlasSceneId {
   const [activeScene, setActiveScene] = useState<HumanAtlasSceneId>("breath");
   const motionAllowed = useDecorativeMotion();
+  const terminateEntrance = useRef<(() => void) | null>(null);
 
   useGSAP(
     (context) => {
@@ -67,10 +68,14 @@ export function useLandingTimeline(
       let observation: DecorativeMotionObservation | undefined;
       let timeline: ReturnType<typeof gsap.timeline> | undefined;
       let terminal = false;
+      let ownedTerminator: (() => void) | undefined;
 
       const cleanup = (revertContext: boolean): void => {
         if (terminal) return;
         terminal = true;
+        if (terminateEntrance.current === ownedTerminator) {
+          terminateEntrance.current = null;
+        }
         try {
           observation?.dispose();
         } catch {
@@ -93,6 +98,7 @@ export function useLandingTimeline(
       };
 
       if (root.dataset.motionBootstrap !== "pending") {
+        terminateEntrance.current = null;
         clearInlineMotion(heroItems);
         settleHeroBootstrap();
         return;
@@ -117,10 +123,15 @@ export function useLandingTimeline(
           return;
         }
 
+        ownedTerminator = () => cleanup(true);
+        terminateEntrance.current = ownedTerminator;
         timeline = gsap.timeline({
           onComplete: () => {
             if (terminal) return;
             terminal = true;
+            if (terminateEntrance.current === ownedTerminator) {
+              terminateEntrance.current = null;
+            }
             try {
               observation?.dispose();
             } catch {
@@ -252,6 +263,11 @@ export function useLandingTimeline(
           context.revert();
         } catch {
           // DOM final-state cleanup below must still run.
+        }
+        try {
+          terminateEntrance.current?.();
+        } catch {
+          // Continuous final-state cleanup below must still run.
         }
         settleHeroBootstrap();
         clearContinuousState();
