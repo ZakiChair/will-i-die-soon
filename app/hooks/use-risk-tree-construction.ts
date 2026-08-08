@@ -74,24 +74,12 @@ export function useRiskTreeConstruction(
     }
 
     const parts = riskTreeParts(tree);
-    clearRiskTree(parts);
-    if (cancelledRef.current) return;
-
-    if (
-      typeof gsap.context !== "function"
-      || typeof gsap.set !== "function"
-      || typeof gsap.timeline !== "function"
-      || typeof ScrollTrigger.create !== "function"
-      || !hasCompleteTree(parts)
-    ) {
-      cancelledRef.current = true;
-      return;
-    }
-
     let context: ReturnType<typeof gsap.context> | undefined;
     let observation: DecorativeMotionObservation | undefined;
     let timeline: ReturnType<typeof gsap.timeline> | undefined;
     let trigger: ReturnType<typeof ScrollTrigger.create> | undefined;
+    let motionStoppedDuringPreflight = false;
+    let preflightComplete = false;
     let terminal = false;
 
     const terminalCleanup = (): void => {
@@ -123,16 +111,34 @@ export function useRiskTreeConstruction(
     };
 
     try {
+      const hasContext = typeof gsap.context === "function";
+      const hasSet = typeof gsap.set === "function";
+      const hasTimeline = typeof gsap.timeline === "function";
+      const hasTrigger = typeof ScrollTrigger.create === "function";
+      const completeTree = hasCompleteTree(parts);
+
       observation = observeDecorativeMotion((status) => {
-        if (status !== "running") terminalCleanup();
+        if (!preflightComplete) {
+          motionStoppedDuringPreflight ||= status !== "running";
+        } else if (status !== "running") {
+          terminalCleanup();
+        }
       });
+      const initialMotionStatus = observation.status;
+      const belowViewport = tree.getBoundingClientRect().top > window.innerHeight;
+      preflightComplete = true;
 
-      if (observation.status !== "running") {
-        terminalCleanup();
-        return;
-      }
-
-      if (tree.getBoundingClientRect().top <= window.innerHeight) {
+      if (
+        cancelledRef.current
+        || !hasContext
+        || !hasSet
+        || !hasTimeline
+        || !hasTrigger
+        || !completeTree
+        || initialMotionStatus !== "running"
+        || motionStoppedDuringPreflight
+        || !belowViewport
+      ) {
         terminalCleanup();
         return;
       }

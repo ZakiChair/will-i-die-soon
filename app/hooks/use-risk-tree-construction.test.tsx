@@ -188,6 +188,87 @@ function expectFinalInlineState(container: HTMLElement): void {
   }
 }
 
+function trackPreflightOrder(
+  order: string[],
+  { timeline = mockTimeline }: { timeline?: typeof mockTimeline | undefined } = {},
+): () => void {
+  if (!motion) throw new Error("Missing motion environment");
+
+  const propertyRestores = [
+    [mockGsap, "context", mockContext, "capability:context"],
+    [mockGsap, "set", mockSet, "capability:set"],
+    [mockGsap, "timeline", timeline, "capability:timeline"],
+    [mockScrollTrigger, "create", mockTriggerCreate, "capability:create"],
+  ].map(([target, property, value, label]) => {
+    const descriptor = Object.getOwnPropertyDescriptor(target, property as PropertyKey);
+    Object.defineProperty(target, property as PropertyKey, {
+      configurable: true,
+      get: () => {
+        order.push(String(label));
+        return value;
+      },
+    });
+    return () => {
+      if (descriptor) Object.defineProperty(target, property as PropertyKey, descriptor);
+    };
+  });
+
+  const matchesDescriptor = Object.getOwnPropertyDescriptor(motion.media, "matches");
+  Object.defineProperty(motion.media, "matches", {
+    configurable: true,
+    get: () => {
+      order.push("status");
+      return matchesDescriptor?.get?.call(motion?.media) ?? false;
+    },
+  });
+
+  const nativeHasAttribute = HTMLElement.prototype.hasAttribute;
+  vi.spyOn(HTMLElement.prototype, "hasAttribute").mockImplementation(function (
+    this: HTMLElement,
+    name: string,
+  ) {
+    if (name === "data-risk-tree-trunk") order.push("structure");
+    return nativeHasAttribute.call(this, name);
+  });
+  vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(() => {
+    order.push("geometry");
+    return rectangle(treeTop);
+  });
+
+  const nativeRemoveProperty = CSSStyleDeclaration.prototype.removeProperty;
+  vi.spyOn(CSSStyleDeclaration.prototype, "removeProperty").mockImplementation(function (
+    this: CSSStyleDeclaration,
+    property: string,
+  ) {
+    if (
+      property === "--risk-trunk-progress"
+      || property === "--risk-branch-progress"
+      || property === "opacity"
+      || property === "transform"
+    ) {
+      order.push("mutation:remove");
+    }
+    return nativeRemoveProperty.call(this, property);
+  });
+  const nativeSetProperty = CSSStyleDeclaration.prototype.setProperty;
+  vi.spyOn(CSSStyleDeclaration.prototype, "setProperty").mockImplementation(function (
+    this: CSSStyleDeclaration,
+    property: string,
+    value: string | null,
+    priority?: string,
+  ) {
+    if (property === "--risk-trunk-progress" && value === "0") {
+      order.push("mutation:initial");
+    }
+    return nativeSetProperty.call(this, property, value, priority);
+  });
+
+  return () => {
+    propertyRestores.reverse().forEach((restore) => restore());
+    if (matchesDescriptor) Object.defineProperty(motion?.media, "matches", matchesDescriptor);
+  };
+}
+
 beforeEach(() => {
   treeTop = window.innerHeight + 100;
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(() => (
@@ -271,6 +352,55 @@ test("keeps a tree touching the viewport bottom in its CSS-defined final state",
   expect(mockTimeline).not.toHaveBeenCalled();
   expect(mockTriggerCreate).not.toHaveBeenCalled();
   expectFinalInlineState(container);
+});
+
+test("completes callable, structure, status, and geometry preflight before visible fallback mutation", () => {
+  treeTop = window.innerHeight;
+  const order: string[] = [];
+  const restoreReads = trackPreflightOrder(order);
+  const { container } = render(<TreeProbe seeded />);
+  restoreReads();
+
+  const firstMutation = order.indexOf("mutation:remove");
+  expect(firstMutation).toBeGreaterThanOrEqual(0);
+  for (const read of [
+    "capability:context",
+    "capability:set",
+    "capability:timeline",
+    "capability:create",
+    "structure",
+    "status",
+    "geometry",
+  ]) {
+    expect(order.indexOf(read), `${read} must precede fallback mutation`).toBeLessThan(
+      firstMutation,
+    );
+  }
+  expectFinalInlineState(container);
+});
+
+test("does not mutate seeded styles before successful offscreen preflight establishes ownership", () => {
+  const order: string[] = [];
+  const restoreReads = trackPreflightOrder(order);
+  render(<TreeProbe seeded />);
+  restoreReads();
+
+  const initialMutation = order.indexOf("mutation:initial");
+  expect(initialMutation).toBeGreaterThanOrEqual(0);
+  expect(order.indexOf("mutation:remove")).toBe(-1);
+  for (const read of [
+    "capability:context",
+    "capability:set",
+    "capability:timeline",
+    "capability:create",
+    "structure",
+    "status",
+    "geometry",
+  ]) {
+    expect(order.indexOf(read), `${read} must precede initial mutation`).toBeLessThan(
+      initialMutation,
+    );
+  }
 });
 
 test("kills, reverts, clears, and unsubscribes when construction completes", () => {
