@@ -44,3 +44,19 @@ test("registers useGSAP and ScrollTrigger when matchMedia is supported", async (
   expect(registerPlugin).toHaveBeenNthCalledWith(1, mockUseGSAP);
   expect(registerPlugin).toHaveBeenNthCalledWith(2, mockScrollTrigger);
 });
+
+test("does not register ScrollTrigger when matchMedia throws", async () => {
+  const matchMedia = vi.fn(() => {
+    throw new Error("matchMedia unavailable");
+  });
+  vi.stubGlobal("matchMedia", matchMedia);
+
+  const client = await import("./gsap-client");
+
+  expect(client.gsap).toBe(mockGsap);
+  expect(client.useGSAP).toBe(mockUseGSAP);
+  expect(matchMedia).toHaveBeenCalledWith("(prefers-reduced-motion: reduce)");
+  expect(registerPlugin).toHaveBeenCalledOnce();
+  expect(registerPlugin).toHaveBeenCalledWith(mockUseGSAP);
+  expect(registerPlugin).not.toHaveBeenCalledWith(mockScrollTrigger);
+});
