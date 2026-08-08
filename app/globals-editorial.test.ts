@@ -190,6 +190,12 @@ test("forces focused hero entrance items into their visible final state", () => 
   );
 });
 
+test("forces focused Atlas chapter items into their visible final state", () => {
+  expect(declarationsFor(css, "[data-atlas-scene-item]:focus-within")).toMatch(
+    /opacity:\s*1 !important[\s\S]*transform:\s*none !important/,
+  );
+});
+
 test("forces hero layers and the title mask final for reduced motion and print", () => {
   expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\),\s*print\s*\{/);
   const finalStateCss = css.slice(
@@ -221,5 +227,18 @@ test.each([
   );
   expect(declarationsFor(mediaCss, '[data-reveal-item="rule"]')).toMatch(
     /transform:\s*scaleX\(1\) !important/,
+  );
+});
+
+test.each([
+  ["reduced motion", css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"), css.indexOf("@media screen"))],
+  ["print", css.slice(css.indexOf("@media print"))],
+  ["image failure", declarationsFor(css, ".human-atlas-scroll--failed [data-atlas-scene-item]")],
+])("forces Atlas chapter items into their final state for %s", (_name, stateCss) => {
+  const declarations = stateCss.includes("{")
+    ? declarationsFor(stateCss, "[data-atlas-scene-item]")
+    : stateCss;
+  expect(declarations).toMatch(
+    /opacity:\s*1 !important[\s\S]*transform:\s*none !important/,
   );
 });

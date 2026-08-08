@@ -246,6 +246,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
 .human-atlas-scroll--failed { min-height: 0; }
 .human-atlas-scroll--failed [data-atlas-camera] { transform: none !important; }
 .human-atlas-scroll--failed [data-atlas-progress-fill] { transform: scaleX(1) !important; }
+.human-atlas-scroll--failed [data-atlas-scene-item] { opacity: 1 !important; transform: none !important; }
 .landing__atlas-experience:has(.human-atlas-scroll--failed) .landing__atlas-hero,
 .landing__atlas-experience:has(.human-atlas-static) .landing__atlas-hero {
   position: relative;
@@ -1192,6 +1193,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
 }
 
 [data-reveal-item]:focus-within,
+[data-atlas-scene-item]:focus-within,
 [data-reveal]:not(:has([data-reveal-item])):focus-within {
   opacity: 1 !important;
   transform: none !important;
@@ -1216,6 +1218,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   }
   [data-atlas-camera] { transform: none !important; }
   [data-atlas-progress-fill] { transform: scaleX(1) !important; }
+  [data-atlas-scene-item] { opacity: 1 !important; transform: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1247,6 +1250,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   .human-atlas-scroll[data-motion="paused"] .human-atlas-glow--breath, .human-atlas-scroll[data-motion="paused"] .human-atlas-glow--breath[data-active="true"] { opacity: .76; }
   .human-atlas-scroll[data-motion="paused"] [data-atlas-camera] { transform: none !important; }
   .human-atlas-scroll[data-motion="paused"] [data-atlas-progress-fill] { transform: scaleX(1) !important; }
+  .human-atlas-scroll[data-motion="paused"] [data-atlas-scene-item] { opacity: 1 !important; transform: none !important; }
 }
 
 @media print {
@@ -1254,6 +1258,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   [data-reveal], [data-motion-screen] { opacity: 1 !important; visibility: visible !important; transform: none !important; }
   [data-reveal-item] { opacity: 1 !important; visibility: visible !important; transform: none !important; }
   [data-reveal-item="rule"] { transform: scaleX(1) !important; }
+  [data-atlas-scene-item] { opacity: 1 !important; transform: none !important; }
   html { background: var(--mist); color-scheme: light; }
   body { color: var(--abyss); background: var(--mist); background-image: none; }
   .journey::before { display: none; }

@@ -11,6 +11,7 @@ import {
   useActiveAtlasScene,
   type HumanAtlasSceneElements,
 } from "../hooks/use-active-atlas-scene";
+import { useAtlasSceneTransition } from "../hooks/use-atlas-scene-transition";
 import { useDecorativeMotionStatus } from "../hooks/use-decorative-motion";
 import { useI18n } from "../i18n/context";
 import { HumanAtlasGlow } from "./human-atlas-glow";
@@ -50,9 +51,12 @@ function HumanAtlasScrollView({
   const motionAllowed = motionStatus === "running";
   const staticFallback = motionStatus === "reduced" || motionStatus === "unsupported";
   const [imageFailed, setImageFailed] = useState(false);
+  const atlasRef = useRef<HTMLElement>(null);
+  useAtlasSceneTransition(atlasRef, activeScene);
 
   return (
     <section
+      ref={atlasRef}
       aria-label={t("landing.atlas.story.aria")}
       className={`human-atlas-scroll${imageFailed ? " human-atlas-scroll--failed" : ""}`}
       data-active-scene={activeScene}
@@ -110,10 +114,10 @@ function HumanAtlasScrollView({
             }}
           >
             <div className="human-atlas-scene__card">
-              <p className="data-label">{t(scene.eyebrowKey)}</p>
-              <h3>{t(scene.titleKey)}</h3>
-              <p>{t(scene.descriptionKey)}</p>
-              <small>{t(scene.inputLabelKey)}</small>
+              <p className="data-label" data-atlas-scene-item>{t(scene.eyebrowKey)}</p>
+              <h3 data-atlas-scene-item>{t(scene.titleKey)}</h3>
+              <p data-atlas-scene-item>{t(scene.descriptionKey)}</p>
+              <small data-atlas-scene-item>{t(scene.inputLabelKey)}</small>
             </div>
           </section>
         ))}

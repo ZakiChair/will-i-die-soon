@@ -151,6 +151,13 @@ test("renders the local decorative atlas and four ordered story descriptions", (
   expect(container.querySelector("video, canvas")).not.toBeInTheDocument();
   expect(container.querySelector(".human-atlas-glow-set")).toBeInTheDocument();
   expect(container.querySelectorAll("svg[data-atlas-glow]")).toHaveLength(4);
+
+  const scenes = [...container.querySelectorAll<HTMLElement>("[data-atlas-scene]")];
+  expect(scenes).toHaveLength(4);
+  for (const scene of scenes) {
+    expect([...scene.querySelectorAll("[data-atlas-scene-item]")].map(({ tagName }) => tagName))
+      .toEqual(["P", "H3", "P", "SMALL"]);
+  }
 });
 
 test("updates only the displayed scene state as observer entries advance", () => {
@@ -264,6 +271,11 @@ test("keeps the full explanation when the decorative image fails", () => {
     "The brain sets the tempo.",
     "The digestive core lights up.",
   ]);
+  expect(container.querySelectorAll("[data-atlas-scene-item]")).toHaveLength(16);
+  for (const item of container.querySelectorAll<HTMLElement>("[data-atlas-scene-item]")) {
+    expect(item.style.opacity).toBe("");
+    expect(item.style.transform).toBe("");
+  }
 });
 
 test("keeps breath active and story source order when IntersectionObserver is unavailable", () => {
