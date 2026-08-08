@@ -233,6 +233,27 @@ test("reveals already-visible roots in new-content mode without measuring them a
   expect(mockTriggerCreate).toHaveBeenCalledTimes(3);
 });
 
+test("gives a terminal reveal an end-reachable trigger threshold", () => {
+  function TerminalRevealProbe() {
+    const scope = useRef<HTMLElement>(null);
+    useSectionReveal(scope);
+    return (
+      <main ref={scope}>
+        <footer data-reveal="single" data-reveal-terminal>Safety note</footer>
+      </main>
+    );
+  }
+
+  render(<TerminalRevealProbe />);
+
+  expect(mockTriggerCreate).toHaveBeenCalledWith({
+    animation: timelines[0],
+    once: true,
+    start: "top bottom",
+    trigger: document.querySelector("[data-reveal-terminal]"),
+  });
+});
+
 test("treats bare and invalid reveal values as single variants", () => {
   function BareRevealProbe() {
     const scope = useRef<HTMLElement>(null);

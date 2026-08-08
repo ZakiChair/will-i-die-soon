@@ -151,7 +151,9 @@ export function Landing({ onStart }: LandingProps) {
         </section>
       </div>
 
-      <footer className="landing__footnote" data-reveal="single">{t("landing.urgent")}</footer>
+      <footer className="landing__footnote" data-reveal="single" data-reveal-terminal>
+        {t("landing.urgent")}
+      </footer>
     </div>
   );
 }

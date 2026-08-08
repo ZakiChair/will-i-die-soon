@@ -173,7 +173,7 @@ export function useSectionReveal(
           triggers.push(ScrollTrigger.create({
             animation: timeline,
             once: true,
-            start: "top 84%",
+            start: root.hasAttribute("data-reveal-terminal") ? "top bottom" : "top 84%",
             trigger: root,
           }));
         }

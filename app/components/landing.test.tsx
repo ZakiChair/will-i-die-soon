@@ -77,6 +77,9 @@ test("makes Express the primary adult route outside decorative content", async (
     "group",
     "single",
   ]);
+  expect(container.querySelector(".landing__footnote")).toHaveAttribute(
+    "data-reveal-terminal",
+  );
   for (const root of roots) expect(root.querySelector("[data-reveal]")).toBeNull();
   expect(container.querySelector('[data-reveal-item="rule"]')).toHaveAttribute(
     "aria-hidden",
