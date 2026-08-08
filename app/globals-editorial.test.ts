@@ -184,6 +184,17 @@ test("masks only pending hero entrance items and keeps the title mask auto-heigh
   expect(declarationsFor(css, "[data-hero-handoff]")).toMatch(/display:\s*block/);
 });
 
+test("keeps an abyss contrast scrim behind the Atlas copy", () => {
+  expect(css).toMatch(
+    /\.human-atlas-stage::after\s*\{[^}]*content:\s*""[^}]*background:\s*color-mix\(in srgb, var\(--abyss\) 74%, transparent\)/s,
+  );
+  expect(declarationsFor(css, ".human-atlas-stage::after")).toMatch(
+    /position:\s*absolute[\s\S]*inset:\s*0[\s\S]*z-index:\s*5[\s\S]*pointer-events:\s*none/,
+  );
+  expect(declarationsFor(css, ".human-atlas-scenes")).toMatch(/z-index:\s*6/);
+  expect(declarationsFor(css, ".landing__atlas-hero")).toMatch(/z-index:\s*8/);
+});
+
 test("forces focused hero entrance items into their visible final state", () => {
   expect(declarationsFor(css, "[data-hero-item]:focus-within")).toMatch(
     /opacity:\s*1 !important[\s\S]*transform:\s*none !important[\s\S]*clip-path:\s*none !important/,

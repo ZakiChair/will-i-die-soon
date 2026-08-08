@@ -180,6 +180,14 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   background: var(--abyss);
   isolation: isolate;
 }
+.human-atlas-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--abyss) 74%, transparent);
+}
 .human-atlas-media {
   position: absolute;
   top: 50%;
@@ -241,6 +249,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
 .human-atlas-scene__card > p:not(.data-label) { color: var(--muted); line-height: 1.65; text-shadow: 0 1px 12px var(--abyss); }
 .human-atlas-scene small, .human-atlas-static small { color: var(--muted); font-family: var(--font-data), monospace; font-size: .75rem; line-height: 1.55; font-variant-numeric: tabular-nums lining-nums; }
 .human-atlas-stage--failed { display: grid; place-items: center; padding: 28px; }
+.human-atlas-stage--failed::after { display: none; }
 .human-atlas-stage--failed .human-atlas-progress { display: none; }
 .human-atlas-stage__fallback { max-width: 38ch; margin: 0; color: var(--muted); line-height: 1.6; }
 .human-atlas-scroll--failed { min-height: 0; }
