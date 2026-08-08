@@ -2,6 +2,10 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
+vi.mock("gsap/ScrollTrigger", () => ({
+  ScrollTrigger: { name: "ScrollTrigger", register: vi.fn() },
+}));
+
 import { I18nProvider, useI18n } from "../i18n/context";
 import { LanguageSwitcher } from "./language-switcher";
 import { Intermission } from "./intermission";

@@ -1,6 +1,10 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
+
+vi.mock("gsap/ScrollTrigger", () => ({
+  ScrollTrigger: { name: "ScrollTrigger", register: vi.fn() },
+}));
 
 import { I18nProvider } from "../i18n/context";
 import type { RiskLeaf } from "../lib/types";

@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import Home from "./page";
 
+vi.mock("gsap/ScrollTrigger", () => ({
+  ScrollTrigger: { name: "ScrollTrigger", register: vi.fn() },
+}));
+
 function installReducedMotionPreference() {
   vi.stubGlobal(
     "matchMedia",

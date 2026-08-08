@@ -7,6 +7,10 @@ import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 
+vi.mock("gsap/ScrollTrigger", () => ({
+  ScrollTrigger: { name: "ScrollTrigger", register: vi.fn() },
+}));
+
 import type { HumanAtlasSceneId } from "../data/human-atlas";
 import { I18nProvider } from "../i18n/context";
 import { LanguageSwitcher } from "./language-switcher";

@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
+vi.mock("gsap/ScrollTrigger", () => ({
+  ScrollTrigger: { name: "ScrollTrigger", register: vi.fn() },
+}));
+
 import { I18nProvider } from "../i18n/context";
 import * as labsModule from "../lib/labs";
 import { Assessment } from "./assessment";
