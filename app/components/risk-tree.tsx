@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 import { questionBank } from "../data/questions";
 import { useI18n } from "../i18n/context";
@@ -203,13 +203,20 @@ export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
     leaves.find((leaf) => leaf.id === requestedLeafId) ?? leaves[0];
   useEvidenceTransition(evidenceRef, selectedLeaf?.id);
   const leavesByPillar = indexRiskLeavesByPillar(leaves);
-  const renderedAnnouncement =
+  const announcementIsValid = Boolean(
     announcement
     && announcement.locale === locale
     && announcement.leafId === selectedLeaf?.id
-    && announcement.title === selectedLeaf.title
-      ? announcement.message
-      : "";
+    && announcement.title === selectedLeaf.title,
+  );
+  const renderedAnnouncement = announcementIsValid ? announcement?.message : "";
+
+  useEffect(() => {
+    if (!announcement || announcementIsValid) return;
+    // A committed mismatch permanently consumes this one-shot live message.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAnnouncement((current) => current === announcement ? null : current);
+  }, [announcement, announcementIsValid]);
 
   const handleSelect = (id: string) => {
     const nextLeaf = leaves.find((leaf) => leaf.id === id);

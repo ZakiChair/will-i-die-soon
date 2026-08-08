@@ -318,7 +318,7 @@ test("announces a user selection in the active French locale", async () => {
   );
 });
 
-test("clears a prior announcement when locale and localized evidence change", async () => {
+test("consumes an announcement across a locale and localized-evidence round trip", async () => {
   const user = userEvent.setup();
   const { rerender } = render(
     <I18nProvider>
@@ -355,9 +355,28 @@ test("clears a prior announcement when locale and localized evidence change", as
     "Carnet de preuves",
   );
   expect(screen.getByRole("status")).toBeEmptyDOMElement();
+
+  await user.click(screen.getByRole("button", { name: "Anglais" }));
+  rerender(
+    <I18nProvider>
+      <LanguageSwitcher />
+      <RiskTree
+        leaves={[
+          leaf("first", "urgent-chest", "First signal", [], "urgent"),
+          leaf("second", "adult-short-sleep", "Second signal", []),
+        ]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+
+  expect(screen.getByRole("region", { name: "Second signal" })).toHaveTextContent(
+    "Evidence notebook",
+  );
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
 });
 
-test("clears an announcement when its selected leaf is removed", async () => {
+test("consumes an announcement across a selected-leaf removal and restore", async () => {
   const user = userEvent.setup();
   const { rerender } = render(
     <I18nProvider>
@@ -389,6 +408,21 @@ test("clears an announcement when its selected leaf is removed", async () => {
     "aria-pressed",
     "true",
   );
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
+
+  rerender(
+    <I18nProvider>
+      <RiskTree
+        leaves={[
+          leaf("first", "urgent-chest", "First signal", [], "urgent"),
+          leaf("second", "adult-short-sleep", "Second signal", []),
+        ]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+
+  expect(screen.getByRole("region", { name: "Second signal" })).toBeVisible();
   expect(screen.getByRole("status")).toBeEmptyDOMElement();
 });
 
