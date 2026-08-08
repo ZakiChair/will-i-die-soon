@@ -16,6 +16,13 @@ export type RiskTreeProps = {
   readonly protectiveRoots: ReadonlyArray<string>;
 };
 
+type EvidenceAnnouncement = Readonly<{
+  leafId: string;
+  locale: string;
+  message: string;
+  title: string;
+}>;
+
 const questionsById = new Map(questionBank.map((question) => [question.id, question]));
 
 function LeafList({
@@ -184,24 +191,36 @@ function EvidencePanel({
 }
 
 export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const treeRef = useRef<HTMLElement>(null);
   const evidenceRef = useRef<HTMLDivElement>(null);
   useRiskTreeConstruction(treeRef);
   const [requestedLeafId, setRequestedLeafId] = useState<string | undefined>(
     leaves[0]?.id,
   );
-  const [announcement, setAnnouncement] = useState("");
+  const [announcement, setAnnouncement] = useState<EvidenceAnnouncement | null>(null);
   const selectedLeaf =
     leaves.find((leaf) => leaf.id === requestedLeafId) ?? leaves[0];
   useEvidenceTransition(evidenceRef, selectedLeaf?.id);
   const leavesByPillar = indexRiskLeavesByPillar(leaves);
+  const renderedAnnouncement =
+    announcement
+    && announcement.locale === locale
+    && announcement.leafId === selectedLeaf?.id
+    && announcement.title === selectedLeaf.title
+      ? announcement.message
+      : "";
 
   const handleSelect = (id: string) => {
     const nextLeaf = leaves.find((leaf) => leaf.id === id);
     if (!nextLeaf) return;
     setRequestedLeafId(id);
-    setAnnouncement(t("riskTree.evidence.selected", { title: nextLeaf.title }));
+    setAnnouncement({
+      leafId: nextLeaf.id,
+      locale,
+      message: t("riskTree.evidence.selected", { title: nextLeaf.title }),
+      title: nextLeaf.title,
+    });
   };
 
   return (
@@ -252,7 +271,7 @@ export function RiskTree({ leaves, protectiveRoots }: RiskTreeProps) {
       </nav>
       <EvidencePanel evidenceRef={evidenceRef} leaf={selectedLeaf} />
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {announcement}
+        {renderedAnnouncement}
       </p>
     </div>
   );

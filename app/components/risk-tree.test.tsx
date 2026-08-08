@@ -318,6 +318,80 @@ test("announces a user selection in the active French locale", async () => {
   );
 });
 
+test("clears a prior announcement when locale and localized evidence change", async () => {
+  const user = userEvent.setup();
+  const { rerender } = render(
+    <I18nProvider>
+      <LanguageSwitcher />
+      <RiskTree
+        leaves={[
+          leaf("first", "urgent-chest", "First signal", [], "urgent"),
+          leaf("second", "adult-short-sleep", "Second signal", []),
+        ]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: /Second signal/ }));
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "Evidence selected: Second signal",
+  );
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  rerender(
+    <I18nProvider>
+      <LanguageSwitcher />
+      <RiskTree
+        leaves={[
+          leaf("first", "urgent-chest", "Premier signal", [], "urgent"),
+          leaf("second", "adult-short-sleep", "Deuxième signal", []),
+        ]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+
+  expect(screen.getByRole("region", { name: "Deuxième signal" })).toHaveTextContent(
+    "Carnet de preuves",
+  );
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
+});
+
+test("clears an announcement when its selected leaf is removed", async () => {
+  const user = userEvent.setup();
+  const { rerender } = render(
+    <I18nProvider>
+      <RiskTree
+        leaves={[
+          leaf("first", "urgent-chest", "First signal", [], "urgent"),
+          leaf("second", "adult-short-sleep", "Second signal", []),
+        ]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: /Second signal/ }));
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "Evidence selected: Second signal",
+  );
+
+  rerender(
+    <I18nProvider>
+      <RiskTree
+        leaves={[leaf("first", "urgent-chest", "First signal", [], "urgent")]}
+        protectiveRoots={[]}
+      />
+    </I18nProvider>,
+  );
+
+  expect(screen.getByRole("region", { name: "First signal" })).toBeVisible();
+  expect(screen.getByRole("button", { name: /First signal/ })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
+});
+
 test("keeps only the final title after rapid evidence selections", async () => {
   const user = userEvent.setup();
   render(
