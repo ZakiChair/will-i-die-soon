@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { act, fireEvent, render as testingRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
@@ -122,13 +126,28 @@ test("renders the local decorative atlas and four ordered story descriptions", (
   ]);
 
   const image = container.querySelector<HTMLImageElement>(".human-atlas-stage img");
-  expect(image?.getAttribute("src")).toContain("human-atlas-hero.webp");
+  expect(new URL(image?.src ?? "about:blank").pathname).toBe(
+    "/media/human-atlas-hero.webp",
+  );
+  expect(image).toHaveAttribute("data-atlas-camera");
   expect(image).toHaveAttribute("alt", "");
   expect(image).toHaveAttribute("aria-hidden", "true");
+  expect(image).toHaveAttribute("decoding", "async");
+  expect(image).toHaveAttribute("draggable", "false");
   expect(image).toHaveAttribute("loading", "eager");
   expect(image).toHaveAttribute("fetchpriority", "high");
   expect(image).toHaveAttribute("width", "1672");
   expect(image).toHaveAttribute("height", "941");
+  expect(createHash("sha256").update(
+    readFileSync(join(process.cwd(), "public/media/human-atlas-hero.webp")),
+  ).digest("hex")).toBe(
+    "049911bc3c13c1151155d05c2449a629d801b9bfb3941c022e7b1a2af83f35e0",
+  );
+  expect(container.querySelector("[data-atlas-progress-fill]")).toBeInTheDocument();
+  expect(container.querySelectorAll(".human-atlas-progress__markers > span")).toHaveLength(4);
+  expect(container.querySelectorAll(
+    '.human-atlas-progress__markers > span[data-active="true"]',
+  )).toHaveLength(1);
   expect(container.querySelector("video, canvas")).not.toBeInTheDocument();
   expect(container.querySelector(".human-atlas-glow-set")).toBeInTheDocument();
   expect(container.querySelectorAll("svg[data-atlas-glow]")).toHaveLength(4);
@@ -154,7 +173,7 @@ test("updates only the displayed scene state as observer entries advance", () =>
     );
     expect(story).toHaveAttribute("data-active-scene", sceneId);
     expect(
-      container.querySelectorAll(`.human-atlas-progress [data-active="true"]`),
+      container.querySelectorAll(`.human-atlas-progress__markers [data-active="true"]`),
     ).toHaveLength(1);
     expect(
       container.querySelector(`[data-atlas-glow="${sceneId}"]`),
@@ -182,9 +201,9 @@ test("uses controlled scene state without starting the observer fallback", () =>
     "data-active-scene",
     "sleep",
   );
-  expect(container.querySelectorAll('.human-atlas-progress [data-active="true"]')).toHaveLength(1);
-  expect(container.querySelector('.human-atlas-progress [data-active="true"]')).toBe(
-    container.querySelectorAll(".human-atlas-progress span").item(2),
+  expect(container.querySelectorAll('.human-atlas-progress__markers [data-active="true"]')).toHaveLength(1);
+  expect(container.querySelector('.human-atlas-progress__markers [data-active="true"]')).toBe(
+    container.querySelectorAll(".human-atlas-progress__markers > span").item(2),
   );
   expect(container.querySelectorAll('svg[data-active="true"]')).toHaveLength(1);
   expect(container.querySelector('[data-atlas-glow="sleep"]')).toHaveAttribute(

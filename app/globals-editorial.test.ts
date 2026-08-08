@@ -204,6 +204,12 @@ test("forces hero layers and the title mask final for reduced motion and print",
   expect(declarationsFor(finalStateCss, "[data-hero-title-mask]")).toMatch(
     /clip-path:\s*none !important[\s\S]*overflow:\s*visible !important/,
   );
+  expect(declarationsFor(finalStateCss, "[data-atlas-camera]")).toMatch(
+    /transform:\s*none !important/,
+  );
+  expect(declarationsFor(finalStateCss, "[data-atlas-progress-fill]")).toMatch(
+    /transform:\s*scaleX\(1\) !important/,
+  );
 });
 
 test.each([

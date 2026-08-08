@@ -172,6 +172,8 @@ describe("bioluminescent global visual contract", () => {
     expect(declarationsFor(".human-atlas-stage")).toMatch(/height:\s*var\(--atlas-stage-height\)/);
     expect(declarationsFor(".human-atlas-media")).toMatch(/aspect-ratio:\s*1672 \/ 941/);
     expect(declarationsFor(".human-atlas-media")).toMatch(/transform:\s*translate\(-50%, -50%\)/);
+    expect(declarationsFor("[data-atlas-camera]")).toMatch(/transform-origin:\s*center/);
+    expect(declarationsFor("[data-atlas-camera]")).not.toMatch(/will-change/);
     expect(declarationsFor(".human-atlas-glow")).toMatch(/transform:\s*translateX\(-7\.4%\) scale\(\.985\)/);
     expect(declarationsFor(".human-atlas-glow")).toMatch(/mix-blend-mode:\s*screen/);
     expect(declarationsFor(".human-atlas-scroll")).toMatch(
@@ -180,6 +182,22 @@ describe("bioluminescent global visual contract", () => {
     expect(declarationsFor(".human-atlas-scenes")).toMatch(
       /margin-top:\s*calc\(-1 \* var\(--atlas-stage-height\)\)/,
     );
+  });
+
+  test("draws raw Atlas progress from the left without changing marker dimensions", () => {
+    expect(declarationsFor(".human-atlas-progress__rail")).toMatch(
+      /position:\s*relative[\s\S]*width:\s*38px[\s\S]*overflow:\s*hidden/,
+    );
+    expect(declarationsFor(".human-atlas-progress__fill")).toMatch(
+      /width:\s*100%[\s\S]*transform:\s*scaleX\(0\)[\s\S]*transform-origin:\s*left center/,
+    );
+    expect(declarationsFor(".human-atlas-progress__markers > span")).toMatch(
+      /width:\s*18px[\s\S]*height:\s*2px/,
+    );
+    expect(declarationsFor(
+      '.human-atlas-progress__markers > span[data-active="true"]',
+    )).toMatch(/width:\s*38px/);
+    expect(declarationsFor(".human-atlas-progress__fill")).not.toMatch(/data-active/);
   });
 
   test("puts mobile hero copy in normal flow above a shorter stable Atlas story", () => {
@@ -209,6 +227,12 @@ describe("bioluminescent global visual contract", () => {
     expect(declarationsFor(".human-atlas-scroll--failed .human-atlas-stage")).toMatch(/min-height:\s*240px/);
     expect(declarationsFor(".human-atlas-scroll--failed .human-atlas-scene")).toMatch(/opacity:\s*1/);
     expect(declarationsFor(".human-atlas-scroll--failed .human-atlas-scene")).toMatch(/transform:\s*none/);
+    expect(declarationsFor(".human-atlas-scroll--failed [data-atlas-camera]")).toMatch(
+      /transform:\s*none !important/,
+    );
+    expect(declarationsFor(".human-atlas-scroll--failed [data-atlas-progress-fill]")).toMatch(
+      /transform:\s*scaleX\(1\) !important/,
+    );
     expect(
       declarationsFor(
         ".landing__atlas-experience:has(.human-atlas-static) .landing__atlas-hero",
@@ -312,6 +336,12 @@ describe("bioluminescent global visual contract", () => {
     expect(reducedMotion).toMatch(/\.human-atlas-scroll\s*\{[^}]*min-height:\s*0/s);
     expect(reducedMotion).toMatch(/\.human-atlas-scene\s*\{[^}]*min-height:\s*0[^}]*opacity:\s*1[^}]*transform:\s*none/s);
     expect(reducedMotion).toMatch(/\[data-strength-signal\]\s*\{[^}]*animation:\s*none !important/s);
+    expect(reducedMotion).toMatch(
+      /\[data-atlas-camera\]\s*\{[^}]*transform:\s*none !important/s,
+    );
+    expect(reducedMotion).toMatch(
+      /\[data-atlas-progress-fill\]\s*\{[^}]*transform:\s*scaleX\(1\) !important/s,
+    );
     expect(reducedMotion).toMatch(/\.intermission__video\s*\{[^}]*display:\s*none !important/s);
     expect(reducedMotion).toMatch(
       /\.human-atlas-glow--breath,\s*\.human-atlas-glow--breath\[data-active="true"\]\s*\{[^}]*opacity:\s*\.76/s,
@@ -336,6 +366,12 @@ describe("bioluminescent global visual contract", () => {
     );
     expect(css).toMatch(
       /\.human-atlas-scroll\[data-motion="paused"\] \.human-atlas-scene\s*\{[^}]*transition:\s*none/s,
+    );
+    expect(css).toMatch(
+      /\.human-atlas-scroll\[data-motion="paused"\] \[data-atlas-camera\]\s*\{[^}]*transform:\s*none !important/s,
+    );
+    expect(css).toMatch(
+      /\.human-atlas-scroll\[data-motion="paused"\] \[data-atlas-progress-fill\]\s*\{[^}]*transform:\s*scaleX\(1\) !important/s,
     );
   });
 

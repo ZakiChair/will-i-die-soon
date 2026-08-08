@@ -45,8 +45,15 @@ const {
     for (const target of targets) {
       if (!(target instanceof HTMLElement || target instanceof SVGElement)) continue;
       if (values.opacity !== undefined) target.style.opacity = String(values.opacity);
+      if (values.scaleX !== undefined) {
+        target.style.transform = `scaleX(${String(values.scaleX)})`;
+      }
       if (values.y !== undefined) target.style.transform = `translateY(${String(values.y)}px)`;
-      target.style.willChange = "opacity, transform";
+      if (values.willChange !== undefined) {
+        target.style.willChange = String(values.willChange);
+      } else if (values.opacity !== undefined) {
+        target.style.willChange = "opacity, transform";
+      }
     }
   };
   const mockTimeline = vi.fn((options: Record<string, unknown> = {}) => {
@@ -123,12 +130,14 @@ vi.mock("../lib/gsap-client", () => ({
 }));
 
 import {
+  atlasMotionLimits,
   atlasSceneFromProgress,
   useLandingTimeline,
 } from "./use-landing-timeline";
 
 type ScrollTriggerConfig = Readonly<{
   onLeaveBack: () => void;
+  onRefresh: (trigger: { progress: number }) => void;
   onUpdate: (trigger: { progress: number }) => void;
   scrub: number;
   trigger: Element;
@@ -136,7 +145,15 @@ type ScrollTriggerConfig = Readonly<{
 
 let motion: MotionEnvironment | undefined;
 
-function TimelineProbe({ hero = true }: { hero?: boolean }) {
+function TimelineProbe({
+  camera = true,
+  fill = true,
+  hero = true,
+}: {
+  camera?: boolean;
+  fill?: boolean;
+  hero?: boolean;
+}) {
   const scope = useRef<HTMLElement>(null);
   const activeScene = useLandingTimeline(scope);
 
@@ -155,7 +172,12 @@ function TimelineProbe({ hero = true }: { hero?: boolean }) {
         </div>
       ) : null}
       <section className="human-atlas-scroll">
-        <div className="human-atlas-stage" />
+        <div className="human-atlas-stage">
+          <div className="human-atlas-media">
+            {camera ? <span data-atlas-camera /> : null}
+          </div>
+          {fill ? <span data-atlas-progress-fill /> : null}
+        </div>
         <svg aria-hidden="true">
           <path data-strength-signal="true" />
           <path data-strength-signal="true" />
@@ -175,6 +197,10 @@ function continuousTimeline(): TimelineDouble {
   const timeline = timelines.find((candidate) => "scrollTrigger" in candidate.options);
   if (!timeline) throw new Error("Missing continuous timeline");
   return timeline;
+}
+
+function continuousTimelines(): TimelineDouble[] {
+  return timelines.filter((candidate) => "scrollTrigger" in candidate.options);
 }
 
 function scrollTriggerConfig(): ScrollTriggerConfig {
@@ -225,6 +251,12 @@ test("clamps progress into the four canonical atlas scenes", () => {
   expect(atlasSceneFromProgress(0.67)).toBe("sleep");
   expect(atlasSceneFromProgress(1)).toBe("energy");
   expect(atlasSceneFromProgress(2)).toBe("energy");
+});
+
+test("selects the exact compact Atlas camera limits at the 850 pixel boundary", () => {
+  expect(atlasMotionLimits(1440)).toEqual({ heroY: 36, imageScale: 1.035, imageY: 8 });
+  expect(atlasMotionLimits(851)).toEqual({ heroY: 36, imageScale: 1.035, imageY: 8 });
+  expect(atlasMotionLimits(850)).toEqual({ heroY: 18, imageScale: 1.018, imageY: 4 });
 });
 
 test("runs the exact five-part entrance before the guard can settle pending motion", () => {
@@ -285,6 +317,30 @@ test("keeps entrance and continuous handoff motion on separate DOM layers", () =
   expect(continuousCalls.some((call) => call.to.visibility !== undefined)).toBe(false);
 });
 
+test("targets the Atlas image layer with responsive camera motion", () => {
+  vi.spyOn(window, "innerWidth", "get").mockReturnValue(850);
+  render(<TimelineProbe />);
+
+  const camera = document.querySelector("[data-atlas-camera]");
+  const media = document.querySelector(".human-atlas-media");
+  const cameraCall = continuousTimeline().calls.find((call) => (
+    call.method === "fromTo" && call.targets.includes(camera as Element)
+  ));
+
+  expect(cameraCall).toEqual(expect.objectContaining({
+    from: { scale: 1, y: 0 },
+    position: 0,
+    targets: [camera],
+    to: expect.objectContaining({ duration: 1, ease: "none", scale: 1.018, y: 4 }),
+  }));
+  expect(cameraCall?.targets).not.toContain(media);
+  expect((camera as HTMLElement).style.willChange).toBe("transform");
+  const handoffCall = continuousTimeline().calls.find((call) => (
+    call.method === "to" && call.targets.length === 4
+  ));
+  expect(handoffCall?.to).toEqual(expect.objectContaining({ y: -18 }));
+});
+
 test("preserves one scoped scrubbed Atlas timeline and strength-signal state", () => {
   render(<TimelineProbe />);
 
@@ -298,6 +354,7 @@ test("preserves one scoped scrubbed Atlas timeline and strength-signal state", (
     scrub: 0.8,
     trigger: document.querySelector(".human-atlas-scroll"),
   }));
+  expect(scrollTriggerConfig().onRefresh).toBe(scrollTriggerConfig().onUpdate);
   const strengthSignals = document.querySelectorAll("[data-strength-signal]");
   expect(continuousTimeline().calls).toContainEqual(expect.objectContaining({
     method: "fromTo",
@@ -314,9 +371,32 @@ test("preserves one scoped scrubbed Atlas timeline and strength-signal state", (
   }));
 
   act(() => scrollTriggerConfig().onUpdate({ progress: 0.6 }));
+  expect(mockGsapSet).toHaveBeenCalledWith(
+    document.querySelector("[data-atlas-progress-fill]"),
+    { scaleX: 0.6 },
+  );
   expect(screen.getByRole("status")).toHaveTextContent("sleep");
   act(() => scrollTriggerConfig().onLeaveBack());
   expect(screen.getByRole("status")).toHaveTextContent("breath");
+});
+
+test("keeps the progress fill within two percent of raw trigger progress", () => {
+  render(<TimelineProbe />);
+  const fill = document.querySelector<HTMLElement>("[data-atlas-progress-fill]");
+  if (!fill) throw new Error("Missing progress fill");
+
+  for (const progress of [0, 0.25, 0.5, 0.75, 1]) {
+    act(() => scrollTriggerConfig().onUpdate({ progress }));
+    const renderedProgress = Number(fill.style.transform.match(/scaleX\(([^)]+)\)/)?.[1]);
+    expect(Math.abs(renderedProgress - progress)).toBeLessThanOrEqual(0.02);
+  }
+});
+
+test("keeps camera and fill targets optional", () => {
+  expect(() => render(<TimelineProbe camera={false} fill={false} />)).not.toThrow();
+  expect(() => act(() => scrollTriggerConfig().onUpdate({ progress: 0.6 }))).not.toThrow();
+  expect(() => act(() => scrollTriggerConfig().onRefresh({ progress: 0.6 }))).not.toThrow();
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
 });
 
 test("settles an interrupted entrance on unmount and releases owned resources", () => {
@@ -446,18 +526,50 @@ test("terminally finalizes an active entrance when continuous setup throws", () 
   expect(timelines.filter((timeline) => !("scrollTrigger" in timeline.options))).toHaveLength(1);
 });
 
-test("recreates only continuous motion after a completed entrance is hidden", () => {
+test("recreates only continuous motion at raw progress after a completed entrance is hidden", () => {
   startPendingBootstrap();
   render(<TimelineProbe />);
   const complete = entranceTimeline().options as { onComplete?: () => void };
   act(() => complete.onComplete?.());
   expect(document.documentElement).not.toHaveAttribute("data-motion-bootstrap");
 
+  const firstContinuous = continuousTimeline();
+  const firstContinuousContext = contexts[1];
+  act(() => scrollTriggerConfig().onUpdate({ progress: 0.6 }));
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+
   act(() => motion?.setHidden(true));
+  expect(firstContinuousContext.revert).toHaveBeenCalled();
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
   act(() => motion?.setHidden(false));
 
   expect(timelines.filter((timeline) => !("scrollTrigger" in timeline.options))).toHaveLength(1);
-  expect(timelines.filter((timeline) => "scrollTrigger" in timeline.options)).toHaveLength(2);
+  expect(continuousTimelines()).toHaveLength(2);
+  expect(continuousTimelines()[1]).not.toBe(firstContinuous);
+
+  const replacementConfig = continuousTimelines()[1].options.scrollTrigger as ScrollTriggerConfig;
+  act(() => replacementConfig.onRefresh({ progress: 0.6 }));
+  expect(mockGsapSet).toHaveBeenLastCalledWith(
+    document.querySelector("[data-atlas-progress-fill]"),
+    { scaleX: 0.6 },
+  );
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+});
+
+test("clears camera will-change and raw fill state on continuous cleanup", () => {
+  const { unmount } = render(<TimelineProbe />);
+  const camera = document.querySelector<HTMLElement>("[data-atlas-camera]");
+  const fill = document.querySelector<HTMLElement>("[data-atlas-progress-fill]");
+  if (!camera || !fill) throw new Error("Missing Atlas motion targets");
+  act(() => scrollTriggerConfig().onUpdate({ progress: 0.6 }));
+  expect(camera.style.willChange).toBe("transform");
+  expect(fill.style.transform).toBe("scaleX(0.6)");
+
+  unmount();
+
+  expect(camera.style.willChange).toBe("");
+  expect(camera.style.transform).toBe("");
+  expect(fill.style.transform).toBe("");
 });
 
 test.each(["absent", "static"])("does not prepare entrance for a %s bootstrap", (state) => {

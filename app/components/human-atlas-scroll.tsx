@@ -64,6 +64,7 @@ function HumanAtlasScrollView({
             <Image
               aria-hidden="true"
               alt=""
+              data-atlas-camera
               decoding="async"
               draggable={false}
               fetchPriority="high"
@@ -83,9 +84,17 @@ function HumanAtlasScrollView({
           <p className="human-atlas-stage__fallback">{t("landing.atlas.imageFailure")}</p>
         )}
         <div className="human-atlas-progress" aria-hidden="true">
-          {humanAtlasScenes.map((scene) => (
-            <span data-active={activeScene === scene.id ? "true" : "false"} key={scene.id} />
-          ))}
+          <span className="human-atlas-progress__rail">
+            <span className="human-atlas-progress__fill" data-atlas-progress-fill />
+          </span>
+          <span className="human-atlas-progress__markers">
+            {humanAtlasScenes.map((scene) => (
+              <span
+                data-active={activeScene === scene.id ? "true" : "false"}
+                key={scene.id}
+              />
+            ))}
+          </span>
         </div>
       </div>
 

@@ -192,6 +192,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
 }
 .human-atlas-media > img, .human-atlas-glow-set { position: absolute; inset: 0; width: 100%; height: 100%; }
 .human-atlas-media > img { object-fit: cover; filter: saturate(.7) brightness(.58) contrast(1.15); }
+[data-atlas-camera] { transform-origin: center; }
 .human-atlas-glow-set, .human-atlas-glow, .human-atlas-glow-set > [data-motion] { pointer-events: none; }
 .human-atlas-glow-set > [data-motion] { position: absolute; inset: 0; width: 100%; height: 100%; }
 .human-atlas-glow {
@@ -212,9 +213,12 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
 @keyframes atlas-breath { from { opacity: .72; } to { opacity: 1; } }
 @keyframes atlas-sleep { from { filter: brightness(.84); } to { filter: brightness(1.16); } }
 @keyframes atlas-energy { from { opacity: .66; } to { opacity: 1; } }
-.human-atlas-progress { position: absolute; z-index: 4; right: 20px; bottom: 20px; display: grid; gap: 7px; }
-.human-atlas-progress span { width: 18px; height: 2px; background: color-mix(in srgb, var(--mist) 24%, transparent); }
-.human-atlas-progress span[data-active="true"] { width: 38px; background: var(--phosphor); }
+.human-atlas-progress { position: absolute; z-index: 4; right: 20px; bottom: 20px; display: grid; width: 38px; gap: 9px; }
+.human-atlas-progress__rail { position: relative; display: block; width: 38px; height: 2px; overflow: hidden; background: color-mix(in srgb, var(--mist) 24%, transparent); }
+.human-atlas-progress__fill { display: block; width: 100%; height: 100%; background: var(--phosphor); transform: scaleX(0); transform-origin: left center; }
+.human-atlas-progress__markers { display: grid; gap: 7px; justify-items: end; }
+.human-atlas-progress__markers > span { width: 18px; height: 2px; background: color-mix(in srgb, var(--mist) 24%, transparent); }
+.human-atlas-progress__markers > span[data-active="true"] { width: 38px; background: var(--phosphor); }
 .human-atlas-scenes {
   position: relative;
   z-index: 6;
@@ -240,6 +244,8 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
 .human-atlas-stage--failed .human-atlas-progress { display: none; }
 .human-atlas-stage__fallback { max-width: 38ch; margin: 0; color: var(--muted); line-height: 1.6; }
 .human-atlas-scroll--failed { min-height: 0; }
+.human-atlas-scroll--failed [data-atlas-camera] { transform: none !important; }
+.human-atlas-scroll--failed [data-atlas-progress-fill] { transform: scaleX(1) !important; }
 .landing__atlas-experience:has(.human-atlas-scroll--failed) .landing__atlas-hero,
 .landing__atlas-experience:has(.human-atlas-static) .landing__atlas-hero {
   position: relative;
@@ -1208,6 +1214,8 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
     clip-path: none !important;
     overflow: visible !important;
   }
+  [data-atlas-camera] { transform: none !important; }
+  [data-atlas-progress-fill] { transform: scaleX(1) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1237,6 +1245,8 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   .human-atlas-scroll[data-motion="paused"] .human-atlas-glow { transition: none; animation: none; }
   .human-atlas-scroll[data-motion="paused"] .human-atlas-glow[data-active="true"] { opacity: 0; transform: translateX(-7.4%) scale(1); }
   .human-atlas-scroll[data-motion="paused"] .human-atlas-glow--breath, .human-atlas-scroll[data-motion="paused"] .human-atlas-glow--breath[data-active="true"] { opacity: .76; }
+  .human-atlas-scroll[data-motion="paused"] [data-atlas-camera] { transform: none !important; }
+  .human-atlas-scroll[data-motion="paused"] [data-atlas-progress-fill] { transform: scaleX(1) !important; }
 }
 
 @media print {

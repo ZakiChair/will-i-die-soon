@@ -51,6 +51,16 @@ export function atlasSceneFromProgress(progress: number): HumanAtlasSceneId {
   return humanAtlasSceneIds[sceneIndex];
 }
 
+export function atlasMotionLimits(width: number): {
+  heroY: number;
+  imageScale: number;
+  imageY: number;
+} {
+  return width <= 850
+    ? { heroY: 18, imageScale: 1.018, imageY: 4 }
+    : { heroY: 36, imageScale: 1.035, imageY: 8 };
+}
+
 export function useLandingTimeline(
   scope: RefObject<HTMLElement | null>,
 ): HumanAtlasSceneId {
@@ -191,18 +201,23 @@ export function useLandingTimeline(
         ? Array.from(landingScope.querySelectorAll<HTMLElement>("[data-hero-handoff]"))
         : [];
       const title = landingScope?.querySelector<HTMLElement>("[data-hero-title]");
+      const camera = landingScope?.querySelector<HTMLElement>("[data-atlas-camera]");
+      const progressFill = landingScope?.querySelector<HTMLElement>(
+        "[data-atlas-progress-fill]",
+      );
       const strengthSignals = landingScope?.querySelectorAll<SVGPathElement>(
         "[data-strength-signal]",
       ) ?? [];
       const clearContinuousState = () => {
         clearInlineMotion(handoffTargets);
+        if (camera) clearInlineMotion([camera]);
+        if (progressFill) clearInlineMotion([progressFill]);
         clearInlineMotion(strengthSignals);
       };
       let timeline: ReturnType<typeof gsap.timeline> | undefined;
 
       if (!motionAllowed) {
         clearContinuousState();
-        setActiveScene("breath");
         return;
       }
       if (
@@ -212,7 +227,6 @@ export function useLandingTimeline(
       ) {
         settleHeroBootstrap();
         clearContinuousState();
-        setActiveScene("breath");
         return;
       }
 
@@ -221,16 +235,25 @@ export function useLandingTimeline(
         : landingScope.querySelector<HTMLElement>(".human-atlas-scroll");
       if (!atlas) {
         clearContinuousState();
-        setActiveScene("breath");
         return;
       }
 
       try {
+        const limits = atlasMotionLimits(window.innerWidth);
+        const syncAtlasProgress = ({ progress }: { progress: number }) => {
+          const finiteProgress = Number.isNaN(progress) ? 0 : progress;
+          const clampedProgress = Math.min(1, Math.max(0, finiteProgress));
+          if (progressFill) gsap.set(progressFill, { scaleX: clampedProgress });
+          setActiveScene(atlasSceneFromProgress(clampedProgress));
+        };
+
+        if (camera) camera.style.willChange = "transform";
         timeline = gsap.timeline({
           scrollTrigger: {
             end: "bottom bottom",
             onLeaveBack: () => setActiveScene("breath"),
-            onUpdate: ({ progress }) => setActiveScene(atlasSceneFromProgress(progress)),
+            onRefresh: syncAtlasProgress,
+            onUpdate: syncAtlasProgress,
             scrub: 0.8,
             start: "top top",
             trigger: atlas,
@@ -238,10 +261,23 @@ export function useLandingTimeline(
         });
 
         if (handoffTargets.length > 0) {
-          timeline.to(handoffTargets, { duration: 1, ease: "none", y: -36 }, 0);
+          timeline.to(handoffTargets, { duration: 1, ease: "none", y: -limits.heroY }, 0);
         }
         if (title) {
           timeline.to(title, { duration: 1, ease: "none", opacity: 0.82 }, 0);
+        }
+        if (camera) {
+          timeline.fromTo(
+            camera,
+            { scale: 1, y: 0 },
+            {
+              duration: 1,
+              ease: "none",
+              scale: limits.imageScale,
+              y: limits.imageY,
+            },
+            0,
+          );
         }
         if (strengthSignals.length > 0) {
           timeline
@@ -272,6 +308,8 @@ export function useLandingTimeline(
         settleHeroBootstrap();
         clearContinuousState();
       }
+
+      return clearContinuousState;
     },
     { dependencies: [motionAllowed], revertOnUpdate: true, scope },
   );
