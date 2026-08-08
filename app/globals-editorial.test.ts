@@ -195,6 +195,21 @@ test("keeps an abyss contrast scrim behind the Atlas copy", () => {
   expect(declarationsFor(css, ".landing__atlas-hero")).toMatch(/z-index:\s*8/);
 });
 
+test("keeps Atlas progress above the contrast scrim and below foreground copy", () => {
+  const zIndex = (selector: string) => Number(
+    declarationsFor(css, selector).match(/z-index:\s*(\d+)/)?.[1],
+  );
+  const scrim = zIndex(".human-atlas-stage::after");
+  const progress = zIndex(".human-atlas-progress");
+  const scenes = zIndex(".human-atlas-scenes");
+  const hero = zIndex(".landing__atlas-hero");
+
+  expect(progress).toBeGreaterThan(scrim);
+  expect(progress).toBeLessThanOrEqual(scenes);
+  expect(scenes).toBe(6);
+  expect(hero).toBe(8);
+});
+
 test("forces focused hero entrance items into their visible final state", () => {
   expect(declarationsFor(css, "[data-hero-item]:focus-within")).toMatch(
     /opacity:\s*1 !important[\s\S]*transform:\s*none !important[\s\S]*clip-path:\s*none !important/,

@@ -221,7 +221,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
 @keyframes atlas-breath { from { opacity: .72; } to { opacity: 1; } }
 @keyframes atlas-sleep { from { filter: brightness(.84); } to { filter: brightness(1.16); } }
 @keyframes atlas-energy { from { opacity: .66; } to { opacity: 1; } }
-.human-atlas-progress { position: absolute; z-index: 4; right: 20px; bottom: 20px; display: grid; width: 38px; gap: 9px; }
+.human-atlas-progress { position: absolute; z-index: 6; right: 20px; bottom: 20px; display: grid; width: 38px; gap: 9px; }
 .human-atlas-progress__rail { position: relative; display: block; width: 38px; height: 2px; overflow: hidden; background: color-mix(in srgb, var(--mist) 24%, transparent); }
 .human-atlas-progress__fill { display: block; width: 100%; height: 100%; background: var(--phosphor); transform: scaleX(0); transform-origin: left center; }
 .human-atlas-progress__markers { display: grid; gap: 7px; justify-items: end; }
