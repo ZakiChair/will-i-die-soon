@@ -151,7 +151,8 @@ describe("bioluminescent global visual contract", () => {
     expect(declarationsFor(".consent__body")).toMatch(/background:\s*transparent/);
     expect(declarationsFor(".question-sheet")).toMatch(/background:\s*var\(--depth\)/);
     expect(css).not.toMatch(/url\("\/media\/canopy-hero\.webp"\)/);
-    expect(css).not.toMatch(/clip-path:/);
+    expect(new Set([...css.matchAll(/clip-path:\s*([^;]+);/g)]
+      .map((match) => match[1].trim()))).toEqual(new Set(["none !important"]));
   });
 
   test("keeps the Human Atlas registered to its image and glow coordinate system", () => {

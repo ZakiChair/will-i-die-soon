@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { IBM_Plex_Mono, Manrope, Newsreader } from "next/font/google";
 import { resolveMetadataOrigin } from "./lib/metadata";
+import { HERO_MOTION_BOOTSTRAP_SCRIPT } from "./lib/motion-bootstrap";
 import "./globals.css";
 
 const display = Newsreader({
@@ -78,7 +79,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: HERO_MOTION_BOOTSTRAP_SCRIPT }} />
+      </head>
       <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
         {children}
       </body>

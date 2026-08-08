@@ -83,6 +83,27 @@ test("makes Express the primary adult route outside decorative content", async (
   expect(expressButtons.every((button) => !button.closest(".landing__atlas-decorative"))).toBe(true);
 });
 
+test("separates hero entrance items from continuous handoff layers", () => {
+  const { container } = render(<Landing onStart={vi.fn()} />);
+  const hero = container.querySelector(".landing__atlas-hero");
+  const items = [...hero!.querySelectorAll<HTMLElement>("[data-hero-item]")];
+  const handoffs = [...hero!.querySelectorAll<HTMLElement>("[data-hero-handoff]")];
+  const titleMask = hero!.querySelector<HTMLElement>("[data-hero-title-mask]");
+  const title = hero!.querySelector<HTMLElement>("[data-hero-title]");
+
+  expect(items).toHaveLength(5);
+  expect(handoffs).toHaveLength(4);
+  expect(hero!.querySelectorAll("[data-hero-item][data-hero-handoff]")).toHaveLength(0);
+  expect(items.map((item) => item.tagName)).toEqual(["P", "H1", "P", "BUTTON", "P"]);
+  expect(items[1].parentElement).toBe(titleMask);
+  expect(titleMask?.className).toBe("landing__hero-title-mask");
+  expect(titleMask?.children).toHaveLength(1);
+  expect(title).toBe(items[1].firstElementChild);
+  expect(title).toHaveAttribute("data-hero-handoff");
+  expect(items[3].querySelector("[data-hero-handoff]")).toBeNull();
+  expect(handoffs.every((handoff) => handoff.tagName === "SPAN")).toBe(true);
+});
+
 test("keeps both Express routes usable and marks the controlled Atlas paused without matchMedia", async () => {
   Reflect.deleteProperty(window, "matchMedia");
   const onStart = vi.fn();

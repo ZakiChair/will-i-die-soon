@@ -166,6 +166,46 @@ test("forces focused reveal content into its visible final state", () => {
   ).toMatch(/opacity:\s*1 !important[\s\S]*transform:\s*none !important/);
 });
 
+test("masks only pending hero entrance items and keeps the title mask auto-height", () => {
+  expect(declarationsFor(css, 'html[data-motion-bootstrap="pending"] [data-hero-item]'))
+    .toMatch(/opacity:\s*0/);
+  expect(css).not.toMatch(
+    /html\[data-motion-bootstrap="pending"\]\s+\[data-hero-(?:handoff|title|title-mask)\]/,
+  );
+
+  const titleMask = declarationsFor(css, ".landing__hero-title-mask");
+  const paddingBlock = Number(titleMask.match(/padding-block:\s*(\d*\.?\d+)em/)?.[1]);
+  expect(paddingBlock).toBeGreaterThanOrEqual(0.12);
+  expect(titleMask).not.toMatch(/(?:^|;)\s*(?:min-|max-)?height\s*:/);
+  expect(declarationsFor(
+    css,
+    'html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [data-hero-title-mask]',
+  )).toMatch(/overflow:\s*clip/);
+  expect(declarationsFor(css, "[data-hero-handoff]")).toMatch(/display:\s*block/);
+});
+
+test("forces focused hero entrance items into their visible final state", () => {
+  expect(declarationsFor(css, "[data-hero-item]:focus-within")).toMatch(
+    /opacity:\s*1 !important[\s\S]*transform:\s*none !important[\s\S]*clip-path:\s*none !important/,
+  );
+});
+
+test("forces hero layers and the title mask final for reduced motion and print", () => {
+  expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\),\s*print\s*\{/);
+  const finalStateCss = css.slice(
+    css.indexOf("@media (prefers-reduced-motion: reduce), print"),
+    css.indexOf("@media (prefers-reduced-motion: reduce) {"),
+  );
+  for (const selector of ["[data-hero-item]", "[data-hero-handoff]"]) {
+    expect(declarationsFor(finalStateCss, selector)).toMatch(
+      /opacity:\s*1 !important[\s\S]*visibility:\s*visible !important[\s\S]*transform:\s*none !important[\s\S]*clip-path:\s*none !important/,
+    );
+  }
+  expect(declarationsFor(finalStateCss, "[data-hero-title-mask]")).toMatch(
+    /clip-path:\s*none !important[\s\S]*overflow:\s*visible !important/,
+  );
+});
+
 test.each([
   ["reduced motion", css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"), css.indexOf("@media screen"))],
   ["print", css.slice(css.indexOf("@media print"))],

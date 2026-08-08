@@ -1,5 +1,15 @@
 import { readFileSync } from "node:fs";
+import { Children, type ReactElement, type ReactNode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
+
+import { HERO_MOTION_BOOTSTRAP_SCRIPT } from "./lib/motion-bootstrap";
+
+type InspectedElement = ReactElement<{
+  children?: ReactNode;
+  className?: string;
+  dangerouslySetInnerHTML?: { __html: string };
+  suppressHydrationWarning?: boolean;
+}>;
 
 const { ibmPlexMono, manrope, newsreader } = vi.hoisted(() => ({
   ibmPlexMono: vi.fn(() => ({ variable: "--font-data" })),
@@ -122,10 +132,31 @@ test("uses the editorial font variable contract", async () => {
 test("applies only the display, body, and data font variables", async () => {
   const { default: RootLayout } = await import("./layout");
   const tree = RootLayout({ children: "content" });
-  const body = tree.props.children;
+  const [head, body] = Children.toArray(tree.props.children) as InspectedElement[];
 
+  expect(head.type).toBe("head");
+  expect(body.type).toBe("body");
+  expect(tree.props.suppressHydrationWarning).toBe(true);
   expect(body.props.className).toContain("--font-display");
   expect(body.props.className).toContain("--font-body");
   expect(body.props.className).toContain("--font-data");
   expect(body.props.className).not.toContain("--font-editorial");
+});
+
+test("owns the bootstrap script only at the document root and head", async () => {
+  const { default: RootLayout } = await import("./layout");
+  const tree = RootLayout({ children: "content" });
+  const [head, body] = Children.toArray(tree.props.children) as InspectedElement[];
+  const [script] = Children.toArray(head.props.children) as InspectedElement[];
+
+  expect(tree.type).toBe("html");
+  expect(tree.props.suppressHydrationWarning).toBe(true);
+  expect(head.type).toBe("head");
+  expect(script.type).toBe("script");
+  expect(script.props.dangerouslySetInnerHTML).toEqual({
+    __html: HERO_MOTION_BOOTSTRAP_SCRIPT,
+  });
+  expect(head.props.suppressHydrationWarning).toBeUndefined();
+  expect(script.props.suppressHydrationWarning).toBeUndefined();
+  expect(body.props.suppressHydrationWarning).toBeUndefined();
 });

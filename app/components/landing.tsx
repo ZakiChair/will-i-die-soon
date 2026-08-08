@@ -60,13 +60,28 @@ export function Landing({ onStart }: LandingProps) {
           ref={atlasExperienceRef}
         >
           <div className="landing__atlas-hero">
-            <p className="data-label">{t("landing.atlas.hero.eyebrow")}</p>
-            <h1 id="landing-title">{t("landing.atlas.hero.title")}</h1>
-            <p>{t("landing.atlas.hero.body")}</p>
-            <button className="landing__primary-cta" type="button" onClick={startExpress}>
+            <p className="data-label" data-hero-item>
+              <span data-hero-handoff>{t("landing.atlas.hero.eyebrow")}</span>
+            </p>
+            <div className="landing__hero-title-mask" data-hero-title-mask>
+              <h1 data-hero-item id="landing-title">
+                <span data-hero-handoff data-hero-title>{t("landing.atlas.hero.title")}</span>
+              </h1>
+            </div>
+            <p data-hero-item>
+              <span data-hero-handoff>{t("landing.atlas.hero.body")}</span>
+            </p>
+            <button
+              className="landing__primary-cta"
+              data-hero-item
+              type="button"
+              onClick={startExpress}
+            >
               {t("landing.atlas.hero.cta")}
             </button>
-            <p className="landing__scroll-hint">{t("landing.atlas.hero.scroll")}</p>
+            <p className="landing__scroll-hint" data-hero-item>
+              <span data-hero-handoff>{t("landing.atlas.hero.scroll")}</span>
+            </p>
           </div>
           <div className="landing__atlas-decorative">
             <DecorativeSectionBoundary fallback={<HumanAtlasStaticStory />}>
