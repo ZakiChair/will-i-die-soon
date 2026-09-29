@@ -2,6 +2,8 @@ import { describe, expect, expectTypeOf, test } from "vitest";
 
 import { questionBank } from "../data/questions";
 import { HEALTH_PILLARS, healthPillarForQuestion } from "./health-pillars";
+import { prototypePolicy } from "./release-policy";
+import { evaluateRisks } from "./risk-engine";
 import * as questionnaireModule from "./questionnaire";
 import {
   buildAssessmentQueue,
@@ -39,6 +41,87 @@ const medicationBehaviorIds = [
   "adherence_access_barriers",
   "interaction_shared_list",
 ] as const;
+
+describe("questions adaptées au sexe déclaré", () => {
+  test.each(["express", "quick", "detailed", "deep"] as const)(
+    "%s écarte les questions de maternité pour un sexe masculin déclaré",
+    (depth) => {
+      const answers = { sex_assigned_at_birth: "male" };
+      const queue = buildAssessmentQueue(depth, questionBank, adult, answers);
+
+      expect(queue.some((question) => question.domain === "pregnancy")).toBe(false);
+      for (const id of ["reproductive_period_pattern", "reproductive_menopause_change", "reproductive_screening_history"]) {
+        expect(queue.map((question) => question.id)).not.toContain(id);
+      }
+      expect(queue).toHaveLength({ express: 9, quick: 20, detailed: 50, deep: 150 }[depth]);
+      expect(getAvailableDepths(questionBank, adult, answers)).toContain(depth);
+    },
+  );
+
+  test("conserve fertilité, douleur pelvienne et santé sexuelle pour un homme", () => {
+    const eligible = getEligibleQuestions(questionBank, adult, { sex_assigned_at_birth: "male" });
+    expect(eligible.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      "reproductive_fertility_concern", "reproductive_pelvic_pain", "sexual_health_symptoms",
+    ]));
+  });
+
+  test.each(["female", "intersex", null, undefined])(
+    "conserve la voie déclarative grossesse quand le sexe vaut %s",
+    (sex) => {
+      const eligible = getEligibleQuestions(questionBank, adult, { sex_assigned_at_birth: sex });
+      expect(eligible.map(({ id }) => id)).toContain("pregnancy_relevant");
+      expect(eligible.map(({ id }) => id)).not.toContain("pregnancy_current_context");
+      expect(getEligibleQuestions(questionBank, adult, {
+        sex_assigned_at_birth: sex, pregnancy_relevant: true,
+      }).map(({ id }) => id)).toContain("pregnancy_current_context");
+    },
+  );
+
+  test("supprime les réponses grossesse obsolètes après correction du sexe", () => {
+    const state = reconcileAssessmentState("deep", questionBank, adult, {
+      sex_assigned_at_birth: "male",
+      pregnancy_relevant: true,
+      pregnancy_current_context: "pregnant",
+      pregnancy_new_concern: true,
+      pregnancy_care_access: false,
+      pregnancy_medication_review: "no",
+      reproductive_period_pattern: "changed",
+      reproductive_menopause_change: true,
+      reproductive_screening_history: "no",
+      uses_isotretinoin: true,
+      isotretinoin_detail_program_pregnancy: "not_complete",
+      reproductive_fertility_concern: true,
+    });
+
+    expect(state.answers).toEqual({
+      sex_assigned_at_birth: "male", uses_isotretinoin: true, reproductive_fertility_concern: true,
+    });
+    expect(state.queue.some(({ domain }) => domain === "pregnancy")).toBe(false);
+    expect(state.queue.map(({ id }) => id)).not.toContain("isotretinoin_detail_program_pregnancy");
+    expect(evaluateRisks(state.answers, adult, prototypePolicy).map(({ id }) => id).filter((id) => id.includes("pregnancy"))).toEqual([]);
+  });
+
+  test("conserve seulement la procédure GLP-1 lors de la correction du sexe", () => {
+    const state = reconcileAssessmentState("deep", questionBank, adult, {
+      sex_assigned_at_birth: "male", uses_glp1: true,
+      glp1_detail_procedure_pregnancy: ["pregnant", "procedure"],
+    });
+    const procedure = state.queue.find(({ id }) => id === "glp1_detail_procedure_pregnancy");
+    expect(procedure?.prompt).not.toMatch(/pregnan|breastfeed/i);
+    expect(procedure?.options?.map(({ value }) => value)).toEqual(["procedure", "none"]);
+    expect(state.answers.glp1_detail_procedure_pregnancy).toEqual(["procedure"]);
+    expect(questionBank.find(({ id }) => id === procedure?.id)?.options).toHaveLength(5);
+  });
+
+  test("redemande le contexte GLP-1 si seule une grossesse obsolète était déclarée", () => {
+    const state = reconcileAssessmentState("deep", questionBank, adult, {
+      sex_assigned_at_birth: "male", uses_glp1: true,
+      glp1_detail_procedure_pregnancy: ["breastfeeding"],
+    });
+    expect(state.answers).not.toHaveProperty("glp1_detail_procedure_pregnancy");
+    expect(state.queue.map(({ id }) => id)).toContain("glp1_detail_procedure_pregnancy");
+  });
+});
 
 function selectedIdsBeforePillarGrouping(
   depth: AnalysisDepth,

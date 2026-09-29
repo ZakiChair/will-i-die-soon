@@ -11,10 +11,9 @@ type InspectedElement = ReactElement<{
   suppressHydrationWarning?: boolean;
 }>;
 
-const { ibmPlexMono, manrope, newsreader } = vi.hoisted(() => ({
-  ibmPlexMono: vi.fn(() => ({ variable: "--font-data" })),
-  manrope: vi.fn(() => ({ variable: "--font-body" })),
-  newsreader: vi.fn(() => ({ variable: "--font-display" })),
+const { dmSans, manrope } = vi.hoisted(() => ({
+  dmSans: vi.fn(() => ({ variable: "--font-body" })),
+  manrope: vi.fn(() => ({ variable: "--font-display" })),
 }));
 
 const requestHeaders = vi.hoisted(() => ({
@@ -22,9 +21,8 @@ const requestHeaders = vi.hoisted(() => ({
 }));
 
 vi.mock("next/font/google", () => ({
-  IBM_Plex_Mono: ibmPlexMono,
+  DM_Sans: dmSans,
   Manrope: manrope,
-  Newsreader: newsreader,
 }));
 
 vi.mock("next/headers", () => ({
@@ -102,34 +100,27 @@ test("falls back locally when configured and request values are hostile", async 
   expect(metadata.openGraph?.url).toEqual(new URL("http://localhost:3000/"));
 });
 
-test("uses the editorial font variable contract", async () => {
+test("uses two locally hosted typefaces for titles and reading", async () => {
   await import("./layout");
   const source = readFileSync("app/layout.tsx", "utf8");
 
-  expect(newsreader).toHaveBeenCalledWith(expect.objectContaining({
-    axes: ["opsz"],
+  expect(manrope).toHaveBeenCalledWith(expect.objectContaining({
     style: "normal",
     subsets: ["latin"],
     variable: "--font-display",
     weight: "variable",
   }));
-  expect(manrope).toHaveBeenCalledWith(expect.objectContaining({
+  expect(dmSans).toHaveBeenCalledWith(expect.objectContaining({
     style: "normal",
     variable: "--font-body",
     weight: "variable",
   }));
-  expect(ibmPlexMono).toHaveBeenCalledWith(expect.objectContaining({
-    style: "normal",
-    variable: "--font-data",
-    weight: ["400", "500", "600", "700"],
-  }));
   expect(source).toContain("--font-display");
   expect(source).toContain("--font-body");
-  expect(source).toContain("--font-data");
   expect(source).not.toMatch(/Space_Grotesk|Geist_Mono|\bGeist\b/);
 });
 
-test("applies only the display, body, and data font variables", async () => {
+test("applies only two font resources; data shares the reading typeface", async () => {
   const { default: RootLayout } = await import("./layout");
   const tree = RootLayout({ children: "content" });
   const [head, body] = Children.toArray(tree.props.children) as InspectedElement[];
@@ -139,7 +130,7 @@ test("applies only the display, body, and data font variables", async () => {
   expect(tree.props.suppressHydrationWarning).toBe(true);
   expect(body.props.className).toContain("--font-display");
   expect(body.props.className).toContain("--font-body");
-  expect(body.props.className).toContain("--font-data");
+  expect(body.props.className).not.toContain("--font-data");
   expect(body.props.className).not.toContain("--font-editorial");
 });
 

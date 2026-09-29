@@ -213,6 +213,54 @@ test("adult Express raw opt-in exports all nine structured answers without priva
   });
   expect(JSON.stringify(json)).not.toMatch(/SECRET|STREET ADDRESS|exact_location/i);
   expect(json).not.toHaveProperty("expressSummary");
+  expect(json.expressAssessment).toMatchObject({
+    version: "express-index-v1",
+    kind: "complete-index",
+    score: 92,
+    answeredCount: 9,
+    interpretableComponentCount: 7,
+    scoredAxisCount: 4,
+  });
+});
+
+test("Express exports its interpreted index separately without raw measurements by default", async () => {
+  const answers = {
+    reported_vo2_max_ml_kg_min: 48.5,
+    squat_one_rep_max_kg: 123,
+    deadlift_one_rep_max_kg: 181,
+    usual_sleep_hours: 7.5,
+    sleep_refreshed: 8,
+    height_cm: 182,
+    weight_kg: 80,
+    plant_food_frequency: 4,
+    diet_ultra_processed: "rarely",
+    gender_identity_optional: "SECRET FREE TEXT",
+  } as const;
+  const json = await readJson(createRedactedExport({
+    ...report,
+    assessmentDepth: "express",
+    answers,
+    score: calculatePurityScore(answers, { ageYears: 35, assessmentDepth: "express" }),
+  }));
+  expect(json.score).toMatchObject({ kind: "insufficient-coverage", reason: "express-assessment" });
+  expect(json.expressAssessment).toMatchObject({
+    kind: "complete-index",
+    score: 92,
+    profile: "favorable",
+    interpretation: "heuristic-form-and-habits-index-not-a-health-diagnosis",
+  });
+  expect(json).not.toHaveProperty("rawAnswers");
+  expect(JSON.stringify(json.expressAssessment)).not.toMatch(/48\.5|123|181|182|SECRET|gender_identity_optional|rawAnswers|height_cm|weight_kg/);
+});
+
+test.each([17, 12, null, Number.NaN, 18.5, 121])("Express interpretation is not exported for unverified adult age %s", async (subjectAgeYears) => {
+  const json = await readJson(createRedactedExport({ ...report, assessmentDepth: "express", subjectAgeYears }));
+  expect(json).not.toHaveProperty("expressAssessment");
+});
+
+test("other depths do not export an Express index from overlapping answers", async () => {
+  const json = await readJson(createRedactedExport(report));
+  expect(json).not.toHaveProperty("expressAssessment");
 });
 
 test.each([

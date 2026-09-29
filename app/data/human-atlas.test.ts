@@ -5,19 +5,24 @@ import { EXPRESS_QUESTION_IDS } from "../lib/questionnaire";
 import {
   humanAtlasBodyContextQuestionIds,
   humanAtlasSceneIds,
+  humanAtlasStorySceneIds,
   humanAtlasScenes,
   isHumanAtlasSceneId,
 } from "./human-atlas";
 
 describe("Human Atlas landing contract", () => {
-  test("keeps four ordered visual chapters", () => {
+  test("keeps canonical axes stable and orders the landing story from sleep to nutrition", () => {
     expect(humanAtlasSceneIds).toEqual([
       "breath",
       "strength",
       "sleep",
       "energy",
     ]);
-    expect(humanAtlasScenes.map(({ id }) => id)).toEqual(humanAtlasSceneIds);
+    expect(humanAtlasScenes.map(({ id }) => id)).toEqual([
+      "sleep", "breath", "strength", "energy",
+    ]);
+    expect(humanAtlasScenes.map(({ id }) => id)).toEqual(humanAtlasStorySceneIds);
+    expect([...humanAtlasStorySceneIds].sort()).toEqual([...humanAtlasSceneIds].sort());
     expect(isHumanAtlasSceneId("sleep")).toBe(true);
     expect(isHumanAtlasSceneId("body-context")).toBe(false);
   });
@@ -35,7 +40,10 @@ describe("Human Atlas landing contract", () => {
   });
 
   test("points every scene at complete bilingual UI copy", () => {
-    for (const scene of humanAtlasScenes) {
+    for (const [index, scene] of humanAtlasScenes.entries()) {
+      const number = String(index + 1).padStart(2, "0");
+      expect(uiCopy.en[scene.eyebrowKey]).toMatch(new RegExp(`^${number} · `));
+      expect(uiCopy.fr[scene.eyebrowKey]).toMatch(new RegExp(`^${number} · `));
       for (const key of [
         scene.eyebrowKey,
         scene.titleKey,

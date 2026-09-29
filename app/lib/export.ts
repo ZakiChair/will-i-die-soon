@@ -1,4 +1,5 @@
 import { questionBank } from "../data/questions";
+import { buildExpressAssessment, EXPRESS_INDEX_REFERENCE } from "./express-assessment";
 import type { PresentedPurityScoreResult } from "../i18n/presentation";
 import type { ConfirmedLabValue } from "./labs";
 import type { ActionItem, PurityScoreResult } from "./scoring";
@@ -119,6 +120,9 @@ export function createRedactedExport(
   report: ResultReport,
   options: ExportOptions = {},
 ): Blob {
+  const expressAssessment = report.assessmentDepth === "express"
+    ? buildExpressAssessment(report.answers, { ageYears: report.subjectAgeYears })
+    : null;
   const rawAnswersAllowed =
     options.includeRawAnswers === true &&
     typeof report.subjectAgeYears === "number" &&
@@ -132,6 +136,20 @@ export function createRedactedExport(
     riskLeaves: report.riskLeaves.map(interpretedLeaf),
     actions: report.actions.map(interpretedAction),
     confirmedLabs: report.confirmedLabs.map(reviewedLab),
+    ...(expressAssessment && expressAssessment.kind !== "not-available"
+      ? {
+          expressAssessment: {
+            ...expressAssessment,
+            interpretation: "heuristic-form-and-habits-index-not-a-health-diagnosis",
+            reference: EXPRESS_INDEX_REFERENCE,
+            referencePopulation: null,
+            sources: [
+              "https://www.cdc.gov/sleep/about/index.html",
+              "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+            ],
+          },
+        }
+      : {}),
     ...(rawAnswersAllowed
       ? { rawAnswers: structuredAnswers(report.answers) }
       : {}),

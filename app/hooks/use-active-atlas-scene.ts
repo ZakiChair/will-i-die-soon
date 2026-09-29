@@ -3,7 +3,7 @@
 import { useEffect, useState, type RefObject } from "react";
 
 import {
-  humanAtlasSceneIds,
+  humanAtlasStorySceneIds,
   isHumanAtlasSceneId,
   type HumanAtlasSceneId,
 } from "../data/human-atlas";
@@ -15,7 +15,7 @@ export type HumanAtlasSceneElements = Partial<
 export function useActiveAtlasScene(
   sceneElements: RefObject<HumanAtlasSceneElements>,
 ): HumanAtlasSceneId {
-  const [activeScene, setActiveScene] = useState<HumanAtlasSceneId>("breath");
+  const [activeScene, setActiveScene] = useState<HumanAtlasSceneId>(humanAtlasStorySceneIds[0]);
 
   useEffect(() => {
     if (typeof IntersectionObserver !== "function") return;
@@ -23,7 +23,7 @@ export function useActiveAtlasScene(
     let observer: IntersectionObserver | undefined;
 
     try {
-      const nodes = humanAtlasSceneIds
+      const nodes = humanAtlasStorySceneIds
         .map((sceneId) => sceneElements.current[sceneId])
         .filter((node): node is HTMLElement => node instanceof HTMLElement);
       if (nodes.length === 0) return;
@@ -59,14 +59,14 @@ export function useActiveAtlasScene(
                 const leftScene = left.getAttribute("data-atlas-scene");
                 const rightScene = right.getAttribute("data-atlas-scene");
                 return (
-                  humanAtlasSceneIds.indexOf(leftScene as HumanAtlasSceneId) -
-                  humanAtlasSceneIds.indexOf(rightScene as HumanAtlasSceneId)
+                  humanAtlasStorySceneIds.indexOf(leftScene as HumanAtlasSceneId) -
+                  humanAtlasStorySceneIds.indexOf(rightScene as HumanAtlasSceneId)
                 );
               })[0];
             const candidate = visible?.getAttribute("data-atlas-scene");
             if (isHumanAtlasSceneId(candidate)) setActiveScene(candidate);
           } catch {
-            setActiveScene("breath");
+            setActiveScene(humanAtlasStorySceneIds[0]);
           }
         },
         {

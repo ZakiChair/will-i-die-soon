@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useI18n } from "../i18n/context";
+import { resultsExplorerCopy } from "../i18n/results-explorer-copy";
 import { useSectionReveal } from "../hooks/use-section-reveal";
 import {
   localizeActions,
@@ -24,7 +25,7 @@ import { buildActionPlan, calculatePurityScore } from "../lib/scoring";
 import type { ActionItem } from "../lib/scoring";
 import type { AnalysisDepth, AnswerMap, ProfileContext, RiskLeaf } from "../lib/types";
 import { ExpressResults } from "./express-results";
-import { LongevitySynthesis } from "./longevity-synthesis";
+import { ResultsOverview } from "./results-overview";
 import { RiskTree } from "./risk-tree";
 
 export type ResultsProps = {
@@ -352,6 +353,8 @@ export function Results({
   onRestart,
 }: ResultsProps) {
   const { locale, t } = useI18n();
+  const explorerCopy = resultsExplorerCopy[locale];
+  const expressAdult = Number.isInteger(profile.age) && profile.age >= 18 && profile.age <= 120;
   const needsPrivateHandoff =
     profile.age >= 13 && profile.age < 18 && profile.assistedMinor === true;
   const [includeRawAnswers, setIncludeRawAnswers] = useState(false);
@@ -359,6 +362,7 @@ export function Results({
     () => !needsPrivateHandoff,
   );
   const resultsRoot = useRef<HTMLElement>(null);
+  const resultsTitle = useRef<HTMLHeadingElement>(null);
   const revealedResultsHeading = useRef<HTMLHeadingElement>(null);
   useSectionReveal(resultsRoot);
   const leaves = useMemo(
@@ -416,6 +420,10 @@ export function Results({
   );
 
   useEffect(() => {
+    if (!needsPrivateHandoff) resultsTitle.current?.focus();
+  }, [needsPrivateHandoff]);
+
+  useEffect(() => {
     if (needsPrivateHandoff && privateResultsVisible) {
       revealedResultsHeading.current?.focus();
     }
@@ -437,15 +445,34 @@ export function Results({
   const presentedDepth = locale === "fr" ? depthLabel.toLocaleLowerCase("fr") : depthLabel;
   const revealedResults = (
     <>
+      {profile.age >= 18 && (assessmentDepth !== "express" || expressAdult) ? (
+        <nav className="results-nav" aria-label={explorerCopy.navigation}>
+          <a href="#results-overview">{explorerCopy.summaryLink}</a>
+          {assessmentDepth === "express" ? (
+            <>
+              <a href="#express-priorities">{explorerCopy.prioritiesLink}</a>
+              <a href="#express-method">{explorerCopy.methodLink}</a>
+            </>
+          ) : (
+            <>
+              <a href="#score-distribution">{explorerCopy.referenceLink}</a>
+              <a href="#results-details">{explorerCopy.detailsLink}</a>
+            </>
+          )}
+        </nav>
+      ) : null}
       {assessmentDepth === "express" ? (
-        <ExpressResults answers={answers} />
+        <ExpressResults answers={answers} ageYears={profile.age} />
       ) : (
         <>
-          {profile.age >= 18 &&
-          (assessmentDepth === "detailed" || assessmentDepth === "deep") ? (
-            <LongevitySynthesis answers={answers} profile={profile} />
+          {profile.age >= 18 ? (
+            <>
+              <ResultsOverview leaves={presentedLeaves} protectiveRoots={roots} score={presentedScore} />
+              <ActionPlan actions={presentedActions} />
+            </>
           ) : null}
           <section
+            id="results-details"
             className="results-canopy"
             aria-labelledby="results-canopy-title"
           >
@@ -466,7 +493,6 @@ export function Results({
             <CoverageReflection score={presentedScore} />
           ) : null}
 
-          {profile.age >= 18 ? <ActionPlan actions={presentedActions} /> : null}
         </>
       )}
       <ConfirmedLabs values={confirmedLabs} />
@@ -506,7 +532,7 @@ export function Results({
   return (
     <section
       ref={resultsRoot}
-      className="journey results"
+      className={`journey results${assessmentDepth === "express" ? " results--express" : ""}`}
       aria-labelledby="results-title"
     >
       <header className="journey__header results__header">
@@ -517,7 +543,7 @@ export function Results({
       </header>
       <div className="results__intro" data-reveal="heading">
         <p className="data-label" data-reveal-item>{t("results.eyebrow")}</p>
-        <h1 id="results-title" data-reveal-item>{t("results.title")}</h1>
+        <h1 id="results-title" ref={resultsTitle} tabIndex={-1} data-reveal-item>{t("results.title")}</h1>
         <p data-reveal-item>{t("results.intro")}</p>
       </div>
 

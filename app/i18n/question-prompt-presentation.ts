@@ -129,6 +129,155 @@ const curatedQuestionPromptPresentations = {
 
 const curatedQuestionPromptIds = new Set<string>(CURATED_QUESTION_PROMPT_IDS);
 
+const commonQuestionPromptPresentations = {
+  usual_sleep_hours: {
+    en: {
+      completePrompt: "How many hours do you usually sleep in a 24-hour period?",
+      title: "How long do you usually sleep?",
+      detail: "Count your total sleep over 24 hours. Answer in hours.",
+    },
+    fr: {
+      completePrompt: "Combien d'heures dormez-vous habituellement sur une période de 24 heures ?",
+      title: "Combien de temps dormez-vous habituellement ?",
+      detail: "Comptez votre sommeil sur une période de 24 heures. Répondez en heures.",
+    },
+  },
+  sleep_refreshed: {
+    en: {
+      completePrompt: "How refreshed do you usually feel within an hour of waking?",
+      title: "How rested do you feel after waking?",
+      detail: "Think about how you usually feel within an hour of waking, from 0 (not at all rested) to 10 (fully rested).",
+    },
+    fr: {
+      completePrompt: "Dans quelle mesure vous sentez-vous généralement reposé dans l'heure qui suit votre réveil ?",
+      title: "À quel point vous sentez-vous reposé au réveil ?",
+      detail: "Pensez à votre ressenti habituel dans l'heure qui suit le réveil, de 0 (pas du tout reposé) à 10 (complètement reposé).",
+    },
+  },
+  reported_vo2_max_ml_kg_min: {
+    en: {
+      completePrompt: "What is your most recent measured or device-estimated VO₂ max?",
+      title: "What is your latest VO₂ max value?",
+      detail: "Use your most recent measured or device-estimated value, in ml/kg/min. You can skip if you do not know it.",
+    },
+    fr: {
+      completePrompt: "Quel est votre VO₂ max le plus récent, mesuré ou estimé par un appareil ?",
+      title: "Quelle est votre dernière valeur de VO₂ max ?",
+      detail: "Indiquez votre dernière valeur mesurée ou estimée par un appareil, en ml/kg/min. Vous pouvez passer si vous ne la connaissez pas.",
+    },
+  },
+  squat_one_rep_max_kg: {
+    en: {
+      completePrompt: "What is the heaviest squat you have already completed for one repetition?",
+      title: "What is your heaviest completed squat?",
+      detail: "Use the heaviest weight you have already completed for one repetition, in kilograms.",
+    },
+    fr: {
+      completePrompt: "Quel est le squat le plus lourd que vous ayez déjà effectué pour une répétition ?",
+      title: "Quelle est votre charge maximale déjà soulevée au squat ?",
+      detail: "Indiquez la charge du squat le plus lourd déjà effectué sur une répétition, en kilogrammes.",
+    },
+  },
+  deadlift_one_rep_max_kg: {
+    en: {
+      completePrompt: "What is the heaviest deadlift you have already completed for one repetition?",
+      title: "What is your heaviest completed deadlift?",
+      detail: "Use the heaviest weight you have already completed for one repetition, in kilograms.",
+    },
+    fr: {
+      completePrompt: "Quel est le soulevé de terre le plus lourd que vous ayez déjà effectué pour une répétition ?",
+      title: "Quelle est votre charge maximale déjà soulevée au soulevé de terre ?",
+      detail: "Indiquez la charge du soulevé de terre le plus lourd déjà effectué sur une répétition, en kilogrammes.",
+    },
+  },
+  height_cm: {
+    en: {
+      completePrompt: "What is your current height in centimetres?",
+      title: "How tall are you?",
+      detail: "Enter your current height in centimetres.",
+    },
+    fr: {
+      completePrompt: "Quelle est votre taille actuelle en centimètres ?",
+      title: "Quelle est votre taille ?",
+      detail: "Indiquez votre taille actuelle en centimètres.",
+    },
+  },
+  weight_kg: {
+    en: {
+      completePrompt: "What is your current weight in kilograms?",
+      title: "What is your current weight?",
+      detail: "Answer in kilograms. You can prefer not to answer.",
+    },
+    fr: {
+      completePrompt: "Quel est votre poids actuel en kilogrammes ?",
+      title: "Quel est votre poids actuel ?",
+      detail: "Répondez en kilogrammes. Vous pouvez préférer ne pas répondre.",
+    },
+  },
+  plant_food_frequency: {
+    en: {
+      completePrompt: "On a typical day, how many portions of vegetables and fruit do you eat?",
+      title: "How many portions of fruit and vegetables do you eat?",
+      detail: "Think about a typical day. Give the total number of portions of vegetables and fruit.",
+    },
+    fr: {
+      completePrompt: "Au cours d'une journée typique, combien de portions de légumes et de fruits mangez-vous ?",
+      title: "Combien de portions de fruits et légumes mangez-vous ?",
+      detail: "Pensez à une journée habituelle. Indiquez le nombre total de portions de légumes et de fruits.",
+    },
+  },
+  diet_ultra_processed: {
+    en: {
+      completePrompt: "How often are packaged ready meals, sweets, crisps, or fast food your main meal?",
+      title: "How often is your main meal highly processed?",
+      detail: "Consider packaged ready meals, sweets, crisps or fast food when they form your main meal.",
+    },
+    fr: {
+      completePrompt: "À quelle fréquence les plats cuisinés emballés, les friandises, les chips ou la restauration rapide constituent-ils votre repas principal ?",
+      title: "À quelle fréquence votre repas principal est-il très transformé ?",
+      detail: "Pensez aux plats cuisinés emballés, aux friandises, aux chips ou à la restauration rapide lorsqu'ils constituent votre repas principal.",
+    },
+  },
+  weekly_moderate_activity_minutes: {
+    en: {
+      completePrompt: "About how many minutes of moderate or vigorous activity do you get in a usual week?",
+      title: "How much time do you spend being active each week?",
+      detail: "Count minutes of moderate or vigorous activity in a usual week.",
+    },
+    fr: {
+      completePrompt: "Environ combien de minutes d'activité modérée ou vigoureuse pratiquez-vous au cours d'une semaine habituelle ?",
+      title: "Combien de temps êtes-vous actif chaque semaine ?",
+      detail: "Comptez les minutes d'activité modérée ou vigoureuse au cours d'une semaine habituelle.",
+    },
+  },
+  movement_strength_days: {
+    en: {
+      completePrompt: "On how many days per week do you do muscle-strengthening activity?",
+      title: "On how many days do you strengthen your muscles?",
+      detail: "Count days in a usual week, from 0 to 7.",
+    },
+    fr: {
+      completePrompt: "Combien de jours par semaine pratiquez-vous des activités de renforcement musculaire ?",
+      title: "Combien de jours pratiquez-vous du renforcement musculaire ?",
+      detail: "Comptez les jours dans une semaine habituelle, de 0 à 7.",
+    },
+  },
+  sedentary_total_hours: {
+    en: {
+      completePrompt: "About how many waking hours do you spend sitting or reclining on a typical day?",
+      title: "How much of your day do you spend sitting or reclining?",
+      detail: "Count waking hours on a typical day. Do not count time asleep.",
+    },
+    fr: {
+      completePrompt: "Environ combien d'heures d'éveil passez-vous assis ou allongé au cours d'une journée typique ?",
+      title: "Combien de temps passez-vous assis ou allongé ?",
+      detail: "Comptez les heures d'éveil dans une journée habituelle. N'incluez pas le temps de sommeil.",
+    },
+  },
+} as const satisfies Readonly<Record<string, Readonly<Record<Locale, CompleteQuestionPromptPresentation>>>>;
+
+export const COMMON_QUESTION_PROMPT_IDS = Object.keys(commonQuestionPromptPresentations);
+
 function fallback(completePrompt: string): QuestionPromptPresentation {
   return { title: completePrompt };
 }
@@ -138,11 +287,11 @@ export function getQuestionPromptPresentation(
   locale: Locale,
   completePrompt: string,
 ): QuestionPromptPresentation {
-  if (!curatedQuestionPromptIds.has(questionId)) return fallback(completePrompt);
-  const presentation = curatedQuestionPromptPresentations[
-    questionId as CuratedQuestionPromptId
-  ][locale];
+  const presentation = curatedQuestionPromptIds.has(questionId)
+    ? curatedQuestionPromptPresentations[questionId as CuratedQuestionPromptId][locale]
+    : commonQuestionPromptPresentations[questionId as keyof typeof commonQuestionPromptPresentations]?.[locale];
   if (
+    !presentation ||
     presentation.completePrompt !== completePrompt ||
     !presentation.title.trim() ||
     !presentation.detail.trim()

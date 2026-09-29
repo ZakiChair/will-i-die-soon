@@ -12,6 +12,14 @@ export const humanAtlasSceneIds = [
 
 export type HumanAtlasSceneId = (typeof humanAtlasSceneIds)[number];
 
+// Ordre du récit d'accueil, distinct de l'ordre canonique des axes et calculs.
+export const humanAtlasStorySceneIds = [
+  "sleep",
+  "breath",
+  "strength",
+  "energy",
+] as const satisfies readonly HumanAtlasSceneId[];
+
 export type HumanAtlasScene = Readonly<{
   id: HumanAtlasSceneId;
   eyebrowKey: UiCopyKey;
@@ -22,6 +30,14 @@ export type HumanAtlasScene = Readonly<{
 }>;
 
 export const humanAtlasScenes = [
+  {
+    id: "sleep",
+    eyebrowKey: "landing.atlas.sleep.eyebrow",
+    titleKey: "landing.atlas.sleep.title",
+    descriptionKey: "landing.atlas.sleep.description",
+    inputLabelKey: "landing.atlas.sleep.input",
+    questionIds: ["usual_sleep_hours", "sleep_refreshed"],
+  },
   {
     id: "breath",
     eyebrowKey: "landing.atlas.breath.eyebrow",
@@ -37,14 +53,6 @@ export const humanAtlasScenes = [
     descriptionKey: "landing.atlas.strength.description",
     inputLabelKey: "landing.atlas.strength.input",
     questionIds: ["squat_one_rep_max_kg", "deadlift_one_rep_max_kg"],
-  },
-  {
-    id: "sleep",
-    eyebrowKey: "landing.atlas.sleep.eyebrow",
-    titleKey: "landing.atlas.sleep.title",
-    descriptionKey: "landing.atlas.sleep.description",
-    inputLabelKey: "landing.atlas.sleep.input",
-    questionIds: ["usual_sleep_hours", "sleep_refreshed"],
   },
   {
     id: "energy",

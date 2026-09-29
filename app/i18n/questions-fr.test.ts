@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { questionBank } from "../data/questions";
+import { getEligibleQuestions } from "../lib/questionnaire";
 import type { Question } from "../lib/types";
 import { frQuestionTranslations, localizeQuestion } from "./questions-fr";
 import { questionUnitKeys } from "./ui-copy";
@@ -13,6 +14,17 @@ function nonPresentationFields(question: Question): Record<string, unknown> {
 }
 
 describe("French question translations", () => {
+  it.each(["en", "fr"] as const)("présente le contexte GLP-1 sans grossesse pour un homme en %s", (locale) => {
+    const question = getEligibleQuestions(questionBank, { age: 35, countryCode: "FR" }, {
+      sex_assigned_at_birth: "male", uses_glp1: true,
+    }).find(({ id }) => id === "glp1_detail_procedure_pregnancy")!;
+    const localized = localizeQuestion(question, locale);
+
+    expect(localized.prompt).toMatch(/anesth|anaesth/i);
+    expect(localized.prompt).not.toMatch(/grossesse|allait|pregnan|breastfeed/i);
+    expect(localized.options?.map(({ value }) => value)).toEqual(["procedure", "none"]);
+  });
+
   it("covers the audited 246-question bank with every canonical option value", () => {
     expect(questionBank).toHaveLength(254);
     expect(Object.keys(frQuestionTranslations).sort()).toEqual(

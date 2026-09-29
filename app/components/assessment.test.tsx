@@ -79,7 +79,7 @@ async function skipUntilQuestion(
     if (await continuePastIntermission(user)) continue;
     const heading = screen.getByRole("heading", { level: 1 });
     if (prompt.test(heading.textContent ?? "")) return;
-    await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+    await user.click(screen.getByRole("button", { name: /prefer not to say|I don't know this measurement/i }));
   }
   throw new Error(`Question ${prompt} was not reached within ${limit} steps.`);
 }
@@ -107,7 +107,7 @@ async function completeAssessment(
       );
       await user.click(screen.getByRole("button", { name: "Continue" }));
     } else {
-      await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+      await user.click(screen.getByRole("button", { name: /prefer not to say|I don't know this measurement/i }));
     }
   }
   return intermissions;
@@ -145,6 +145,27 @@ test("introduces the first available chapter before the first adult Quick questi
   expect(chapters).toHaveTextContent("Sleep & circadian rhythm");
   expect(chapters).toHaveTextContent("Nutrition & metabolic health");
 });
+
+test.each(["quick", "deep"] as const)("termine le parcours %s masculin sans questions de maternité", async (depth) => {
+  const user = userEvent.setup();
+  const onComplete = vi.fn();
+  render(<Assessment depth={depth} profile={adultProfile} onComplete={onComplete} />);
+  await continuePastIntermission(user);
+  await user.click(screen.getByRole("radio", { name: /^Male$/ }));
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+
+  for (let step = 0; step < 180 && onComplete.mock.calls.length === 0; step += 1) {
+    if (await continuePastIntermission(user)) continue;
+    expect(screen.getByRole("heading", { level: 1 })).not.toHaveTextContent(/pregnan|breastfeed|menopaus|cervical|periods|given birth/i);
+    await user.click(screen.getByRole("button", { name: /prefer not to say|I don't know this measurement/i }));
+  }
+
+  expect(onComplete).toHaveBeenCalledTimes(1);
+  const answers = onComplete.mock.calls[0][0];
+  expect(answers.sex_assigned_at_birth).toBe("male");
+  expect(answers).not.toHaveProperty("pregnancy_relevant");
+  expect(Object.keys(answers)).toHaveLength(depth === "quick" ? 20 : 150);
+}, 20000);
 
 test("remounts the question sheet in a motion screen keyed by the active question ID", async () => {
   const user = userEvent.setup();

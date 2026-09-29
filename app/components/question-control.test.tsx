@@ -209,3 +209,106 @@ test("omits aria-describedby when a question has no presentation detail", () => 
     "aria-describedby",
   );
 });
+
+test.each([
+  ["usual_sleep_hours", "100"],
+  ["movement_walking_days", "8"],
+  ["movement_strength_days", "-1"],
+  ["diet_nuts_seeds", "8"],
+  ["height_cm", "0"],
+  ["weight_kg", "-20"],
+  ["sleep_fall_asleep_minutes", "-5"],
+  ["weekly_moderate_activity_minutes", "-1"],
+  ["smoking_total_years", "-1"],
+])("keeps an impossible %s answer on screen with a described error", async (id, value) => {
+  const user = userEvent.setup();
+  const onAnswer = renderControl(id);
+  const input = screen.getByRole("spinbutton");
+  await user.type(input, value);
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+
+  expect(onAnswer).not.toHaveBeenCalled();
+  expect(input).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByRole("alert")).toBeVisible();
+  expect(input.getAttribute("aria-describedby")).toContain(screen.getByRole("alert").id);
+  expect(input).toHaveFocus();
+});
+
+test("validates Enter, translates the error and resumes after correction", async () => {
+  const user = userEvent.setup();
+  const onAnswer = renderControl("usual_sleep_hours");
+  const input = screen.getByRole("spinbutton");
+  await user.type(input, "100{Enter}");
+  expect(onAnswer).not.toHaveBeenCalled();
+  expect(screen.getByRole("alert")).toHaveTextContent(/0.*24/);
+
+  await chooseFrench(user);
+  expect(screen.getByRole("alert")).toHaveTextContent(/entre 0 et 24/);
+  await user.clear(input);
+  await user.type(input, "7.5{Enter}");
+
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith(7.5);
+  expect(input).not.toHaveAttribute("aria-invalid", "true");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+test.each([
+  ["usual_sleep_hours", "0", 0],
+  ["usual_sleep_hours", "24", 24],
+  ["movement_strength_days", "7", 7],
+  ["height_cm", "260", 260],
+  ["weight_kg", "400", 400],
+])("preserves valid or unusual %s values without medical cutoffs: %s", async (id, value, expected) => {
+  const user = userEvent.setup();
+  const onAnswer = renderControl(id);
+  await user.type(screen.getByRole("spinbutton"), value);
+  await user.click(screen.getByRole("button", { name: "Continue" }));
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith(expected);
+});
+
+test("explains a missing answer and still permits an explicit skip", async () => {
+  const user = userEvent.setup();
+  const onAnswer = renderControl("usual_sleep_hours");
+  await chooseFrench(user);
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  expect(screen.getByRole("alert")).toHaveTextContent(/réponse.*passer/i);
+  expect(onAnswer).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: /préfère ne pas répondre/i }));
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith(null);
+});
+
+test.each(["squat_one_rep_max_kg", "deadlift_one_rep_max_kg"])(
+  "shows the no-new-maximal-lift instruction before answering %s",
+  async (id) => {
+    const user = userEvent.setup();
+    const onAnswer = renderControl(id);
+    await chooseFrench(user);
+    const guidance = screen.getByText(/Ne tentez pas de nouvelle charge maximale/);
+    expect(guidance).toBeVisible();
+    expect(guidance.closest("details")).toBeNull();
+    expect(screen.getByRole("spinbutton").getAttribute("aria-describedby")).toContain(guidance.id);
+    await user.click(screen.getByRole("button", { name: "Je ne connais pas cette mesure" }));
+    expect(onAnswer).toHaveBeenCalledExactlyOnceWith(null);
+  },
+);
+
+test("gives question-specific scale anchors and keeps the numeric selection through translation", async () => {
+  const user = userEvent.setup();
+  const onAnswer = renderControl("sleep_refreshed");
+  expect(screen.getByRole("radio", { name: /0.*Not at all rested/ })).toBeInTheDocument();
+  await user.click(screen.getByRole("radio", { name: /10.*Fully rested/ }));
+  await chooseFrench(user);
+  expect(screen.getByRole("radio", { name: /10.*Complètement reposé/ })).toBeChecked();
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith(10);
+});
+
+test("uses a practical explanation for sleep while preserving the canonical question", async () => {
+  const user = userEvent.setup();
+  const canonical = structuredClone(requiredQuestion("usual_sleep_hours"));
+  renderControl("usual_sleep_hours");
+  await chooseFrench(user);
+  await user.click(screen.getByText(/Pourquoi cette question/));
+  expect(screen.getByText(/Cette durée complète votre ressenti/)).toBeVisible();
+  expect(requiredQuestion("usual_sleep_hours")).toEqual(canonical);
+});

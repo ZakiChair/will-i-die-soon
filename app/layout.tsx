@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { IBM_Plex_Mono, Manrope, Newsreader } from "next/font/google";
+import { Manrope, DM_Sans } from "next/font/google";
 import { resolveMetadataOrigin } from "./lib/metadata";
 import { HERO_MOTION_BOOTSTRAP_SCRIPT } from "./lib/motion-bootstrap";
 import "./globals.css";
+import "./health-home.css";
+import "./journey-design.css";
+import "./results-design.css";
 
-const display = Newsreader({
-  axes: ["opsz"],
+const display = Manrope({
   display: "swap",
   style: "normal",
   subsets: ["latin"],
@@ -14,20 +16,12 @@ const display = Newsreader({
   weight: "variable",
 });
 
-const body = Manrope({
+const body = DM_Sans({
   display: "swap",
   style: "normal",
   subsets: ["latin"],
   variable: "--font-body",
   weight: "variable",
-});
-
-const mono = IBM_Plex_Mono({
-  display: "swap",
-  style: "normal",
-  subsets: ["latin"],
-  variable: "--font-data",
-  weight: ["400", "500", "600", "700"],
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -83,7 +77,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: HERO_MOTION_BOOTSTRAP_SCRIPT }} />
       </head>
-      <body className={`${display.variable} ${body.variable} ${mono.variable}`}>
+      <body className={`${display.variable} ${body.variable}`}>
         {children}
       </body>
     </html>

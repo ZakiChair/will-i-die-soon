@@ -3,6 +3,7 @@ import { questionBank } from "../data/questions";
 import { localizeQuestion } from "./questions-fr";
 import {
   CURATED_QUESTION_PROMPT_IDS,
+  COMMON_QUESTION_PROMPT_IDS,
   getQuestionPromptPresentation,
 } from "./question-prompt-presentation";
 import type { Locale } from "./types";
@@ -128,11 +129,37 @@ describe("question prompt presentation", () => {
   );
 
   test("uses the complete localized prompt for an ordinary question", () => {
-    const canonical = requiredQuestion("usual_sleep_hours");
+    const canonical = requiredQuestion("family_early_cvd");
     const localized = localizeQuestion(canonical, "fr");
     expect(
       getQuestionPromptPresentation(canonical.id, "fr", localized.prompt),
     ).toEqual({ title: localized.prompt });
+  });
+
+  test.each(["en", "fr"] satisfies Locale[])("keeps the sleep period and maximal-effort guidance in %s", (locale) => {
+    const sleep = requiredQuestion("usual_sleep_hours");
+    const presentation = getQuestionPromptPresentation(sleep.id, locale, localizeQuestion(sleep, locale).prompt);
+    expect(presentation.detail).toContain("24");
+    const refreshed = requiredQuestion("sleep_refreshed");
+    const recovery = getQuestionPromptPresentation(refreshed.id, locale, localizeQuestion(refreshed, locale).prompt);
+    expect(recovery.detail).toMatch(locale === "fr" ? /l'heure qui suit/ : /within an hour/);
+    const squat = requiredQuestion("squat_one_rep_max_kg");
+    const lifting = getQuestionPromptPresentation(squat.id, locale, localizeQuestion(squat, locale).prompt);
+    expect(lifting.detail).toMatch(locale === "fr" ? /déjà effectué.*kilogrammes/ : /already completed.*kilograms/);
+  });
+
+  test.each(COMMON_QUESTION_PROMPT_IDS)("uses both common presentations for %s and falls back if its meaning changes", (id) => {
+    const question = requiredQuestion(id);
+    const before = structuredClone(question);
+    for (const locale of ["en", "fr"] satisfies Locale[]) {
+      const prompt = localizeQuestion(question, locale).prompt;
+      const presented = getQuestionPromptPresentation(id, locale, prompt);
+      expect(presented.title.trim()).not.toBe("");
+      expect(presented.detail?.trim()).toBeTruthy();
+      const changed = `${prompt} Updated context.`;
+      expect(getQuestionPromptPresentation(id, locale, changed)).toEqual({ title: changed });
+    }
+    expect(question).toEqual(before);
   });
 
   test("falls back without mutating canonical question data", () => {

@@ -29,7 +29,10 @@ export function localizeQuestion(question: Question, locale: Locale): Question {
   if (!copy) throw new Error(`Missing French question: ${question.id}`);
   return {
     ...question,
-    prompt: copy.prompt,
+    prompt: question.id === "glp1_detail_procedure_pregnancy"
+      && question.options?.every(({ value }) => value === "procedure" || value === "none")
+      ? "Une anesthésie générale ou une sédation profonde est-elle prévue prochainement pour vous ?"
+      : copy.prompt,
     why: copy.why,
     options: question.options?.map((option) => ({
       ...option,

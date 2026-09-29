@@ -3,7 +3,7 @@
 import { useRef, useState, type RefObject } from "react";
 
 import {
-  humanAtlasSceneIds,
+  humanAtlasStorySceneIds,
   type HumanAtlasSceneId,
 } from "../data/human-atlas";
 import { gsap, ScrollTrigger, useGSAP } from "../lib/gsap-client";
@@ -22,6 +22,11 @@ const HERO_INLINE_PROPERTIES = [
   "visibility",
   "will-change",
 ] as const;
+const ATLAS_CSS_PROPERTIES = ["--atlas-scroll", "--atlas-chapter-progress", "--atlas-scene-index"] as const;
+
+function clampProgress(progress: number): number {
+  return Number.isNaN(progress) ? 0 : Math.min(1, Math.max(0, progress));
+}
 
 function clearInlineMotion(nodes: Iterable<Element>): void {
   for (const node of nodes) {
@@ -44,11 +49,11 @@ export function atlasSceneFromProgress(progress: number): HumanAtlasSceneId {
   const finiteProgress = Number.isNaN(progress) ? 0 : progress;
   const clampedProgress = Math.min(1, Math.max(0, finiteProgress));
   const sceneIndex = Math.min(
-    Math.floor(clampedProgress * humanAtlasSceneIds.length),
-    humanAtlasSceneIds.length - 1,
+    Math.floor(clampedProgress * humanAtlasStorySceneIds.length),
+    humanAtlasStorySceneIds.length - 1,
   );
 
-  return humanAtlasSceneIds[sceneIndex];
+  return humanAtlasStorySceneIds[sceneIndex];
 }
 
 export function atlasMotionLimits(width: number): {
@@ -57,15 +62,16 @@ export function atlasMotionLimits(width: number): {
   imageY: number;
 } {
   return width <= 850
-    ? { heroY: 18, imageScale: 1.018, imageY: 4 }
-    : { heroY: 36, imageScale: 1.035, imageY: 8 };
+    ? { heroY: 18, imageScale: 1.12, imageY: -18 }
+    : { heroY: 36, imageScale: 1.24, imageY: -42 };
 }
 
 export function useLandingTimeline(
   scope: RefObject<HTMLElement | null>,
   disabled = false,
+  progressRef?: RefObject<number>,
 ): HumanAtlasSceneId {
-  const [activeScene, setActiveScene] = useState<HumanAtlasSceneId>("breath");
+  const [activeScene, setActiveScene] = useState<HumanAtlasSceneId>(humanAtlasStorySceneIds[0]);
   const motionAllowed = useDecorativeMotion();
   const terminateEntrance = useRef<(() => void) | null>(null);
   const atlasTerminated = useRef(false);
@@ -120,7 +126,7 @@ export function useLandingTimeline(
 
       if (
         !heroScope ||
-        heroItems.length !== 5 ||
+        heroItems.length !== 4 ||
         typeof gsap.timeline !== "function" ||
         typeof ScrollTrigger.create !== "function"
       ) {
@@ -178,15 +184,9 @@ export function useLandingTimeline(
           )
           .fromTo(
             heroItems[3],
-            { opacity: 0, y: 14 },
-            { duration: 0.36, ease: "power3.out", opacity: 1, y: 0 },
-            0.38,
-          )
-          .fromTo(
-            heroItems[4],
             { opacity: 0, y: 10 },
             { duration: 0.32, ease: "power3.out", opacity: 1, y: 0 },
-            0.5,
+            0.38,
           );
         root.dataset.motionBootstrap = "ready";
       } catch {
@@ -201,11 +201,17 @@ export function useLandingTimeline(
   useGSAP(
     (context) => {
       const landingScope = scope.current;
+      const atlas = landingScope?.matches(".human-atlas-scroll")
+        ? landingScope
+        : landingScope?.querySelector<HTMLElement>(".human-atlas-scroll");
       const handoffTargets = landingScope
         ? Array.from(landingScope.querySelectorAll<HTMLElement>("[data-hero-handoff]"))
         : [];
-      const title = landingScope?.querySelector<HTMLElement>("[data-hero-title]");
-      const camera = landingScope?.querySelector<HTMLElement>("[data-atlas-camera]");
+      const stage = landingScope?.querySelector<HTMLElement>(".human-atlas-stage");
+      // Le corps et ses lumières partagent le cadrage pour rester alignés.
+      const camera = landingScope?.querySelector<HTMLElement>("[data-atlas-optics]")
+        ?? landingScope?.querySelector<HTMLElement>("[data-atlas-camera]");
+      const sweep = landingScope?.querySelector<HTMLElement>("[data-atlas-sweep]");
       const progressFill = landingScope?.querySelector<HTMLElement>(
         "[data-atlas-progress-fill]",
       );
@@ -215,8 +221,11 @@ export function useLandingTimeline(
       const clearContinuousState = () => {
         clearInlineMotion(handoffTargets);
         if (camera) clearInlineMotion([camera]);
+        if (sweep) clearInlineMotion([sweep]);
         if (progressFill) clearInlineMotion([progressFill]);
         clearInlineMotion(strengthSignals);
+        for (const property of ATLAS_CSS_PROPERTIES) stage?.style.removeProperty(property);
+        atlas?.removeAttribute("data-scroll-sequenced");
       };
       let timeline: ReturnType<typeof gsap.timeline> | undefined;
       let active = true;
@@ -265,21 +274,54 @@ export function useLandingTimeline(
         return;
       }
 
-      const atlas = landingScope.matches(".human-atlas-scroll")
-        ? landingScope
-        : landingScope.querySelector<HTMLElement>(".human-atlas-scroll");
       if (!atlas) {
         clearContinuousState();
         return;
       }
 
       try {
+        const chapters = Array.from(atlas.querySelectorAll<HTMLElement>("[data-atlas-scene]"));
+        const writeStageProgress = (progress: number, chapterProgress: number, scene: HumanAtlasSceneId) => {
+          stage?.style.setProperty("--atlas-scroll", String(progress));
+          stage?.style.setProperty("--atlas-chapter-progress", String(chapterProgress));
+          stage?.style.setProperty("--atlas-scene-index", String(humanAtlasStorySceneIds.indexOf(scene)));
+        };
+        writeStageProgress(0, 0, humanAtlasStorySceneIds[0]);
         const syncAtlasProgress = ({ progress }: { progress: number }) => {
           if (!active) return;
-          const finiteProgress = Number.isNaN(progress) ? 0 : progress;
-          const clampedProgress = Math.min(1, Math.max(0, finiteProgress));
+          const clampedProgress = clampProgress(progress);
+          const viewportHeight = Number.isFinite(window.innerHeight) && window.innerHeight > 0 ? window.innerHeight : 1;
+          // Le texte peut prendre davantage de place en français ou sur mobile.
+          // Le chapitre visible pilote donc la lumière, indépendamment de sa hauteur.
+          let nearest = atlasSceneFromProgress(clampedProgress);
+          let nearestDistance = Infinity;
+          let chapterProgress = clampProgress(clampedProgress * humanAtlasStorySceneIds.length - humanAtlasStorySceneIds.indexOf(nearest));
+          let firstChapterTop: number | null = null;
+          for (const chapter of chapters) {
+            const bounds = chapter.getBoundingClientRect();
+            const id = chapter.dataset.atlasScene as HumanAtlasSceneId;
+            if (!humanAtlasStorySceneIds.includes(id) || !Number.isFinite(bounds.top) || !Number.isFinite(bounds.height) || bounds.height <= 0) continue;
+            if (id === humanAtlasStorySceneIds[0]) firstChapterTop = bounds.top;
+            const distance = Math.abs(bounds.top + bounds.height / 2 - viewportHeight / 2);
+            if (distance < nearestDistance) {
+              nearest = id;
+              nearestDistance = distance;
+              chapterProgress = clampProgress((viewportHeight / 2 - bounds.top) / bounds.height);
+            }
+          }
+          // Les bornes restent explicites quand le dernier texte est encore sous le centre mobile.
+          if (clampedProgress === 0 || clampedProgress === 1) {
+            nearest = clampedProgress === 0 ? humanAtlasStorySceneIds[0] : humanAtlasStorySceneIds[humanAtlasStorySceneIds.length - 1];
+            chapterProgress = clampedProgress;
+          }
+          // Seuls les spans de texte sont concernés : CTA et couche d'entrée restent disponibles.
+          const handoff = clampedProgress === 0 || firstChapterTop === null ? 0
+            : clampProgress((viewportHeight * 0.88 - firstChapterTop) / (viewportHeight * 0.3));
+          for (const target of handoffTargets) target.style.opacity = String(1 - handoff);
+          writeStageProgress(clampedProgress, chapterProgress, nearest);
+          if (progressRef) progressRef.current = clampedProgress;
           if (progressFill) gsap.set(progressFill, { scaleX: clampedProgress });
-          setActiveScene(atlasSceneFromProgress(clampedProgress));
+          setActiveScene(nearest);
         };
 
         if (camera) camera.style.willChange = "transform";
@@ -287,9 +329,7 @@ export function useLandingTimeline(
           scrollTrigger: {
             end: "bottom bottom",
             invalidateOnRefresh: true,
-            onLeaveBack: () => {
-              if (active) setActiveScene("breath");
-            },
+            onLeaveBack: () => syncAtlasProgress({ progress: 0 }),
             onRefresh: syncAtlasProgress,
             onUpdate: syncAtlasProgress,
             scrub: 0.8,
@@ -309,9 +349,6 @@ export function useLandingTimeline(
             0,
           );
         }
-        if (title) {
-          timeline.to(title, { duration: 1, ease: "none", opacity: 0.82 }, 0);
-        }
         if (camera) {
           timeline.fromTo(
             camera,
@@ -325,6 +362,13 @@ export function useLandingTimeline(
             0,
           );
         }
+        if (sweep) {
+          timeline.fromTo(sweep, { y: 0 }, {
+            duration: 1,
+            ease: "none",
+            y: () => (atlas.querySelector<HTMLElement>(".human-atlas-stage")?.clientHeight ?? 600) * 0.76,
+          }, 0);
+        }
         if (strengthSignals.length > 0) {
           timeline
             .fromTo(
@@ -335,6 +379,8 @@ export function useLandingTimeline(
             )
             .set(strengthSignals, { strokeDashoffset: 0 }, 1);
         }
+        // Le CSS ne masque les chapitres qu'une fois le séquençage réellement installé.
+        atlas.setAttribute("data-scroll-sequenced", "true");
       } catch {
         cleanup(true);
         try {
@@ -347,7 +393,7 @@ export function useLandingTimeline(
 
       return () => cleanup(false);
     },
-    { dependencies: [disabled, motionAllowed], revertOnUpdate: true, scope },
+    { dependencies: [disabled, motionAllowed, progressRef], revertOnUpdate: true, scope },
   );
 
   return activeScene;

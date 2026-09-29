@@ -109,7 +109,7 @@ describe("complete bilingual UI copy", () => {
     expect(uiCopyKeys).not.toHaveProperty("canopyBranch");
   });
 
-  test("keeps Human Atlas copy descriptive rather than diagnostic or personalized", () => {
+  test("keeps Human Atlas copy descriptive without diagnostic or measurement claims", () => {
     const atlasEntries = Object.entries(uiCopy.en).filter(([key]) =>
       key.startsWith("landing.atlas."),
     );
@@ -124,10 +124,10 @@ describe("complete bilingual UI copy", () => {
 
   test("uses the approved bilingual Human Atlas hero headline", () => {
     expect(uiCopy.en["landing.atlas.hero.title"]).toBe(
-      "Read the signals. Not a verdict.",
+      "Your fitness, in a new light.",
     );
     expect(uiCopy.fr["landing.atlas.hero.title"]).toBe(
-      "Lisez les signaux. Pas un verdict.",
+      "Votre forme, sous un nouveau jour.",
     );
   });
 

@@ -1,4 +1,4 @@
-import { render as testingRender, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as testingRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -97,16 +97,17 @@ async function selectEveryParsedRow(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /confirm selected results/i }));
 }
 
-async function completeFromCurrentQuestion(
-  user: ReturnType<typeof userEvent.setup>,
+function completeFromCurrentQuestion(
   onComplete: ReturnType<typeof vi.fn>,
 ) {
+  // Cette navigation prépare le scénario d'import ; les gestes de l'import
+  // lui-même restent simulés avec userEvent, sans retarder chaque question passée.
   for (let step = 0; step < 220 && onComplete.mock.calls.length === 0; step += 1) {
     const intermission = screen.queryByRole("button", {
       name: /continue assessment/i,
     });
-    if (intermission) await user.click(intermission);
-    else await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+    if (intermission) fireEvent.click(intermission);
+    else fireEvent.click(screen.getByRole("button", { name: /prefer not to say|I don.t know this measurement/i }));
   }
 }
 
@@ -407,13 +408,13 @@ test("a new selection aborts the previous extraction and only the active one con
   expect(screen.queryByRole("status")).not.toBeInTheDocument();
 });
 
-async function moveToRecentLabs(user: ReturnType<typeof userEvent.setup>) {
+function moveToRecentLabs() {
   for (let step = 0; step < 80; step += 1) {
     const intermission = screen.queryByRole("button", {
       name: /continue assessment/i,
     });
     if (intermission) {
-      await user.click(intermission);
+      fireEvent.click(intermission);
       continue;
     }
     if (
@@ -423,7 +424,7 @@ async function moveToRecentLabs(user: ReturnType<typeof userEvent.setup>) {
     ) {
       return;
     }
-    await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+    fireEvent.click(screen.getByRole("button", { name: /prefer not to say|I don.t know this measurement/i }));
   }
   throw new Error("Recent-labs gate was not reached");
 }
@@ -440,7 +441,7 @@ test("recent-labs yes reaches import and confirmed rows survive the in-memory co
     />,
   );
 
-  await moveToRecentLabs(user);
+  moveToRecentLabs();
   await user.click(screen.getByRole("radio", { name: "Yes" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
   expect(
@@ -460,13 +461,7 @@ test("recent-labs yes reaches import and confirmed rows survive the in-memory co
   await user.selectOptions(screen.getByLabelText(/fasting status/i), "not_stated");
   await user.click(screen.getByRole("button", { name: /confirm selected results/i }));
 
-  for (let step = 0; step < 100 && onComplete.mock.calls.length === 0; step += 1) {
-    const intermission = screen.queryByRole("button", {
-      name: /continue assessment/i,
-    });
-    if (intermission) await user.click(intermission);
-    else await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
-  }
+  completeFromCurrentQuestion(onComplete);
 
   expect(onComplete).toHaveBeenCalledOnce();
   expect(onComplete.mock.calls[0][0]).toEqual(
@@ -497,7 +492,7 @@ test("does not attach a source flag to an AnswerMap value after the marker is co
     />,
   );
 
-  await moveToRecentLabs(user);
+  moveToRecentLabs();
   await user.click(screen.getByRole("radio", { name: "Yes" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.upload(
@@ -516,7 +511,7 @@ test("does not attach a source flag to an AnswerMap value after the marker is co
   await user.type(screen.getByLabelText(/laboratory reference range/i), "Not printed");
   await user.click(screen.getByRole("checkbox", { name: /include ast/i }));
   await user.click(screen.getByRole("button", { name: /confirm selected results/i }));
-  await completeFromCurrentQuestion(user, onComplete);
+  completeFromCurrentQuestion(onComplete);
 
   expect(onComplete).toHaveBeenCalledOnce();
   const [answers, confirmedLabs] = onComplete.mock.calls[0];
@@ -543,12 +538,12 @@ test("a full-marker Quick import keeps 20 answers while handing off every struct
     />,
   );
 
-  await moveToRecentLabs(user);
+  moveToRecentLabs();
   await user.click(screen.getByRole("radio", { name: "Yes" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.upload(screen.getByLabelText(/choose a lab report/i), localTextFile(fullMarkerReport));
   await selectEveryParsedRow(user);
-  await completeFromCurrentQuestion(user, onComplete);
+  completeFromCurrentQuestion(onComplete);
 
   expect(onComplete).toHaveBeenCalledOnce();
   const [answers, confirmedLabs] = onComplete.mock.calls[0];
@@ -575,7 +570,7 @@ test("a subset re-import removes only stale imported mappings and preserves manu
     />,
   );
 
-  await moveToRecentLabs(user);
+  moveToRecentLabs();
   await user.click(screen.getByRole("radio", { name: "Yes" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.upload(screen.getByLabelText(/choose a lab report/i), localTextFile(fullMarkerReport));
@@ -597,7 +592,7 @@ test("a subset re-import removes only stale imported mappings and preserves manu
     ),
   );
   await selectEveryParsedRow(user);
-  await completeFromCurrentQuestion(user, onComplete);
+  completeFromCurrentQuestion(onComplete);
 
   const [answers, confirmedLabs] = onComplete.mock.calls[0];
   expect(answers.sex_assigned_at_birth).toBeNull();

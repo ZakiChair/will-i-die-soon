@@ -159,14 +159,14 @@ test("marks result reading units as non-nested sibling roots without changing he
   expect(scoreReadout).toHaveAttribute("data-reveal-item");
   expect(scoreReadout).not.toHaveAttribute("data-count-from");
 
-  const title = screen.getByRole("heading", { name: "Your health map, with the reasons attached." });
+  const title = screen.getByRole("heading", { name: "Your health, in perspective." });
   const urgent = screen.getByRole("heading", { name: "Act on these immediate signals now" });
   const canopy = screen.getByRole("heading", { name: "Four health pillars you can inspect." });
   expect(title.compareDocumentPosition(urgent) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(urgent.compareDocumentPosition(canopy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
-test("Express results keep shared tools while omitting the score and generic result surfaces", () => {
+test("Express results show their own index and navigation while keeping shared tools", () => {
   const { container } = render(
     <Results
       answers={{
@@ -187,7 +187,15 @@ test("Express results keep shared tools while omitting the score and generic res
     />,
   );
 
-  expect(screen.getByRole("heading", { name: "Your Express snapshot" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Your Express profile" })).toBeVisible();
+  expect(container.querySelector(".express-profile__score")).toHaveTextContent("92");
+  expect(container.querySelector("#score-distribution")).toBeNull();
+  const navigation = screen.getByRole("navigation", { name: "Explore your results" });
+  expect(within(navigation).getByRole("link", { name: "Priorities" })).toHaveAttribute("href", "#express-priorities");
+  expect(within(navigation).getByRole("link", { name: "Method" })).toHaveAttribute("href", "#express-method");
+  for (const link of navigation.querySelectorAll("a")) {
+    expect(container.querySelector(link.hash)).not.toBeNull();
+  }
   expect(screen.getByRole("heading", { name: /keep or clear these results/i })).toBeVisible();
   expect(screen.queryByText("Health signal pillars")).not.toBeInTheDocument();
   expect(screen.queryByText(/Purity Score/i)).not.toBeInTheDocument();
@@ -407,7 +415,8 @@ test("Quick shows a habits reflection and coverage but never a numeric score", (
 
   expect(screen.getByRole("heading", { name: /wellness habits reflection/i })).toBeVisible();
   expect(screen.getByText(/Quick does not calculate a number/i)).toBeVisible();
-  expect(screen.getByText(/100% answer coverage/i)).toBeVisible();
+  const reflection = screen.getByRole("region", { name: /wellness habits reflection/i });
+  expect(within(reflection).getByText(/100% answer coverage/i)).toBeVisible();
   expect(document.body.textContent).not.toMatch(/\b\d+\s*\/\s*100\b/);
   expect(
     screen.queryByText(/Purity Score — wellness habits, not a health verdict/i),
@@ -429,7 +438,8 @@ test("the adult ledger distinguishes assessed points and exposes every component
   expect(
     screen.getByText("15 / 15 assessed · 83% component coverage"),
   ).toBeVisible();
-  await user.click(screen.getByText("Nutrition pattern"));
+  const ledger = screen.getByRole("region", { name: /Purity Score — wellness habits/i });
+  await user.click(within(ledger).getByText("Nutrition pattern"));
   expect(screen.getByText("Legume meals").closest("li")).toHaveTextContent(
     "Missing; 3 possible points affect coverage only",
   );
@@ -633,9 +643,8 @@ test("page completion hands depth into Results and restart clears the in-memory 
   expect(screen.getByRole("heading", { name: /wellness habits reflection/i })).toBeVisible();
   expect(screen.getByText(/Quick assessment/i)).toBeVisible();
   await user.click(screen.getByRole("button", { name: /restart from the beginning/i }));
-  expect(
-    screen.getByRole("heading", { name: "Read the signals. Not a verdict." }),
-  ).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 })).toHaveAttribute("id", "landing-title");
+  expect(screen.queryByRole("region", { name: /wellness habits reflection/i })).not.toBeInTheDocument();
 });
 
 test("renders the complete adult result presentation in French while preserving clinical machine data", async () => {
@@ -656,7 +665,7 @@ test("renders the complete adult result presentation in French while preserving 
 
   expect(
     screen.getByRole("heading", {
-      name: "Votre carte de santé, avec les raisons associées.",
+      name: "Votre santé, en perspective.",
     }),
   ).toBeVisible();
   expect(
@@ -664,7 +673,8 @@ test("renders the complete adult result presentation in French while preserving 
       name: "Purity Score — habitudes de bien-être, pas un verdict sur la santé.",
     }),
   ).toBeVisible();
-  expect(screen.getByText("Habitudes alimentaires")).toBeVisible();
+  expect(within(screen.getByRole("region", { name: "Vos habitudes, domaine par domaine" }))
+    .getByText("Habitudes alimentaires")).toBeVisible();
   const scoreReadout = screen.getByText(/\d+ \/ 100 ·/);
   expect(scoreReadout).toBeVisible();
   expect(scoreReadout.textContent).toMatch(
@@ -691,7 +701,7 @@ test("renders the complete adult result presentation in French while preserving 
   expect(screen.getByRole("button", { name: "Télécharger le JSON" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Recommencer depuis le début" })).toBeVisible();
   expect(document.body.textContent).not.toMatch(
-    /Your field notes|Versioned habit ledger|Actions you can choose|Confirmed lab context|Keep or clear these results/i,
+    /Your personal summary|Versioned habit ledger|Actions you can choose|Confirmed lab context|Keep or clear these results/i,
   );
 });
 
@@ -902,4 +912,70 @@ test("does not rerun risk, score, or action engines when only the result locale 
   evaluate.mockRestore();
   calculate.mockRestore();
   buildActions.mockRestore();
+});
+
+test("puts urgent instructions before the overview with its score, followed by priorities and evidence", () => {
+  render(
+    <Results
+      answers={{ ...F1_ANSWERS, usual_sleep_hours: 4, urgent_chest_discomfort_now: true }}
+      assessmentDepth="deep"
+      confirmedLabs={[]}
+      profile={{ age: 35, countryCode: "CH" }}
+      onRestart={vi.fn()}
+    />,
+  );
+
+  const orderedSections = [
+    screen.getByRole("alert", { name: "Act on these immediate signals now" }),
+    screen.getByRole("region", { name: "Your results at a glance" }),
+    screen.getByRole("region", { name: "Your habits score" }),
+    screen.getByRole("heading", { name: /actions you can choose/i }).closest("section")!,
+    screen.getByRole("region", { name: "Four health pillars you can inspect." }),
+  ];
+  for (let index = 1; index < orderedSections.length; index += 1) {
+    expect(orderedSections[index - 1].compareDocumentPosition(orderedSections[index])
+      & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  }
+  expect(screen.queryByRole("heading", { name: /longevity synthesis/i })).not.toBeInTheDocument();
+  expect(document.querySelector(".longevity")).not.toBeInTheDocument();
+});
+
+test("focuses the result title on arrival and only links to accessible report sections", async () => {
+  const user = userEvent.setup();
+  renderLocalizedResults({
+    answers: F1_ANSWERS,
+    assessmentDepth: "deep",
+    confirmedLabs: [],
+    profile: { age: 35, countryCode: "CH" },
+  });
+  expect(screen.getByRole("heading", { level: 1 })).toHaveFocus();
+  const navigation = screen.getByRole("navigation", { name: "Explore your results" });
+  for (const link of within(navigation).getAllByRole("link")) {
+    expect(document.querySelector(link.getAttribute("href")!)).toBeVisible();
+  }
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  expect(screen.getByRole("button", { name: "Français" })).toHaveFocus();
+  expect(screen.getByRole("navigation", { name: "Explorer vos résultats" })).toHaveTextContent("Synthèse");
+  expect(screen.getByRole("region", { name: "Votre score d’habitudes" })).toHaveTextContent("Cette échelle ne vous compare pas à une population");
+});
+
+test("Quick explains the unavailable reference without assigning a score or drawing a population curve", () => {
+  render(<Results answers={F1_ANSWERS} assessmentDepth="quick" confirmedLabs={[]}
+    profile={{ age: 35, countryCode: "CH" }} onRestart={vi.fn()} />);
+  const reference = screen.getByRole("region", { name: "Your habits score" });
+  expect(reference).toHaveTextContent(/Quick does not calculate a global habits score/i);
+  expect(within(reference).queryByRole("img")).not.toBeInTheDocument();
+  expect(within(reference).queryByText("Your score")).not.toBeInTheDocument();
+});
+
+test("private adolescent handoff reveals no adult overview, reference, or inaccessible anchors", async () => {
+  const user = userEvent.setup();
+  render(<Results answers={F1_ANSWERS} assessmentDepth="detailed" confirmedLabs={[]}
+    profile={{ age: 15, countryCode: "CH", assistedMinor: true }} onRestart={vi.fn()} />);
+  expect(screen.queryByRole("navigation", { name: "Explore your results" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Your results at a glance" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Your habits score" })).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /show my private results/i }));
+  expect(screen.queryByRole("region", { name: "Your habits score" })).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Four health pillars you can inspect." })).toHaveFocus();
 });

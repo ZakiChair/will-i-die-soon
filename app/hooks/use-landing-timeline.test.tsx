@@ -154,11 +154,13 @@ function resolvedTweenNumber(value: unknown): number {
 let motion: MotionEnvironment | undefined;
 
 function TimelineProbe({
+  chapters = false,
   camera = true,
   disabled = false,
   fill = true,
   hero = true,
 }: {
+  chapters?: boolean;
   camera?: boolean;
   disabled?: boolean;
   fill?: boolean;
@@ -177,7 +179,7 @@ function TimelineProbe({
             <h1 data-hero-item><span data-hero-handoff data-hero-title>Title</span></h1>
           </div>
           <p data-hero-item><span data-hero-handoff>Body</span></p>
-          <button data-hero-item type="button">Action</button>
+          <button type="button">Action</button>
           <p data-hero-item><span data-hero-handoff>Hint</span></p>
         </div>
       ) : null}
@@ -187,11 +189,15 @@ function TimelineProbe({
             {camera ? <span data-atlas-camera /> : null}
           </div>
           {fill ? <span data-atlas-progress-fill /> : null}
+          <span data-atlas-sweep />
         </div>
         <svg aria-hidden="true">
           <path data-strength-signal="true" />
           <path data-strength-signal="true" />
         </svg>
+        {chapters ? ["sleep", "breath", "strength", "energy"].map((id) => (
+          <section key={id} className="human-atlas-scene" data-atlas-scene={id} />
+        )) : null}
       </section>
     </section>
   );
@@ -254,46 +260,44 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-test("clamps progress into the four canonical atlas scenes", () => {
-  expect(atlasSceneFromProgress(-1)).toBe("breath");
-  expect(atlasSceneFromProgress(0)).toBe("breath");
-  expect(atlasSceneFromProgress(0.34)).toBe("strength");
-  expect(atlasSceneFromProgress(0.67)).toBe("sleep");
+test("clamps progress into the four landing story scenes", () => {
+  expect(atlasSceneFromProgress(-1)).toBe("sleep");
+  expect(atlasSceneFromProgress(0)).toBe("sleep");
+  expect(atlasSceneFromProgress(0.34)).toBe("breath");
+  expect(atlasSceneFromProgress(0.67)).toBe("strength");
   expect(atlasSceneFromProgress(1)).toBe("energy");
   expect(atlasSceneFromProgress(2)).toBe("energy");
 });
 
 test("selects the exact compact Atlas camera limits at the 850 pixel boundary", () => {
-  expect(atlasMotionLimits(1440)).toEqual({ heroY: 36, imageScale: 1.035, imageY: 8 });
-  expect(atlasMotionLimits(851)).toEqual({ heroY: 36, imageScale: 1.035, imageY: 8 });
-  expect(atlasMotionLimits(850)).toEqual({ heroY: 18, imageScale: 1.018, imageY: 4 });
+  expect(atlasMotionLimits(1440)).toEqual({ heroY: 36, imageScale: 1.24, imageY: -42 });
+  expect(atlasMotionLimits(851)).toEqual({ heroY: 36, imageScale: 1.24, imageY: -42 });
+  expect(atlasMotionLimits(850)).toEqual({ heroY: 18, imageScale: 1.12, imageY: -18 });
 });
 
-test("runs the exact five-part entrance before the guard can settle pending motion", () => {
+test("runs the four-part entrance with an immediately available action before the guard can settle pending motion", () => {
   startPendingBootstrap();
   render(<TimelineProbe />);
 
   expect(document.documentElement).toHaveAttribute("data-motion-bootstrap", "ready");
   const items = heroItems();
   const calls = entranceTimeline().calls.filter((call) => call.method === "fromTo");
-  expect(calls).toHaveLength(5);
+  expect(calls).toHaveLength(4);
   expect(calls.map(({ targets }) => targets)).toEqual(items.map((item) => [item]));
   expect(calls.map(({ from }) => from)).toEqual([
     { opacity: 0, y: 12 },
     { opacity: 0, y: 32 },
     { opacity: 0, y: 18 },
-    { opacity: 0, y: 14 },
     { opacity: 0, y: 10 },
   ]);
   expect(calls.map(({ position, to }) => ({ position, to }))).toEqual([
     { position: 0, to: { duration: 0.32, ease: "power3.out", opacity: 1, y: 0 } },
     { position: 0.08, to: { duration: 0.62, ease: "power3.out", opacity: 1, y: 0 } },
     { position: 0.26, to: { duration: 0.42, ease: "power3.out", opacity: 1, y: 0 } },
-    { position: 0.38, to: { duration: 0.36, ease: "power3.out", opacity: 1, y: 0 } },
-    { position: 0.5, to: { duration: 0.32, ease: "power3.out", opacity: 1, y: 0 } },
+    { position: 0.38, to: { duration: 0.32, ease: "power3.out", opacity: 1, y: 0 } },
   ]);
   expect(Math.max(...calls.map((call) => Number(call.position) + Number(call.to.duration))))
-    .toBeCloseTo(0.82, 10);
+    .toBeCloseTo(0.70, 10);
 });
 
 test("removes bootstrap ownership and inline entrance state on completion", () => {
@@ -313,7 +317,6 @@ test("keeps entrance and continuous handoff motion on separate DOM layers", () =
 
   const outerItems = heroItems();
   const handoffs = Array.from(document.querySelectorAll<HTMLElement>("[data-hero-handoff]"));
-  const title = document.querySelector<HTMLElement>("[data-hero-title]");
   const continuousCalls = continuousTimeline().calls;
   const handoffCall = continuousCalls.find((call) => call.method === "to" && call.targets.length === 4);
   const opacityCalls = continuousCalls.filter((call) => call.to.opacity !== undefined);
@@ -321,9 +324,7 @@ test("keeps entrance and continuous handoff motion on separate DOM layers", () =
   expect(handoffCall?.targets).toEqual(handoffs);
   expect(handoffCall?.to).toEqual(expect.objectContaining({ y: expect.any(Function) }));
   expect(outerItems.some((item) => handoffCall?.targets.includes(item))).toBe(false);
-  expect(opacityCalls).toHaveLength(1);
-  expect(opacityCalls[0].targets).toEqual([title]);
-  expect(opacityCalls[0].to.opacity).toBe(0.82);
+  expect(opacityCalls).toHaveLength(0);
   expect(continuousCalls.some((call) => call.to.visibility !== undefined)).toBe(false);
 });
 
@@ -348,8 +349,8 @@ test("targets the Atlas image layer with responsive camera motion", () => {
       y: expect.any(Function),
     }),
   }));
-  expect(resolvedTweenNumber(cameraCall?.to.scale)).toBe(1.018);
-  expect(resolvedTweenNumber(cameraCall?.to.y)).toBe(4);
+  expect(resolvedTweenNumber(cameraCall?.to.scale)).toBe(1.12);
+  expect(resolvedTweenNumber(cameraCall?.to.y)).toBe(-18);
   expect(cameraCall?.targets).not.toContain(media);
   expect((camera as HTMLElement).style.willChange).toBe("transform");
   const handoffCall = continuousTimeline().calls.find((call) => (
@@ -359,8 +360,8 @@ test("targets the Atlas image layer with responsive camera motion", () => {
 });
 
 test.each([
-  [1440, 320, { heroY: -36, imageScale: 1.035, imageY: 8 }, { heroY: -18, imageScale: 1.018, imageY: 4 }],
-  [320, 1440, { heroY: -18, imageScale: 1.018, imageY: 4 }, { heroY: -36, imageScale: 1.035, imageY: 8 }],
+  [1440, 320, { heroY: -36, imageScale: 1.24, imageY: -42 }, { heroY: -18, imageScale: 1.12, imageY: -18 }],
+  [320, 1440, { heroY: -18, imageScale: 1.12, imageY: -18 }, { heroY: -36, imageScale: 1.24, imageY: -42 }],
 ] as const)(
   "re-evaluates Atlas amplitudes on refresh from %i to %i pixels",
   (initialWidth, refreshedWidth, initial, refreshed) => {
@@ -392,12 +393,14 @@ test.each([
       imageY: resolvedTweenNumber(cameraCall?.to.y),
     }).toEqual(refreshed);
     expect(continuousTimelines()).toHaveLength(1);
-    expect(screen.getByRole("status")).toHaveTextContent("sleep");
+    expect(screen.getByRole("status")).toHaveTextContent("strength");
   },
 );
 
 test("preserves one scoped scrubbed Atlas timeline and strength-signal state", () => {
   render(<TimelineProbe />);
+
+  expect(document.querySelector(".human-atlas-scroll")).toHaveAttribute("data-scroll-sequenced", "true");
 
   expect(useGsapConfigs.some((config) => (
     Array.isArray(config.dependencies) &&
@@ -406,7 +409,7 @@ test("preserves one scoped scrubbed Atlas timeline and strength-signal state", (
   ))).toBe(true);
   expect(useGsapConfigs.some((config) => (
     Array.isArray(config.dependencies) &&
-    config.dependencies.length === 2 &&
+    config.dependencies.length === 3 &&
     config.dependencies[0] === false &&
     config.dependencies[1] === true
   ))).toBe(true);
@@ -436,9 +439,9 @@ test("preserves one scoped scrubbed Atlas timeline and strength-signal state", (
     document.querySelector("[data-atlas-progress-fill]"),
     { scaleX: 0.6 },
   );
-  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+  expect(screen.getByRole("status")).toHaveTextContent("strength");
   act(() => scrollTriggerConfig().onLeaveBack());
-  expect(screen.getByRole("status")).toHaveTextContent("breath");
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
 });
 
 test("keeps the progress fill within two percent of raw trigger progress", () => {
@@ -457,7 +460,7 @@ test("keeps camera and fill targets optional", () => {
   expect(() => render(<TimelineProbe camera={false} fill={false} />)).not.toThrow();
   expect(() => act(() => scrollTriggerConfig().onUpdate({ progress: 0.6 }))).not.toThrow();
   expect(() => act(() => scrollTriggerConfig().onRefresh({ progress: 0.6 }))).not.toThrow();
-  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+  expect(screen.getByRole("status")).toHaveTextContent("strength");
 });
 
 test("settles an interrupted entrance on unmount and releases owned resources", () => {
@@ -518,6 +521,7 @@ test.each([
   expect(document.documentElement).toHaveAttribute("data-motion-bootstrap", "static");
   expect(mockGsapSet).not.toHaveBeenCalled();
   expect(timelines).toHaveLength(0);
+  expect(document.querySelector(".human-atlas-scroll")).not.toHaveAttribute("data-scroll-sequenced");
   expectFinalHeroInlineState();
 });
 
@@ -573,6 +577,7 @@ test("terminally finalizes an active entrance when continuous setup throws", () 
   expect(continuous.kill).toHaveBeenCalledOnce();
   expect(entrance.kill).toHaveBeenCalledOnce();
   expect(contexts[0].revert).toHaveBeenCalledOnce();
+  expect(document.querySelector(".human-atlas-scroll")).not.toHaveAttribute("data-scroll-sequenced");
   for (const node of allHeroLayers) {
     expect(node.style.opacity).toBe("");
     expect(node.style.transform).toBe("");
@@ -597,11 +602,11 @@ test("recreates only continuous motion at raw progress after a completed entranc
   const firstContinuous = continuousTimeline();
   const firstContinuousContext = contexts[1];
   act(() => scrollTriggerConfig().onUpdate({ progress: 0.6 }));
-  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+  expect(screen.getByRole("status")).toHaveTextContent("strength");
 
   act(() => motion?.setHidden(true));
   expect(firstContinuousContext.revert).toHaveBeenCalled();
-  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+  expect(screen.getByRole("status")).toHaveTextContent("strength");
   act(() => motion?.setHidden(false));
 
   expect(timelines.filter((timeline) => !("scrollTrigger" in timeline.options))).toHaveLength(1);
@@ -614,7 +619,7 @@ test("recreates only continuous motion at raw progress after a completed entranc
     document.querySelector("[data-atlas-progress-fill]"),
     { scaleX: 0.6 },
   );
-  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+  expect(screen.getByRole("status")).toHaveTextContent("strength");
 });
 
 test("clears camera will-change and raw fill state on continuous cleanup", () => {
@@ -665,12 +670,12 @@ test("terminally disables Atlas motion, clears every owned layer, and ignores st
     expect(target.style.willChange).toBe("");
   }
   expect(signal.style.strokeDashoffset).toBe("");
-  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+  expect(screen.getByRole("status")).toHaveTextContent("strength");
 
   act(() => staleTrigger.onUpdate({ progress: 1 }));
   act(() => staleTrigger.onLeaveBack());
   expect(fill.style.transform).toBe("");
-  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+  expect(screen.getByRole("status")).toHaveTextContent("strength");
 
   rerender(<TimelineProbe disabled={false} />);
   act(() => motion?.setHidden(true));
@@ -707,6 +712,133 @@ test("keeps all motion static for reduced motion", () => {
 
   expect(document.documentElement).toHaveAttribute("data-motion-bootstrap", "static");
   expect(timelines).toHaveLength(0);
-  expect(screen.getByRole("status")).toHaveTextContent("breath");
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
   expectFinalHeroInlineState();
+});
+
+test("pilote le balayage dans la timeline et libère son état au démontage", () => {
+  const { unmount } = render(<TimelineProbe />);
+  const sweep = document.querySelector<HTMLElement>("[data-atlas-sweep]")!;
+  const call = continuousTimeline().calls.find((entry) => entry.targets.includes(sweep));
+  expect(call).toEqual(expect.objectContaining({
+    method: "fromTo",
+    from: expect.objectContaining({ y: 0 }),
+    to: expect.objectContaining({ y: expect.any(Function), ease: "none" }),
+  }));
+  sweep.style.transform = "translateY(120px)";
+  unmount();
+  expect(sweep.style.transform).toBe("");
+});
+
+test("synchronise la lumière avec le chapitre réellement au centre de la vue", () => {
+  render(<TimelineProbe chapters />);
+  for (const [index, chapter] of document.querySelectorAll<HTMLElement>("[data-atlas-scene]").entries()) {
+    chapter.getBoundingClientRect = () => ({ top: window.innerHeight / 2 - 200 + index * 700, height: 400 } as DOMRect);
+  }
+  const trigger = continuousTimeline().options.scrollTrigger as ScrollTriggerConfig;
+  act(() => trigger.onUpdate({ progress: 0.4 }));
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+});
+
+test("expose une progression CSS continue fondée sur les dimensions réelles du chapitre actif", () => {
+  vi.spyOn(window, "innerHeight", "get").mockReturnValue(844);
+  render(<TimelineProbe chapters />);
+  const stage = document.querySelector<HTMLElement>(".human-atlas-stage")!;
+  let chapterTop = 102, chapterHeight = 640;
+  for (const chapter of document.querySelectorAll<HTMLElement>("[data-atlas-scene]")) {
+    chapter.getBoundingClientRect = () => chapter.dataset.atlasScene === "breath"
+      ? { top: chapterTop, height: chapterHeight } as DOMRect
+      : { top: chapter.dataset.atlasScene === "sleep" ? -900 : 1200, height: 400 } as DOMRect;
+  }
+  act(() => scrollTriggerConfig().onUpdate({ progress: 0.13 }));
+  expect(screen.getByRole("status")).toHaveTextContent("breath");
+  expect(stage.style.getPropertyValue("--atlas-scroll")).toBe("0.13");
+  expect(Number(stage.style.getPropertyValue("--atlas-chapter-progress"))).toBeCloseTo(0.5);
+  expect(stage.style.getPropertyValue("--atlas-scene-index")).toBe("1");
+  chapterTop = 122; chapterHeight = 900;
+  act(() => scrollTriggerConfig().onRefresh({ progress: 0.13 }));
+  expect(Number(stage.style.getPropertyValue("--atlas-chapter-progress"))).toBeCloseTo(1 / 3);
+  expect(stage.parentElement!.style.getPropertyValue("--atlas-scroll")).toBe("");
+});
+
+test("borne les propriétés CSS et restaure le premier chapitre au retour en haut", () => {
+  render(<TimelineProbe chapters />);
+  const stage = document.querySelector<HTMLElement>(".human-atlas-stage")!;
+  for (const progress of [NaN, -Infinity, Infinity, -2, 3, 0.347]) {
+    act(() => scrollTriggerConfig().onUpdate({ progress }));
+    for (const property of ["--atlas-scroll", "--atlas-chapter-progress"]) {
+      const value = Number(stage.style.getPropertyValue(property));
+      expect(Number.isFinite(value)).toBe(true);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+    }
+  }
+  act(() => scrollTriggerConfig().onUpdate({ progress: 1 }));
+  expect(stage.style.getPropertyValue("--atlas-chapter-progress")).toBe("1");
+  expect(stage.style.getPropertyValue("--atlas-scene-index")).toBe("3");
+  act(() => scrollTriggerConfig().onLeaveBack());
+  expect(stage.style.getPropertyValue("--atlas-scroll")).toBe("0");
+  expect(stage.style.getPropertyValue("--atlas-chapter-progress")).toBe("0");
+  expect(stage.style.getPropertyValue("--atlas-scene-index")).toBe("0");
+});
+
+test("efface le texte d’introduction à l’entrée des chapitres sans modifier les CTA puis le restaure", () => {
+  vi.spyOn(window, "innerHeight", "get").mockReturnValue(800);
+  render(<TimelineProbe chapters />);
+  let firstTop = 900;
+  for (const [index, chapter] of document.querySelectorAll<HTMLElement>("[data-atlas-scene]").entries()) {
+    chapter.getBoundingClientRect = () => ({ top: firstTop + index * 600, height: 500 } as DOMRect);
+  }
+  const layers = Array.from(document.querySelectorAll<HTMLElement>("[data-hero-handoff]"));
+  act(() => scrollTriggerConfig().onUpdate({ progress: 0.03 }));
+  expect(layers.every((node) => node.style.opacity === "1")).toBe(true);
+  firstTop = 350;
+  act(() => scrollTriggerConfig().onUpdate({ progress: 0.19 }));
+  expect(layers.every((node) => node.style.opacity === "0")).toBe(true);
+  expect(screen.getByRole("button", { name: "Action" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Action" })).not.toHaveAttribute("style");
+  expect(heroItems().every((node) => node.style.opacity === "")).toBe(true);
+  act(() => scrollTriggerConfig().onLeaveBack());
+  expect(layers.every((node) => node.style.opacity === "1")).toBe(true);
+});
+
+test.each(["reduced", "hidden", "disabled", "unmount"] as const)("retire les propriétés CSS et ignore les anciens callbacks après %s", (reason) => {
+  const { rerender, unmount } = render(<TimelineProbe chapters />);
+  const stage = document.querySelector<HTMLElement>(".human-atlas-stage")!;
+  const atlas = document.querySelector<HTMLElement>(".human-atlas-scroll")!;
+  expect(atlas).toHaveAttribute("data-scroll-sequenced", "true");
+  const stale = scrollTriggerConfig();
+  act(() => stale.onUpdate({ progress: 0.6 }));
+  expect(stage.style.getPropertyValue("--atlas-scroll")).toBe("0.6");
+  if (reason === "disabled") rerender(<TimelineProbe chapters disabled />);
+  else if (reason === "unmount") unmount();
+  else act(() => reason === "reduced" ? motion?.setReduced(true) : motion?.setHidden(true));
+  act(() => { stale.onUpdate({ progress: 1 }); stale.onRefresh({ progress: 1 }); stale.onLeaveBack(); });
+  expect(atlas).not.toHaveAttribute("data-scroll-sequenced");
+  for (const property of ["--atlas-scroll", "--atlas-chapter-progress", "--atlas-scene-index"]) {
+    expect(stage.style.getPropertyValue(property)).toBe("");
+  }
+});
+
+test.each(["onUpdate", "onRefresh"] as const)("sélectionne le dernier axe à la fin mobile via %s, puis reprend le chapitre le plus proche en remontant", (callback) => {
+  vi.spyOn(window, "innerWidth", "get").mockReturnValue(390);
+  vi.spyOn(window, "innerHeight", "get").mockReturnValue(844);
+  render(<TimelineProbe chapters />);
+  for (const chapter of document.querySelectorAll<HTMLElement>("[data-atlas-scene]")) {
+    // Centres observés à la fin sur mobile : sommeil 216, alimentation 653,
+    // face au centre de la fenêtre à 422 ; les deux premiers axes sont hors vue.
+    const center = chapter.dataset.atlasScene === "sleep" ? 216
+      : chapter.dataset.atlasScene === "energy" ? 653 : -500;
+    chapter.getBoundingClientRect = () => ({ top: center - 100, height: 200 } as DOMRect);
+  }
+  const trigger = scrollTriggerConfig();
+
+  act(() => trigger[callback]({ progress: 0.999 }));
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
+
+  act(() => trigger[callback]({ progress: 1 }));
+  expect(screen.getByRole("status")).toHaveTextContent("energy");
+
+  act(() => trigger[callback]({ progress: 0.999 }));
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
 });

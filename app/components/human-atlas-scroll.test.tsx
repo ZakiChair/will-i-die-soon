@@ -1,20 +1,48 @@
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { act, fireEvent, render as testingRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, test, vi } from "vitest";
 
 vi.mock("gsap/ScrollTrigger", () => ({
   ScrollTrigger: { name: "ScrollTrigger", register: vi.fn() },
 }));
 
+const { recordVisualProps } = vi.hoisted(() => ({ recordVisualProps: vi.fn() }));
+
+vi.mock("./living-atlas-visual", () => ({
+  LivingAtlasVisual: (props: { activeScene: string; motionStatus: string; onFailure: () => void }) => {
+    recordVisualProps(props);
+    return (
+      <div data-testid="living-visual" data-scene={props.activeScene} data-status={props.motionStatus}>
+        <button type="button" onClick={props.onFailure}>Fail visual</button>
+      </div>
+    );
+  },
+}));
+
 import type { HumanAtlasSceneId } from "../data/human-atlas";
 import { I18nProvider } from "../i18n/context";
 import { LanguageSwitcher } from "./language-switcher";
 import { HumanAtlasScroll, HumanAtlasStaticStory } from "./human-atlas-scroll";
+
+test("server HTML keeps all four topics available before motion has initialized", () => {
+  const html = renderToStaticMarkup(<I18nProvider><HumanAtlasScroll /></I18nProvider>);
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute("data-motion-ready", "false");
+  expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute("data-active-scene", "sleep");
+  expect(container.querySelectorAll(".human-atlas-scene__card")).toHaveLength(4);
+  expect(container.querySelectorAll(".health-axis-map [aria-current]")).toHaveLength(0);
+  expect(container.querySelector(".living-atlas-pause")).not.toBeInTheDocument();
+});
+
+const englishHeadings = [
+  "Sleep. Recover.",
+  "Run. Find your rhythm.",
+  "Lift. Move with control.",
+  "Eat. Make room for variety.",
+];
 
 function render(ui: ReactElement) {
   return testingRender(<I18nProvider>{ui}</I18nProvider>);
@@ -115,46 +143,22 @@ function descriptions(container: HTMLElement): string[] {
 
 afterEach(() => {
   Reflect.deleteProperty(document, "hidden");
+  recordVisualProps.mockClear();
   vi.unstubAllGlobals();
 });
 
-test("renders the local decorative atlas and four ordered story descriptions", () => {
+test("renders the living visual and four ordered story descriptions", () => {
   installObserver();
   const { container } = render(<HumanAtlasScroll />);
 
-  expect(headings()).toEqual([
-    "Lungs and heart, one circuit.",
-    "The signal travels through the whole body.",
-    "The brain sets the tempo.",
-    "The digestive core lights up.",
-  ]);
-
-  const image = container.querySelector<HTMLImageElement>(".human-atlas-stage img");
-  expect(new URL(image?.src ?? "about:blank").pathname).toBe(
-    "/media/human-atlas-hero.webp",
-  );
-  expect(image).toHaveAttribute("data-atlas-camera");
-  expect(image).toHaveAttribute("alt", "");
-  expect(image).toHaveAttribute("aria-hidden", "true");
-  expect(image).toHaveAttribute("decoding", "async");
-  expect(image).toHaveAttribute("draggable", "false");
-  expect(image).toHaveAttribute("loading", "eager");
-  expect(image).toHaveAttribute("fetchpriority", "high");
-  expect(image).toHaveAttribute("width", "1672");
-  expect(image).toHaveAttribute("height", "941");
-  expect(createHash("sha256").update(
-    readFileSync(join(process.cwd(), "public/media/human-atlas-hero.webp")),
-  ).digest("hex")).toBe(
-    "049911bc3c13c1151155d05c2449a629d801b9bfb3941c022e7b1a2af83f35e0",
-  );
+  expect(headings()).toEqual(englishHeadings);
+  expect(screen.getByTestId("living-visual")).toHaveAttribute("data-scene", "sleep");
   expect(container.querySelector("[data-atlas-progress-fill]")).toBeInTheDocument();
   expect(container.querySelectorAll(".human-atlas-progress__markers > span")).toHaveLength(4);
   expect(container.querySelectorAll(
     '.human-atlas-progress__markers > span[data-active="true"]',
   )).toHaveLength(1);
-  expect(container.querySelector("video, canvas")).not.toBeInTheDocument();
-  expect(container.querySelector(".human-atlas-glow-set")).toBeInTheDocument();
-  expect(container.querySelectorAll("svg[data-atlas-glow]")).toHaveLength(4);
+  expect(container.querySelector(".human-atlas-stage img, .human-atlas-glow-set")).not.toBeInTheDocument();
 
   const scenes = [...container.querySelectorAll<HTMLElement>("[data-atlas-scene]")];
   expect(scenes).toHaveLength(4);
@@ -164,15 +168,25 @@ test("renders the local decorative atlas and four ordered story descriptions", (
   }
 });
 
+test.each([false, true])("keeps the four chapter links and text without an explorer panel when reduced motion is %s", (reduced) => {
+  installMotionPreference(reduced);
+  const { container } = render(<HumanAtlasScroll activeScene="strength" />);
+  expect(screen.queryAllByRole("region", { name: "What your profile looks at" })).toHaveLength(0);
+  expect(screen.getAllByRole("link")).toHaveLength(4);
+  expect(headings()).toEqual(englishHeadings);
+  expect(descriptions(container)).toHaveLength(4);
+  expect(screen.getByTestId("living-visual")).toHaveAttribute("data-scene", "strength");
+});
+
 test("updates only the displayed scene state as observer entries advance", () => {
   installObserver();
   const { container } = render(<HumanAtlasScroll />);
   const story = container.querySelector(".human-atlas-scroll");
   if (!story) throw new Error("Missing Human Atlas story");
 
-  expect(story).toHaveAttribute("data-active-scene", "breath");
+  expect(story).toHaveAttribute("data-active-scene", "sleep");
 
-  const observedScenes = ["strength", "sleep", "energy"] as const;
+  const observedScenes = ["breath", "strength", "energy"] as const;
   for (const [index, sceneId] of observedScenes.entries()) {
     act(() =>
       emit([
@@ -186,9 +200,7 @@ test("updates only the displayed scene state as observer entries advance", () =>
     expect(
       container.querySelectorAll(`.human-atlas-progress__markers [data-active="true"]`),
     ).toHaveLength(1);
-    expect(
-      container.querySelector(`[data-atlas-glow="${sceneId}"]`),
-    ).toHaveAttribute("data-active", "true");
+    expect(screen.getByTestId("living-visual")).toHaveAttribute("data-scene", sceneId);
   }
 });
 
@@ -214,18 +226,41 @@ test("uses controlled scene state without starting the observer fallback", () =>
   );
   expect(container.querySelectorAll('.human-atlas-progress__markers [data-active="true"]')).toHaveLength(1);
   expect(container.querySelector('.human-atlas-progress__markers [data-active="true"]')).toBe(
-    container.querySelectorAll(".human-atlas-progress__markers > span").item(2),
+    container.querySelectorAll(".human-atlas-progress__markers > span").item(0),
   );
-  expect(container.querySelectorAll('svg[data-active="true"]')).toHaveLength(1);
-  expect(container.querySelector('[data-atlas-glow="sleep"]')).toHaveAttribute(
-    "data-active",
-    "true",
-  );
+  expect(screen.getByTestId("living-visual")).toHaveAttribute("data-scene", "sleep");
   expect(observer).not.toHaveBeenCalled();
   expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
     "data-scene-motion",
     "sequenced",
   );
+});
+
+test("keeps the mobile story copy synchronized without duplicate accessible headings or controls", () => {
+  const { container, rerender } = render(<HumanAtlasScroll activeScene="sleep" />);
+  const panel = container.querySelector(".human-atlas-stage__mobile-story");
+
+  expect(panel).toHaveAttribute("aria-hidden", "true");
+  expect(panel).toHaveAttribute("data-mobile-story-scene", "sleep");
+  expect(panel).toHaveTextContent("01 · Sleep");
+  expect(panel).toHaveTextContent("Sleep. Recover.");
+  expect([...panel!.children].map(({ tagName }) => tagName)).toEqual(["P", "H3", "P", "SMALL"]);
+  expect(panel!.querySelectorAll("a, button, input, select, textarea, [tabindex], [data-atlas-scene-item]")).toHaveLength(0);
+  expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(4);
+  expect(container.querySelector("#health-axis-sleep")).toHaveAttribute("tabindex", "-1");
+
+  rerender(<I18nProvider><HumanAtlasScroll activeScene="breath" /></I18nProvider>);
+
+  const activePanel = container.querySelector(".human-atlas-stage__mobile-story");
+  expect(panel).not.toBeInTheDocument();
+  expect(container.querySelectorAll(".human-atlas-stage__mobile-story")).toHaveLength(1);
+  expect(activePanel).toHaveAttribute("aria-hidden", "true");
+  expect(activePanel).toHaveAttribute("data-mobile-story-scene", "breath");
+  expect(activePanel).toHaveTextContent("02 · Cardio");
+  expect(activePanel).toHaveTextContent("Run. Find your rhythm.");
+  expect(activePanel).not.toHaveTextContent("Sleep. Recover.");
+  expect(activePanel!.querySelectorAll("a, button, input, select, textarea, [tabindex], [data-atlas-scene-item]")).toHaveLength(0);
+  expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(4);
 });
 
 test("keeps the observer fallback on the parent scene owner", () => {
@@ -239,7 +274,7 @@ test("keeps the observer fallback on the parent scene owner", () => {
   );
 });
 
-test("pauses decorative glow motion for reduced motion and hidden documents without hiding copy", () => {
+test("sends reduced and hidden motion states to the visual without hiding copy", () => {
   const motion = installMotionPreference(false);
   Object.defineProperty(document, "hidden", {
     configurable: true,
@@ -249,15 +284,15 @@ test("pauses decorative glow motion for reduced motion and hidden documents with
   installObserver();
   const { container } = render(<HumanAtlasScroll />);
   const story = container.querySelector(".human-atlas-scroll");
-  const glowSet = container.querySelector(".human-atlas-glow-set > div");
+  const visual = screen.getByTestId("living-visual");
 
   expect(story).toHaveAttribute("data-motion", "running");
-  expect(glowSet).toHaveAttribute("data-motion", "running");
+  expect(visual).toHaveAttribute("data-status", "running");
   expect(descriptions(container)).toHaveLength(4);
 
   act(() => motion.setReduced(true));
   expect(story).toHaveAttribute("data-motion", "paused");
-  expect(glowSet).toHaveAttribute("data-motion", "paused");
+  expect(visual).toHaveAttribute("data-status", "reduced");
   expect(descriptions(container)).toHaveLength(4);
 
   act(() => {
@@ -266,30 +301,96 @@ test("pauses decorative glow motion for reduced motion and hidden documents with
     document.dispatchEvent(new Event("visibilitychange"));
   });
   expect(story).toHaveAttribute("data-motion", "running");
-  expect(glowSet).toHaveAttribute("data-motion", "paused");
+  expect(visual).toHaveAttribute("data-status", "hidden");
   expect(descriptions(container)).toHaveLength(4);
 });
 
-test("keeps the full explanation when the decorative image fails", () => {
+test("automatically stops and resumes the visual while preserving the active chapter without a pause button", () => {
+  installMotionPreference(false);
+  Object.defineProperty(document, "hidden", { configurable: true, writable: true, value: false });
+  const { container } = render(<HumanAtlasScroll activeScene="sleep" />);
+  const story = container.querySelector(".human-atlas-scroll");
+  const visual = screen.getByTestId("living-visual");
+
+  expect(visual).toHaveAttribute("data-status", "running");
+  expect(screen.queryByRole("button", { name: /pause|resume|reprendre/i })).not.toBeInTheDocument();
+  act(() => {
+    Object.assign(document, { hidden: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+
+  expect(visual).toHaveAttribute("data-status", "hidden");
+  expect(visual).toHaveAttribute("data-scene", "sleep");
+  expect(story).toHaveAttribute("data-active-scene", "sleep");
+  expect(story).toHaveAttribute("data-motion", "running");
+  expect(story).toHaveAttribute("data-scene-motion", "sequenced");
+  expect(screen.queryByRole("button", { name: /pause|resume|reprendre/i })).not.toBeInTheDocument();
+  expect(headings()).toEqual(englishHeadings);
+
+  act(() => {
+    Object.assign(document, { hidden: false });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+
+  expect(visual).toHaveAttribute("data-status", "running");
+  expect(visual).toHaveAttribute("data-scene", "sleep");
+  expect(story).toHaveAttribute("data-motion", "running");
+  expect(story).toHaveAttribute("data-scene-motion", "sequenced");
+  expect(screen.queryByRole("button", { name: /pause|resume|reprendre/i })).not.toBeInTheDocument();
+});
+
+test.each(["en", "fr"] as const)("keeps chapter links keyboard accessible across hidden and visible states without a manual motion control in %s", async (locale) => {
+  installMotionPreference(false);
+  Object.defineProperty(document, "hidden", { configurable: true, writable: true, value: false });
+  const user = userEvent.setup();
+  render(<><LanguageSwitcher /><HumanAtlasScroll activeScene="sleep" /></>);
+  if (locale === "fr") await user.click(screen.getByRole("button", { name: "Français" }));
+  const links = screen.getAllByRole("link");
+  expect(links).toHaveLength(4);
+  expect(links.map((link) => link.getAttribute("href"))).toEqual([
+    "#health-axis-sleep", "#health-axis-breath", "#health-axis-strength", "#health-axis-energy",
+  ]);
+  const visual = screen.getByTestId("living-visual");
+
+  links[0].focus();
+  await user.tab();
+  expect(links[1]).toHaveFocus();
+  expect(screen.queryByRole("button", { name: /pause|resume|reprendre/i })).not.toBeInTheDocument();
+
+  act(() => {
+    Object.assign(document, { hidden: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+
+  expect(links[1]).toHaveFocus();
+  expect(visual).toHaveAttribute("data-status", "hidden");
+
+  act(() => {
+    Object.assign(document, { hidden: false });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+
+  expect(screen.getAllByRole("link")[1]).toBe(links[1]);
+  expect(links[1]).toHaveFocus();
+  expect(visual).toHaveAttribute("data-status", "running");
+  expect(visual).toHaveAttribute("data-scene", "sleep");
+  expect(screen.queryByRole("button", { name: /pause|resume|reprendre/i })).not.toBeInTheDocument();
+  await user.tab();
+  expect(links[2]).toHaveFocus();
+});
+
+test("keeps the full explanation when the decorative visual fails", () => {
   installObserver();
   const { container } = render(<HumanAtlasScroll />);
-  const image = container.querySelector<HTMLImageElement>(".human-atlas-stage img");
-  if (!image) throw new Error("Missing Human Atlas image");
-
-  fireEvent.error(image);
+  fireEvent.click(screen.getByRole("button", { name: "Fail visual" }));
 
   expect(container.querySelector(".human-atlas-scroll")).toHaveClass(
     "human-atlas-scroll--failed",
   );
-  expect(container.querySelectorAll("svg[data-atlas-glow]")).toHaveLength(0);
-  expect(screen.getByText("The atlas image is unavailable; the four-part explanation remains below.")).toBeVisible();
-  expect(screen.getByText("The atlas image is unavailable; the four-part explanation remains below.")).not.toHaveAttribute("role", "alert");
-  expect(headings()).toEqual([
-    "Lungs and heart, one circuit.",
-    "The signal travels through the whole body.",
-    "The brain sets the tempo.",
-    "The digestive core lights up.",
-  ]);
+  expect(screen.queryByTestId("living-visual")).not.toBeInTheDocument();
+  expect(screen.getByText("The animated sculpture is unavailable. The four-axis guide remains accessible.")).toBeVisible();
+  expect(screen.getByText("The animated sculpture is unavailable. The four-axis guide remains accessible.")).not.toHaveAttribute("role", "alert");
+  expect(headings()).toEqual(englishHeadings);
   expect(container.querySelectorAll("[data-atlas-scene-item]")).toHaveLength(16);
   for (const item of container.querySelectorAll<HTMLElement>("[data-atlas-scene-item]")) {
     expect(item.style.opacity).toBe("");
@@ -297,18 +398,20 @@ test("keeps the full explanation when the decorative image fails", () => {
   }
 });
 
-test("reports image failure once and terminally switches controlled motion to static", () => {
-  const onImageFailure = vi.fn();
+test("reports visual failure once and terminally switches controlled motion to static", () => {
+  const onVisualFailure = vi.fn();
   const { container } = render(
-    <HumanAtlasScroll activeScene="strength" onImageFailure={onImageFailure} />,
+    <HumanAtlasScroll activeScene="strength" onVisualFailure={onVisualFailure} />,
   );
-  const image = container.querySelector<HTMLImageElement>(".human-atlas-stage img");
-  if (!image) throw new Error("Missing Human Atlas image");
+  const onFailure = recordVisualProps.mock.lastCall?.[0].onFailure;
+  expect(onFailure).toBeTypeOf("function");
+  act(() => {
+    onFailure();
+    onFailure();
+  });
 
-  fireEvent.error(image);
-  fireEvent.error(image);
-
-  expect(onImageFailure).toHaveBeenCalledOnce();
+  expect(onVisualFailure).toHaveBeenCalledOnce();
+  expect(screen.queryByTestId("living-visual")).not.toBeInTheDocument();
   expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
     "data-scene-motion",
     "static",
@@ -333,33 +436,24 @@ test("keeps externally disabled controlled chapters static without removing the 
     "paused",
   );
   expect(headings()).toHaveLength(4);
+  expect(screen.getByTestId("living-visual")).toHaveAttribute("data-status", "reduced");
 });
 
-test("keeps breath active and story source order when IntersectionObserver is unavailable", () => {
+test("keeps sleep active and story source order when IntersectionObserver is unavailable", () => {
   Reflect.deleteProperty(window, "IntersectionObserver");
   const { container } = render(<HumanAtlasScroll />);
 
   expect(container.querySelector(".human-atlas-scroll")).toHaveAttribute(
     "data-active-scene",
-    "breath",
+    "sleep",
   );
-  expect(headings()).toEqual([
-    "Lungs and heart, one circuit.",
-    "The signal travels through the whole body.",
-    "The brain sets the tempo.",
-    "The digestive core lights up.",
-  ]);
+  expect(headings()).toEqual(englishHeadings);
 });
 
 test("renders a non-sticky non-interactive static story", () => {
   const { container } = render(<HumanAtlasStaticStory />);
 
-  expect(headings()).toEqual([
-    "Lungs and heart, one circuit.",
-    "The signal travels through the whole body.",
-    "The brain sets the tempo.",
-    "The digestive core lights up.",
-  ]);
+  expect(headings()).toEqual(englishHeadings);
   expect(container.querySelector(".human-atlas-stage, .human-atlas-scroll")).not.toBeInTheDocument();
   expect(container.querySelectorAll("a, button, input, select, textarea, [tabindex]")).toHaveLength(0);
 });
@@ -377,18 +471,18 @@ test("switches every story heading and input label to French", async () => {
   await user.click(screen.getByRole("button", { name: "Français" }));
 
   expect(headings()).toEqual([
-    "Poumons et cœur, un même circuit.",
-    "Le signal traverse tout le corps.",
-    "Le cerveau donne le tempo.",
-    "Le noyau digestif s'illumine.",
+    "Dormir. Récupérer.",
+    "Courir. Trouver son rythme.",
+    "Soulever. Maîtriser le geste.",
+    "Manger. Varier les plaisirs.",
   ]);
   expect([...container.querySelectorAll(".human-atlas-scene small")].map(({ textContent }) => textContent)).toEqual([
-    "Donnée déclarée · VO₂ max mesurée ou estimée par un appareil · ml/kg/min",
-    "Données déclarées · max existants au squat et au soulevé de terre · rapportés au poids",
-    "Données déclarées · durée habituelle · récupération ressentie dans l'heure suivant le réveil",
-    "Données déclarées · portions quotidiennes de fruits et légumes · aliments ultra-transformés comme repas principal",
+    "Durée habituelle de sommeil · récupération ressentie dans l’heure suivant le réveil",
+    "VO₂ max connue · mesurée ou estimée par un appareil · ml/kg/min",
+    "Max connus au squat et au soulevé de terre · kg · rapportés au poids",
+    "Portions quotidiennes de fruits et légumes · aliments ultra-transformés comme repas principal",
   ]);
   expect(container.textContent).not.toMatch(
-    /Lungs and heart|The signal travels|The brain sets|The digestive core|Reported input/i,
+    /Sleep\. Recover|Run\. Find|Lift\. Move|Eat\. Make|Known VO₂/i,
   );
 });

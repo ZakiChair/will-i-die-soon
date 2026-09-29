@@ -21,6 +21,13 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    // Vinext scanne app/** : exclure les tests évite de prébundler leurs
+    // dépendances natives Node (notamment Canvas pour les tests PDF).
+    environments: {
+      client: { optimizeDeps: { entries: ["!app/**/*.test.{ts,tsx}"] } },
+      rsc: { optimizeDeps: { entries: ["!app/**/*.test.{ts,tsx}"] } },
+      ssr: { optimizeDeps: { entries: ["!app/**/*.test.{ts,tsx}"] } },
+    },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,

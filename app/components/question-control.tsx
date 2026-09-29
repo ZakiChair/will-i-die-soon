@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useI18n } from "../i18n/context";
+import { getQuestionGuidance, questionValidationMessage } from "../i18n/question-guidance";
 import { questionUnitKeys, type UiCopyKey } from "../i18n/ui-copy";
+import { validateQuestionAnswer } from "../lib/question-validation";
 import type { AnswerValue, Question } from "../lib/types";
 import { QUESTION_PROMPT_TITLE_ID } from "./question-prompt";
 
@@ -39,7 +41,9 @@ export function QuestionControl({
   questionDescriptionId,
   skipLabelKey,
 }: QuestionControlProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [attempted, setAttempted] = useState(false);
   const [draft, setDraft] = useState<string | string[]>(() =>
     initialValue(question, answer),
   );
@@ -63,6 +67,11 @@ export function QuestionControl({
 
   function commitAnswer() {
     const value = committedValue();
+    setAttempted(true);
+    if (validateQuestionAnswer(question, value)) {
+      formRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+      return;
+    }
     if (value !== null) onAnswer(value);
   }
 
@@ -80,10 +89,24 @@ export function QuestionControl({
   }
 
   const unitKey = numericUnitKey(question.id);
+  const guidance = getQuestionGuidance(question.id, locale);
+  const error = attempted ? validateQuestionAnswer(question, committedValue()) : null;
+  const errorId = `${question.id}-error`;
+  const guidanceId = `${question.id}-guidance`;
+  const scaleId = `${question.id}-scale-anchors`;
+  const descriptionId = [
+    questionDescriptionId,
+    guidance.notice ? guidanceId : undefined,
+    error ? errorId : undefined,
+  ].filter(Boolean).join(" ") || undefined;
+  const inputDescriptionId = [descriptionId, unitKey ? `${question.id}-unit` : undefined]
+    .filter(Boolean).join(" ") || undefined;
 
   return (
     <form
+      ref={formRef}
       className="question-form"
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
         commitAnswer();
@@ -97,9 +120,13 @@ export function QuestionControl({
     >
       <fieldset
         aria-labelledby={QUESTION_PROMPT_TITLE_ID}
-        aria-describedby={questionDescriptionId}
+        aria-describedby={descriptionId}
+        aria-invalid={error ? true : undefined}
       >
         <legend className="sr-only">{t("question.legend")}</legend>
+        {guidance.notice ? (
+          <p id={guidanceId} className="question-guidance">{guidance.notice}</p>
+        ) : null}
 
         {question.answerType === "boolean" ? (
           <div className="answer-grid">
@@ -166,7 +193,8 @@ export function QuestionControl({
               type="number"
               inputMode="decimal"
               step="any"
-              aria-describedby={unitKey ? `${question.id}-unit` : undefined}
+              aria-describedby={inputDescriptionId}
+              aria-invalid={error ? true : undefined}
               value={Array.isArray(draft) ? "" : draft}
               onChange={(event) => setDraft(event.target.value)}
             />
@@ -179,20 +207,36 @@ export function QuestionControl({
         ) : null}
 
         {question.answerType === "scale" ? (
-          <div className="scale-grid" role="group" aria-label={t("question.scale")}>
-            {Array.from({ length: 11 }, (_, value) => (
-              <label key={value}>
-                <input
-                  type="radio"
-                  name={question.id}
-                  value={value}
-                  checked={draft === String(value)}
-                  onChange={(event) => setDraft(event.target.value)}
-                />
-                <span>{value}</span>
-              </label>
-            ))}
-          </div>
+          <>
+            {guidance.scale ? (
+              <p className="scale-anchors" id={scaleId}>
+                <span>0 · {guidance.scale[0]}</span>
+                <span>10 · {guidance.scale[1]}</span>
+              </p>
+            ) : null}
+            <div
+              className="scale-grid"
+              role="group"
+              aria-label={t("question.scale")}
+              aria-describedby={[guidance.scale ? scaleId : undefined, descriptionId].filter(Boolean).join(" ") || undefined}
+            >
+              {Array.from({ length: 11 }, (_, value) => (
+                <label key={value}>
+                  <input
+                    type="radio"
+                    name={question.id}
+                    value={value}
+                    aria-label={guidance.scale && (value === 0 || value === 10)
+                      ? `${value} · ${guidance.scale[value === 0 ? 0 : 1]}`
+                      : undefined}
+                    checked={draft === String(value)}
+                    onChange={(event) => setDraft(event.target.value)}
+                  />
+                  <span>{value}</span>
+                </label>
+              ))}
+            </div>
+          </>
         ) : null}
 
         {question.answerType === "text" ? (
@@ -203,6 +247,8 @@ export function QuestionControl({
             <input
               id={`${question.id}-value`}
               type="text"
+              aria-describedby={descriptionId}
+              aria-invalid={error ? true : undefined}
               value={Array.isArray(draft) ? "" : draft}
               onChange={(event) => setDraft(event.target.value)}
             />
@@ -210,9 +256,15 @@ export function QuestionControl({
         ) : null}
       </fieldset>
 
+      {error ? (
+        <p id={errorId} className="question-error" role="alert">
+          {questionValidationMessage(error, locale)}
+        </p>
+      ) : null}
+
       <details className="why-we-ask">
         <summary>{t("question.why")}</summary>
-        <p>{question.why}</p>
+        <p>{guidance.why ?? question.why}</p>
       </details>
 
       <div className="question-actions">
@@ -224,7 +276,7 @@ export function QuestionControl({
           aria-pressed={answer === null}
           onClick={() => onAnswer(null)}
         >
-          {t(skipLabelKey ?? "question.skip")}
+          {skipLabelKey ? t(skipLabelKey) : guidance.unknownMeasurement ?? t("question.skip")}
         </button>
         <button type="submit">{t("question.continue")}</button>
       </div>

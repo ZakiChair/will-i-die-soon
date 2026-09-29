@@ -62,7 +62,7 @@ function AtlasProbe({ unknown = false }: { readonly unknown?: boolean }) {
   return (
     <>
       <output role="status">{activeScene}</output>
-      {(["breath", "strength", "sleep", "energy"] as const).map((sceneId) => (
+      {(["sleep", "breath", "strength", "energy"] as const).map((sceneId) => (
         <section
           data-atlas-scene={unknown && sceneId === "breath" ? "unknown" : sceneId}
           key={sceneId}
@@ -113,7 +113,7 @@ test("selects the visible scene nearest the centre band", () => {
   installObserver();
   render(<AtlasProbe />);
 
-  expect(screen.getByRole("status")).toHaveTextContent("breath");
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
   expect(observerOptions).toEqual({
     root: null,
     rootMargin: "-38% 0px -42% 0px",
@@ -140,15 +140,15 @@ test("keeps previously intersecting scenes eligible after another threshold cros
   expect(screen.getByRole("status")).toHaveTextContent("strength");
 });
 
-test("uses canonical scene order for an exact centre-distance tie", () => {
+test("uses landing story order for an exact centre-distance tie", () => {
   installObserver();
   render(<AtlasProbe />);
 
   setNodeRect("breath", { top: 100, height: 200 });
-  setNodeRect("strength", { top: 300, height: 200 });
-  act(() => emit([entryFor("strength", true, 0.6), entryFor("breath", true, 0.6)]));
+  setNodeRect("sleep", { top: 300, height: 200 });
+  act(() => emit([entryFor("breath", true, 0.6), entryFor("sleep", true, 0.6)]));
 
-  expect(screen.getByRole("status")).toHaveTextContent("breath");
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
 });
 
 test("does not activate an unknown data-atlas-scene value", () => {
@@ -171,17 +171,17 @@ test("does not activate an unknown data-atlas-scene value", () => {
   } as IntersectionObserverEntry;
 
   act(() => emit([unknownEntry]));
-  expect(screen.getByRole("status")).toHaveTextContent("breath");
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
 });
 
-test("falls back to breath when IntersectionObserver is unavailable", () => {
+test("falls back to sleep when IntersectionObserver is unavailable", () => {
   Reflect.deleteProperty(window, "IntersectionObserver");
   render(<AtlasProbe />);
 
-  expect(screen.getByRole("status")).toHaveTextContent("breath");
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
 });
 
-test("keeps the breath fallback safe when IntersectionObserver construction fails", () => {
+test("keeps the sleep fallback safe when IntersectionObserver construction fails", () => {
   const addEventListener = vi.spyOn(window, "addEventListener");
   vi.stubGlobal(
     "IntersectionObserver",
@@ -196,7 +196,7 @@ test("keeps the breath fallback safe when IntersectionObserver construction fail
   expect(() => {
     ({ unmount } = render(<AtlasProbe />));
   }).not.toThrow();
-  expect(screen.getByRole("status")).toHaveTextContent("breath");
+  expect(screen.getByRole("status")).toHaveTextContent("sleep");
   expect(addEventListener).not.toHaveBeenCalledWith("scroll", expect.any(Function));
   expect(() => unmount?.()).not.toThrow();
 });

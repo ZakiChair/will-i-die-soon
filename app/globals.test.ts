@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, test } from "vitest";
@@ -50,8 +49,8 @@ function rulesForMedia(query: string): string {
   return blocks.join("\n");
 }
 
-function colorVariable(name: string): string {
-  const value = css.match(new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})`))?.[1];
+function colorVariable(name: string, source = css): string {
+  const value = source.match(new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})`))?.[1];
   if (!value) throw new Error(`Missing --${name} color variable`);
   return value;
 }
@@ -77,34 +76,28 @@ function contrast(left: string, right: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-describe("bioluminescent global visual contract", () => {
-  test("uses only the ten approved authored palette colors", () => {
-    expect(css).toContain("--abyss: #041719");
-    expect(css).toContain("--depth: #071F22");
-    expect(css).toContain("--phosphor: #55F1CA");
-    expect(css).toContain("--current: #42C9FF");
-    expect(css).toContain("--flare: #FF7154");
-    expect(css).toContain("--mist: #EFFFFC");
-
-    const authoredColors = [...new Set(
-      css.match(/#[0-9A-Fa-f]{6}\b/g)?.map((color) => color.toUpperCase()),
-    )].sort();
-    expect(authoredColors).toEqual([
-      "#041719",
-      "#071F22",
-      "#1FA37F",
-      "#3A78CC",
-      "#42C9FF",
-      "#55F1CA",
-      "#9A7CE2",
-      "#BD8830",
-      "#EFFFFC",
-      "#FF7154",
-    ].sort());
-    expect(css).not.toMatch(/--(?:paper|ink|deep-water|electric-blue|living-coral|signal-amber|motif-canopy)/);
+describe("Atlas health visual contract", () => {
+  test("defines contrasting reading surfaces for the journey and the print palette", () => {
+    expect(css).toContain("--abyss: #F1F6F3");
+    expect(css).toContain("--mist: #173D38");
+    expect(declarationsFor("html")).toContain("color-scheme: light");
+    const journey = declarationsFor(":root");
+    for (const surface of ["abyss", "depth", "surface", "surface-soft", "surface-strong"]) {
+      const background = colorVariable(surface, journey);
+      expect(contrast(colorVariable("mist", journey), background)).toBeGreaterThanOrEqual(7);
+      for (const foreground of ["phosphor", "current", "muted", "flare", "accent"]) {
+        expect(contrast(colorVariable(foreground, journey), background)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    expect(contrast(colorVariable("inverse", journey), colorVariable("mist", journey)))
+      .toBeGreaterThanOrEqual(7);
+    expect(contrast(colorVariable("mist", journey), colorVariable("highlight", journey)))
+      .toBeGreaterThanOrEqual(7);
+    expect(contrast(colorVariable("accent", journey), colorVariable("accent-soft", journey)))
+      .toBeGreaterThanOrEqual(4.5);
   });
 
-  test("uses the Manrope and data variables without compressed tracking or viewport-sized type", () => {
+  test("uses the reading and data variables without compressed tracking or viewport-sized type", () => {
     expect(css).not.toContain("--font-editorial");
     expect(declarationsFor("body")).toMatch(
       /font-family:\s*var\(--font-body\), Arial, sans-serif/,
@@ -127,7 +120,7 @@ describe("bioluminescent global visual contract", () => {
     expect(new Set(authoredTracking)).toEqual(new Set(["0"]));
   });
 
-  test("uses a two-color focus indicator with visible contrast on the dark canvas", () => {
+  test("uses a two-color focus indicator with visible contrast on the page", () => {
     const focusRule = declarationsFor("button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, [tabindex=\"-1\"]:focus-visible");
 
     expect(focusRule).toMatch(/outline:\s*3px solid var\(--phosphor\)/);
@@ -146,7 +139,7 @@ describe("bioluminescent global visual contract", () => {
     expect(scaleFocusRule).toMatch(/box-shadow:\s*0 0 0 (?:7|8)px var\(--abyss\)/);
   });
 
-  test("keeps landing and journey bands dark and removes paper, canopy, and clipped-section framing", () => {
+  test("keeps surfaces semantic and decorative shapes away from form content", () => {
     expect(declarationsFor("html")).toMatch(/background:\s*var\(--abyss\)/);
     expect(declarationsFor("body")).toMatch(/color:\s*var\(--mist\)/);
     expect(declarationsFor("body")).toMatch(/background:\s*var\(--abyss\)/);
@@ -156,32 +149,18 @@ describe("bioluminescent global visual contract", () => {
     expect(declarationsFor(".question-sheet")).toMatch(/background:\s*var\(--depth\)/);
     expect(css).not.toMatch(/url\("\/media\/canopy-hero\.webp"\)/);
     expect(new Set([...css.matchAll(/clip-path:\s*([^;]+);/g)]
-      .map((match) => match[1].trim()))).toEqual(new Set(["none !important"]));
+      .map((match) => match[1].trim()))).toEqual(new Set(["none !important", "inset(50%)"]));
   });
 
-  test("keeps the Human Atlas registered to its image and glow coordinate system", () => {
-    const atlasPath = join(process.cwd(), "public/media/human-atlas-hero.webp");
-    const atlasAsset = existsSync(atlasPath) ? readFileSync(atlasPath) : Buffer.alloc(0);
-
-    expect(existsSync(atlasPath)).toBe(true);
-    expect(atlasAsset.subarray(0, 4).toString("ascii")).toBe("RIFF");
-    expect(atlasAsset.subarray(8, 12).toString("ascii")).toBe("WEBP");
-    expect(atlasAsset.byteLength).toBeLessThanOrEqual(650 * 1024);
-    expect(createHash("sha256").update(atlasAsset).digest("hex")).toBe(
-      "049911bc3c13c1151155d05c2449a629d801b9bfb3941c022e7b1a2af83f35e0",
-    );
-
+  test("keeps the living sculpture decorative and separate from native sticky scrolling", () => {
     expect(declarationsFor(".landing__atlas-experience")).toMatch(/--atlas-stage-height:\s*100svh/);
     expect(declarationsFor(".human-atlas-stage")).toMatch(/position:\s*sticky/);
     expect(declarationsFor(".human-atlas-stage")).toMatch(/height:\s*var\(--atlas-stage-height\)/);
-    expect(declarationsFor(".human-atlas-media")).toMatch(/aspect-ratio:\s*1672 \/ 941/);
-    expect(declarationsFor(".human-atlas-media")).toMatch(/transform:\s*translate\(-50%, -50%\)/);
-    expect(declarationsFor("[data-atlas-camera]")).toMatch(/transform-origin:\s*center/);
-    expect(declarationsFor("[data-atlas-camera]")).not.toMatch(/will-change/);
-    expect(declarationsFor(".human-atlas-glow")).toMatch(/transform:\s*translateX\(-7\.4%\) scale\(\.985\)/);
-    expect(declarationsFor(".human-atlas-glow")).toMatch(/mix-blend-mode:\s*screen/);
+    expect(declarationsFor(".living-atlas")).toMatch(/pointer-events:\s*none/);
+    expect(declarationsFor(".living-atlas__canvas canvas")).toMatch(/display:\s*block/);
+    expect(declarationsFor('.living-atlas[data-ready="true"] .living-atlas__still')).toMatch(/opacity:\s*0/);
     expect(declarationsFor(".human-atlas-scroll")).toMatch(
-      /min-height:\s*calc\(5 \* var\(--atlas-stage-height\)\)/,
+      /min-height:\s*calc\(3\.8 \* var\(--atlas-stage-height\)\)/,
     );
     expect(declarationsFor(".human-atlas-scenes")).toMatch(
       /margin-top:\s*calc\(-1 \* var\(--atlas-stage-height\)\)/,
@@ -211,13 +190,13 @@ describe("bioluminescent global visual contract", () => {
       /\.landing__atlas-hero\s*\{[^}]*position:\s*relative[^}]*top:\s*auto[^}]*left:\s*auto[^}]*background:\s*transparent/s,
     );
     expect(mobile).toMatch(
-      /\.human-atlas-scroll\s*\{[^}]*min-height:\s*calc\(4 \* var\(--atlas-stage-height\)\)/s,
+      /\.human-atlas-scroll\s*\{[^}]*min-height:\s*calc\(3\.2 \* var\(--atlas-stage-height\)\)/s,
     );
     expect(mobile).toMatch(
-      /\.human-atlas-media\s*\{[^}]*aspect-ratio:\s*1672 \/ 941[^}]*translate\(-62%, -50%\)/s,
+      /\.living-atlas\s*\{[^}]*inset:\s*0[^}]*height:\s*55%/s,
     );
     expect(mobile).toMatch(
-      /\.human-atlas-scene\s*\{[^}]*min-height:\s*calc\(var\(--atlas-stage-height\) \* \.72\)/s,
+      /\.human-atlas-scene\s*\{[^}]*min-height:\s*calc\(var\(--atlas-stage-height\) \* \.55\)/s,
     );
     expect(mobile).not.toMatch(/\.landing__atlas-hero\s*\{[^}]*gradient/s);
   });

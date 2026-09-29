@@ -42,6 +42,13 @@ const DEPTH_ORDER: ReadonlyArray<AnalysisDepth> = [
   "deep",
 ];
 
+const MALE_INAPPLICABLE_QUESTION_IDS = new Set([
+  "reproductive_period_pattern",
+  "reproductive_menopause_change",
+  "reproductive_screening_history",
+  "isotretinoin_detail_program_pregnancy",
+]);
+
 function valuesEqual(left: AnswerValue | undefined, right: AnswerValue): boolean {
   if (Array.isArray(left) || Array.isArray(right)) {
     return (
@@ -126,8 +133,16 @@ export function getEligibleQuestions(
   answers: AnswerMap,
 ): Question[] {
   const questionsById = new Map(bank.map((question) => [question.id, question]));
+  const maleAssignedAtBirth = answers.sex_assigned_at_birth === "male";
 
-  return bank.filter((question) => {
+  const eligible = bank.filter((question) => {
+    // Le sexe non renseigné ou intersexe conserve les questions déclaratives.
+    if (maleAssignedAtBirth && (
+      question.domain === "pregnancy" || MALE_INAPPLICABLE_QUESTION_IDS.has(question.id)
+    )) {
+      return false;
+    }
+
     if (question.minAge !== undefined && context.age < question.minAge) {
       return false;
     }
@@ -139,6 +154,15 @@ export function getEligibleQuestions(
     return question.condition
       ? matchesCondition(question.condition, answers, questionsById)
       : true;
+  });
+
+  return eligible.map((question) => {
+    if (!maleAssignedAtBirth || question.id !== "glp1_detail_procedure_pregnancy") return question;
+    return {
+      ...question,
+      prompt: "Do you have general anaesthesia or deep sedation planned soon?",
+      options: question.options?.filter(({ value }) => value === "procedure" || value === "none"),
+    };
   });
 }
 
@@ -163,6 +187,20 @@ function pruneIneligibleAnswers(
   answers: AnswerMap,
 ): AnswerMap {
   let stableAnswers = answers;
+
+  const glpContext = answers.glp1_detail_procedure_pregnancy;
+  if (answers.sex_assigned_at_birth === "male" && Array.isArray(glpContext)) {
+    const applicableContext = glpContext.filter((value) => value === "procedure" || value === "none");
+    if (applicableContext.length !== glpContext.length) {
+      const remainingAnswers = Object.fromEntries(
+        Object.entries(answers).filter(([id]) => id !== "glp1_detail_procedure_pregnancy"),
+      );
+      // Une ancienne grossesse ne devient pas implicitement « aucune situation ».
+      stableAnswers = applicableContext.length
+        ? { ...remainingAnswers, glp1_detail_procedure_pregnancy: applicableContext }
+        : remainingAnswers;
+    }
+  }
 
   for (let pass = 0; pass <= bank.length; pass += 1) {
     const eligibleIds = new Set(

@@ -6,6 +6,8 @@ import { DecorativeSectionBoundary } from "./decorative-section-boundary";
 import { HumanAtlasScroll, HumanAtlasStaticStory } from "./human-atlas-scroll";
 import { useLandingTimeline } from "../hooks/use-landing-timeline";
 import { useSectionReveal } from "../hooks/use-section-reveal";
+import { healthHomeCopy } from "../i18n/health-home-copy";
+import { HealthAxisIcon } from "./health-axis-map";
 import { useI18n } from "../i18n/context";
 import { type UiCopyKey, uiCopyKeys } from "../i18n/ui-copy";
 import type { AnalysisDepth } from "../lib/types";
@@ -38,16 +40,18 @@ const depths: ReadonlyArray<{
 
 export function Landing({ onStart }: LandingProps) {
   const { locale, t } = useI18n();
+  const copy = healthHomeCopy[locale];
   const landingRef = useRef<HTMLDivElement>(null);
   const atlasExperienceRef = useRef<HTMLElement>(null);
+  const atlasProgress = useRef(0);
   const [atlasFailed, setAtlasFailed] = useState(false);
-  const activeScene = useLandingTimeline(atlasExperienceRef, atlasFailed);
+  const activeScene = useLandingTimeline(atlasExperienceRef, atlasFailed, atlasProgress);
   useSectionReveal(landingRef);
   const startExpress = () => onStart("express");
-  const handleAtlasImageFailure = useCallback(() => setAtlasFailed(true), []);
+  const handleAtlasVisualFailure = useCallback(() => setAtlasFailed(true), []);
 
   return (
-    <div className="landing" ref={landingRef}>
+    <div className="landing landing--health" ref={landingRef}>
       <header className="landing__header">
         <div className="wordmark">
           Will I Die <strong>Soon?</strong>
@@ -63,34 +67,38 @@ export function Landing({ onStart }: LandingProps) {
         >
           <div className="landing__atlas-hero">
             <p className="data-label" data-hero-item>
-              <span data-hero-handoff>{t("landing.atlas.hero.eyebrow")}</span>
+              <span data-hero-handoff>{copy.heroEyebrow}</span>
             </p>
             <div className="landing__hero-title-mask" data-hero-title-mask>
               <h1 data-hero-item id="landing-title">
-                <span data-hero-handoff data-hero-title>{t("landing.atlas.hero.title")}</span>
+                <span data-hero-handoff data-hero-title>{copy.heroTitle}</span>
               </h1>
             </div>
             <p data-hero-item>
-              <span data-hero-handoff>{t("landing.atlas.hero.body")}</span>
+              <span data-hero-handoff>{copy.heroBody}</span>
             </p>
-            <button
-              className="landing__primary-cta"
-              data-hero-item
-              type="button"
-              onClick={startExpress}
-            >
-              {t("landing.atlas.hero.cta")}
-            </button>
+            <div className="health-home-facts">
+              <span>{copy.questionCount}</span><span>{copy.ageLabel}</span><span>{locale === "fr" ? "Sans compte" : "No account"}</span>
+            </div>
+            <div className="landing__hero-actions">
+              <button className="landing__primary-cta" type="button" onClick={startExpress}>
+                {copy.cta}
+              </button>
+              <a className="landing__depth-link" href="#depth-title">
+                {copy.secondary}
+              </a>
+            </div>
             <p className="landing__scroll-hint" data-hero-item>
-              <span data-hero-handoff>{t("landing.atlas.hero.scroll")}</span>
+              <span data-hero-handoff>{copy.scrollHint}</span>
             </p>
           </div>
           <div className="landing__atlas-decorative">
             <DecorativeSectionBoundary fallback={<HumanAtlasStaticStory />}>
               <HumanAtlasScroll
                 activeScene={activeScene}
+                progressRef={atlasProgress}
                 motionDisabled={atlasFailed}
-                onImageFailure={handleAtlasImageFailure}
+                onVisualFailure={handleAtlasVisualFailure}
               />
             </DecorativeSectionBoundary>
           </div>
@@ -102,8 +110,16 @@ export function Landing({ onStart }: LandingProps) {
           data-reveal="heading"
         >
           <p className="data-label" data-reveal-item>{t("landing.atlas.conversion.eyebrow")}</p>
-          <h2 id="atlas-conversion-title" data-reveal-item>{t("landing.atlas.conversion.title")}</h2>
-          <p data-reveal-item>{t("landing.atlas.conversion.body")}</p>
+          <h2 id="atlas-conversion-title" data-reveal-item>{copy.resultTitle}</h2>
+          <p data-reveal-item>{copy.resultBody}</p>
+          <div className="health-output-grid" data-reveal-item>
+            {copy.outputs.map((output, index) => (
+              <article className="health-output" key={output.title}>
+                <span className="health-output__icon"><HealthAxisIcon axis={(["breath", "energy", "strength"] as const)[index]} /></span>
+                <h3>{output.title}</h3><p>{output.body}</p>
+              </article>
+            ))}
+          </div>
           <button className="landing__primary-cta" type="button" onClick={startExpress} data-reveal-item>
             {t("landing.atlas.conversion.cta")}
           </button>
@@ -113,7 +129,7 @@ export function Landing({ onStart }: LandingProps) {
         <section className="depth-section" aria-labelledby="depth-title">
           <div className="section-heading" data-reveal="heading">
             <p className="data-label" data-reveal-item>{t("landing.atlas.other.eyebrow")}</p>
-            <h2 id="depth-title" data-reveal-item>{t("landing.atlas.other.title")}</h2>
+            <h2 id="depth-title" tabIndex={-1} data-reveal-item>{t("landing.atlas.other.title")}</h2>
           </div>
           <div className="depth-grid" data-reveal="group">
             {depths.map((depth) => {

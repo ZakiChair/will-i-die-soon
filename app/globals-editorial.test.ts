@@ -23,7 +23,7 @@ function declarationsFor(source: string, selector: string): string {
   return grouped;
 }
 
-const newsreaderSelectors = [
+const displaySelectors = [
   ".landing__atlas-hero h1",
   ".landing__atlas-conversion h2",
   ".depth-section .section-heading h2",
@@ -37,18 +37,18 @@ const newsreaderSelectors = [
   ".confirmed-labs__heading h2",
 ];
 
-test.each(newsreaderSelectors)("assigns Newsreader to %s", (selector) => {
+test.each(displaySelectors)("assigns the display font to %s", (selector) => {
   expect(declarationsFor(css, selector)).toMatch(/font-family:\s*var\(--font-display\)/);
 });
 
-test("uses optical Newsreader only for approved editorial headings", () => {
-  for (const selector of newsreaderSelectors) {
+test("keeps display typography scoped to the primary headings", () => {
+  for (const selector of displaySelectors) {
     expect(declarationsFor(css, selector)).toMatch(/font-optical-sizing:\s*auto/);
   }
   expect(css).not.toMatch(/font-family:\s*var\(--font-display\), Arial, sans-serif/);
 });
 
-test("keeps Manrope as the UI and non-editorial heading default", () => {
+test("keeps the reading font as the UI and non-editorial heading default", () => {
   expect(declarationsFor(css, "body")).toMatch(/var\(--font-body\)/);
   expect(declarationsFor(css, "h1, h2, h3")).toMatch(/var\(--font-body\)/);
   expect(declarationsFor(css, ".wordmark")).toMatch(/var\(--font-body\)/);
@@ -90,11 +90,11 @@ const monoSelectors = [
   ".confirmed-labs tbody td",
 ];
 
-test.each(monoSelectors)("assigns IBM Plex Mono to %s", (selector) => {
+test.each(monoSelectors)("assigns the tabular reading font to %s", (selector) => {
   expect(declarationsFor(css, selector)).toMatch(/font-family:\s*var\(--font-data\)/);
 });
 
-test("keeps print scene copy in Manrope while retaining mono metadata", () => {
+test("keeps print scene copy in the reading font while retaining tabular metadata", () => {
   const printCss = css.slice(css.indexOf("@media print"));
   const printCopySelectors = [
     ".landing__atlas-hero > p:not(.data-label)",
@@ -121,7 +121,7 @@ test("uses accessible, stable editorial type measurements", () => {
   expect(declarationsFor(css, "html")).toMatch(/font-synthesis:\s*none/);
   expect(declarationsFor(css, "h1, h2, h3")).toMatch(/overflow-wrap:\s*break-word/);
   expect(declarationsFor(css, "h1, h2, h3")).toMatch(/hyphens:\s*auto/);
-  expect(css).toMatch(/^p\s*\{\s*font-size:\s*1rem;\s*line-height:\s*1\.65;/m);
+  expect(css).toMatch(/^p\s*\{\s*font-size:\s*1\.0625rem;\s*line-height:\s*1\.65;/m);
 });
 
 test("keeps metadata legible and measurement numerals aligned", () => {
@@ -139,21 +139,21 @@ test("uses the fixed display and question hierarchy", () => {
   const desktopCss = css.slice(0, css.indexOf("@media (max-width: 560px)"));
 
   expect(declarationsFor(desktopCss, ".landing__atlas-hero h1")).toMatch(
-    /font-size:\s*5\.75rem[\s\S]*line-height:\s*\.92/,
+    /font-size:\s*4rem[\s\S]*line-height:\s*1\.12/,
   );
   expect(declarationsFor(desktopCss, ".question-sheet .question-prompt__title")).toMatch(
-    /font-size:\s*2\.75rem[\s\S]*line-height:\s*1\.08/,
+    /font-size:\s*2\.125rem[\s\S]*line-height:\s*1\.25/,
   );
-  for (const selector of newsreaderSelectors.slice(1)) {
+  for (const selector of displaySelectors.slice(1)) {
     expect(declarationsFor(desktopCss, selector)).toMatch(
-      /font-size:\s*4rem[\s\S]*line-height:\s*\.98/,
+      /font-size:\s*2\.75rem[\s\S]*line-height:\s*1\.16/,
     );
   }
-  expect(css).toMatch(/\.landing__atlas-hero h1\s*\{[^}]*font-size:\s*3rem[^}]*line-height:\s*\.98/s);
-  expect(css).toMatch(/\.question-sheet \.question-prompt__title\s*\{[^}]*font-size:\s*2rem[^}]*line-height:\s*1\.12/s);
-  for (const selector of newsreaderSelectors.slice(1)) {
+  expect(css).toMatch(/\.landing__atlas-hero h1\s*\{[^}]*font-size:\s*2\.5rem[^}]*line-height:\s*1\.14/s);
+  expect(css).toMatch(/\.question-sheet \.question-prompt__title\s*\{[^}]*font-size:\s*1\.75rem[^}]*line-height:\s*1\.25/s);
+  for (const selector of displaySelectors.slice(1)) {
     const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    expect(css).toMatch(new RegExp(`${escapedSelector}\\s*\\{[^}]*font-size:\\s*2\\.5rem[^}]*line-height:\\s*1\\.04`, "s"));
+    expect(css).toMatch(new RegExp(`${escapedSelector}\\s*\\{[^}]*font-size:\\s*2rem[^}]*line-height:\\s*1\\.2`, "s"));
   }
 });
 
@@ -186,7 +186,7 @@ test("masks only pending hero entrance items and keeps the title mask auto-heigh
 
 test("keeps an abyss contrast scrim behind the Atlas copy", () => {
   expect(css).toMatch(
-    /\.human-atlas-stage::after\s*\{[^}]*content:\s*""[^}]*background:\s*color-mix\(in srgb, var\(--abyss\) 74%, transparent\)/s,
+    /\.human-atlas-stage::after\s*\{[^}]*content:\s*""[^}]*background:\s*linear-gradient\(90deg, var\(--abyss\) 4%, color-mix\(in srgb, var\(--abyss\) 75%, transparent\) 30%/s,
   );
   expect(declarationsFor(css, ".human-atlas-stage::after")).toMatch(
     /position:\s*absolute[\s\S]*inset:\s*0[\s\S]*z-index:\s*5[\s\S]*pointer-events:\s*none/,
