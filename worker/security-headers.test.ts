@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 
+import nextConfig from "../next.config";
 import { withSecurityHeaders } from "./security-headers";
 
 const EXPECTED_HEADERS = {
@@ -33,6 +34,16 @@ test("adds the release security baseline without consuming or changing the respo
   for (const [name, value] of Object.entries(EXPECTED_HEADERS)) {
     expect(secured.headers.get(name), name).toBe(value);
   }
+});
+
+test("declares the same baseline for every Next.js route on hosts without the Worker", async () => {
+  const rules = await nextConfig.headers?.();
+
+  expect(rules).toHaveLength(1);
+  expect(rules?.[0].source).toBe("/:path*");
+  expect(
+    Object.fromEntries(rules?.[0].headers.map(({ key, value }) => [key.toLowerCase(), value]) ?? []),
+  ).toEqual(EXPECTED_HEADERS);
 });
 
 test("preserves stricter response policies already supplied by the application", () => {

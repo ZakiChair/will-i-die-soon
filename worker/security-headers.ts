@@ -1,4 +1,4 @@
-const SECURITY_HEADERS = {
+export const SECURITY_HEADERS = {
   "Content-Security-Policy":
     "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
   "Cross-Origin-Opener-Policy": "same-origin",
