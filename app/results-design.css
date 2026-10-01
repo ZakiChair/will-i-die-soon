@@ -297,6 +297,7 @@
   .results .chart-trace { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
   .results .express-result-card[data-axis] { break-inside: avoid; padding: 20px 0; }
   .results .express-priority, .results .action-plan > ol > li { break-inside: avoid; }
+  .results :is(.express-results__heading, .results-overview__heading, .score-distribution__heading, .action-plan__heading, .confirmed-labs__heading, .score-sheet__heading, .section-heading, .pathology-synthesis__heading, .pathology-labs__heading) { break-inside: avoid; break-after: avoid; }
   .results .score-distribution__figure { margin-top: 24px; }
   .results .score-categories, .results .confirmed-labs__table-wrap { overflow: visible; }
   .results .confirmed-labs table { min-width: 0; table-layout: fixed; }
