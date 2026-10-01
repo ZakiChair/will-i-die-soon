@@ -320,4 +320,22 @@ CAIDE « inactif » = moins de 60 minutes hebdomadaires déclarées (l'instrumen
 
 ### Portes après la revue
 
-`tsc --noEmit --incremental false` 0 erreur ; `npm run lint` 0 erreur (2 avertissements préexistants hors `app/`) ; `vitest` **63 fichiers / 5 537 tests** ; `npm run build` complet ; `git diff --check` propre sur les fichiers suivis et nouveaux. Commit de la fonctionnalité puis commit séparé de suppression du module `longevity` (après suppression : 61 fichiers / 5 515 tests, les 22 tests du module en moins ; tsc, lint, build et `diff --check` inchangés), tous deux locaux ; aucune poussée ni déploiement.
+`tsc --noEmit --incremental false` 0 erreur ; `npm run lint` 0 erreur (2 avertissements préexistants hors `app/`) ; `vitest` **63 fichiers / 5 537 tests** ; `npm run build` complet ; `git diff --check` propre sur les fichiers suivis et nouveaux. Commit de la fonctionnalité puis commit séparé de suppression du module `longevity` (après suppression : 61 fichiers / 5 515 tests, les 22 tests du module en moins ; tsc, lint, build et `diff --check` inchangés), tous deux locaux à cette date (poussés et déployés le 1er octobre 2026, voir la section suivante).
+
+## Publication du 1er octobre 2026
+
+`main` (jusqu'au commit `d69fcd8`) a été poussé sur GitHub puis déployé par la CLI Vercel : déploiement `dpl_EawSrkFMSCgdNHgf244nqZTw5kMm`, alias `https://will-i-die-soon.vercel.app`, Next 16.3.8. Le déploiement précédent, `dpl_52zT2JsyqQACNwLyrjpyfbApQK3n` (source `415b33d`), reste la cible de retour arrière. Le dossier de publication (dépendances, scans, cible, vérifications) est dans [`privacy-and-release.md`](../privacy-and-release.md#2026-10-01-vercel-public-deployment-record).
+
+### Contrôle navigateur sur l'alias public
+
+Chrome réel, cache froid, réseau lent. Parcours Express complet en anglais et parcours Quick complet en français (consentement, file de questions, alerte de réponse requise sur un choix multiple vide, interludes, résultats). La section « Pathologies les plus probables à discuter » s'affiche avec :
+
+- FINDRISC : 11 / 26 points, « risque légèrement élevé », environ 4 % sur 10 ans, conforme à la bande publiée (cohérent avec le contrôle local du 30 septembre : 9 / 26, ≈ 4 %) ;
+- PHQ-2 : 2 / 6, sous le seuil ;
+- SCORE2, STOP-Bang, COPD-PS et CAIDE : « estimation pas encore possible », avec les entrées manquantes nommées et la profondeur qui les pose (« analyse détaillée », « bilan sanguin importé »).
+
+Console et erreurs de page vides ; 17 et 21 requêtes GET (une série par parcours), toutes vers l'origine de l'alias (ressources statiques et médias décoratifs) ; cookies, `localStorage`, `sessionStorage`, IndexedDB et service workers vides ; URL inchangée (`/`). Le script différé de 550 Ko est le cœur de `three` (atlas 3D), chargé après l'hydratation comme avant cette mise à jour.
+
+### Non fait sur l'alias
+
+Parcours Detailed et Deep, import de bilan, mise en page mobile, impression et export JSON : couverts en local le 30 septembre, non rejoués en production. Les en-têtes de sécurité du Worker ne s'appliquent pas sur Vercel (seul `strict-transport-security` est renvoyé) ; les pourcentages de maladie restent affichés sur l'alias public (`publicWellnessPolicy` non branchée) ; 17 avis d'outillage de développement subsistent. Ces trois points sont décrits dans `privacy-and-release.md` et demandent une décision et une revue propres.
