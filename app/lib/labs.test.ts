@@ -14,6 +14,8 @@ const ocr = vi.hoisted(() => ({
   terminate: vi.fn(),
 }));
 
+type OcrErrorHandler = (reason: unknown) => void;
+
 type PdfModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 
 const pdf = vi.hoisted(() => ({
@@ -617,6 +619,7 @@ describe("extractLabText", () => {
       corePath: "/lab-assets/tesseract-core",
       langPath: "/lab-assets/tessdata",
       cacheMethod: "none",
+      errorHandler: expect.any(Function),
     });
     expect(ocr.recognize).toHaveBeenCalledWith(file);
     expect(ocr.terminate).toHaveBeenCalledOnce();
@@ -659,15 +662,35 @@ describe("extractLabText", () => {
 
   test("terminates an initialized OCR worker when recognition rejects", async () => {
     const file = new File(["image bytes"], "labs.png", { type: "image/png" });
-    ocr.recognize.mockRejectedValue(new Error("recognition failed"));
-    ocr.terminate.mockResolvedValue(undefined);
-    ocr.createWorker.mockResolvedValue({
-      recognize: ocr.recognize,
-      terminate: ocr.terminate,
+    let reportError: OcrErrorHandler | undefined;
+    ocr.recognize.mockImplementation(() => {
+      reportError?.("recognition failed");
+      return Promise.reject(new Error("recognition failed"));
     });
+    ocr.terminate.mockResolvedValue(undefined);
+    ocr.createWorker.mockImplementation(
+      (_langs: string, _oem: number, options: { errorHandler: OcrErrorHandler }) => {
+        reportError = options.errorHandler;
+        return Promise.resolve({ recognize: ocr.recognize, terminate: ocr.terminate });
+      },
+    );
 
     await expect(extractLabText(file)).rejects.toThrow("recognition failed");
     expect(ocr.terminate).toHaveBeenCalledOnce();
+  });
+
+  test("rejects an OCR initialization failure that Tesseract reports only to its error handler", async () => {
+    const file = new File(["image bytes"], "labs.png", { type: "image/png" });
+    ocr.createWorker.mockImplementation(
+      (_langs: string, _oem: number, options: { errorHandler: OcrErrorHandler }) => {
+        setTimeout(() => options.errorHandler("TypeError: Failed to fetch"), 0);
+        return new Promise(() => undefined);
+      },
+    );
+
+    await expect(extractLabText(file)).rejects.toThrow("TypeError: Failed to fetch");
+    expect(ocr.recognize).not.toHaveBeenCalled();
+    expect(ocr.terminate).not.toHaveBeenCalled();
   });
 
   test("aborts pending OCR recognition promptly and terminates the initialized worker", async () => {

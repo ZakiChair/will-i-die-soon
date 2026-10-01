@@ -581,15 +581,28 @@ async function extractImageText(
   signal: AbortSignal | undefined,
 ): Promise<string> {
   const { createWorker, OEM } = await abortable(import("tesseract.js"), signal);
+  // Tesseract 7.0.0 leaves createWorker() pending when a step after the core load
+  // fails, such as an interrupted language-data download, and reports that
+  // failure only through errorHandler.
+  let rejectInitialization!: (reason: Error) => void;
+  const initializationFailure = new Promise<never>((_resolve, reject) => {
+    rejectInitialization = reject;
+  });
   const workerPromise = createWorker("eng", OEM.LSTM_ONLY, {
     workerPath: "/lab-assets/tesseract-worker.min.js",
     corePath: "/lab-assets/tesseract-core",
     langPath: "/lab-assets/tessdata",
     cacheMethod: "none",
+    errorHandler: (reason: unknown) => {
+      rejectInitialization(new Error(String(reason)));
+    },
   });
   let worker: Awaited<typeof workerPromise>;
   try {
-    worker = await abortable(workerPromise, signal);
+    worker = await abortable(
+      Promise.race([workerPromise, initializationFailure]),
+      signal,
+    );
   } catch (error) {
     if (isAbortError(error)) {
       void workerPromise
