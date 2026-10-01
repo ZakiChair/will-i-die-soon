@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 
 import { questionBank } from "../data/questions";
 import { riskRules } from "../data/rules";
-import type { BranchCondition, RiskLeaf } from "./types";
+import type { AnalysisDepth, BranchCondition, RiskLeaf } from "./types";
 import {
   DEFAULT_PILLAR_BY_DOMAIN,
   HEALTH_PILLARS,
@@ -69,9 +69,32 @@ test("keeps every conditional gate in the same or an earlier pillar", () => {
       }
     }
   }
-  expect(questionBank).toHaveLength(254);
-  expect(conditionalQuestions).toBe(90);
-  expect(gateEdges).toBe(101);
+  expect(questionBank).toHaveLength(137);
+  expect(conditionalQuestions).toBe(44);
+  expect(gateEdges).toBe(54);
+  expect(violations).toEqual([]);
+});
+
+test("keeps every branch child within the depths of its gates", () => {
+  const byId = new Map(questionBank.map((question) => [question.id, question]));
+  const reachableDepths = (condition: BranchCondition): Set<AnalysisDepth> => {
+    if ("questionId" in condition) return new Set(byId.get(condition.questionId)?.tiers ?? []);
+    if ("all" in condition) {
+      return condition.all
+        .map(reachableDepths)
+        .reduce((left, right) => new Set([...left].filter((depth) => right.has(depth))));
+    }
+    return new Set(condition.any.flatMap((child) => [...reachableDepths(child)]));
+  };
+  const violations: string[] = [];
+  for (const dependent of questionBank) {
+    if (!dependent.condition) continue;
+    const allowed = reachableDepths(dependent.condition);
+    const unreachable = dependent.tiers.filter((depth) => !allowed.has(depth));
+    if (unreachable.length > 0) {
+      violations.push(`${dependent.id}: ${unreachable.join(", ")}`);
+    }
+  }
   expect(violations).toEqual([]);
 });
 
@@ -105,11 +128,11 @@ test("groups without changing IDs and preserves order inside each pillar", () =>
   }
 });
 
-test("classifies all 54 risk rules in the required pillar distribution", () => {
-  expect(Object.keys(RISK_RULE_PILLAR_BY_ID)).toHaveLength(54);
+test("classifies all 59 risk rules in the required pillar distribution", () => {
+  expect(Object.keys(RISK_RULE_PILLAR_BY_ID)).toHaveLength(59);
   expect(HEALTH_PILLARS.map((pillar) =>
     Object.values(RISK_RULE_PILLAR_BY_ID).filter((mapped) => mapped === pillar).length,
-  )).toEqual([12, 23, 2, 17]);
+  )).toEqual([16, 23, 2, 18]);
   for (const ruleId of Object.keys(RISK_RULE_PILLAR_BY_ID)) {
     expect(healthPillarForRiskRule(ruleId)).toBe(
       RISK_RULE_PILLAR_BY_ID[ruleId as keyof typeof RISK_RULE_PILLAR_BY_ID],

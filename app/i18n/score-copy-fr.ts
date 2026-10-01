@@ -315,8 +315,6 @@ export const accessSupportReasonClausesFr: Readonly<Record<string, string>> = {
 export const protectiveRootLabelsFr: Readonly<Record<string, string>> = {
   "A person you can contact for practical or emotional support":
     "Une personne que vous pouvez contacter pour obtenir un soutien pratique ou émotionnel",
-  "Reliable drinking-water access during heat or activity":
-    "Un accès fiable à l'eau potable par temps chaud ou pendant une activité",
   "A regular balance or coordination practice":
     "Une pratique régulière d'équilibre ou de coordination",
   "Outdoor or bright light after waking":
@@ -325,8 +323,6 @@ export const protectiveRootLabelsFr: Readonly<Record<string, string>> = {
     "Un moyen connu d'obtenir rapidement un soutien pour le bien-être",
   "A sense of community or shared activity":
     "Un sentiment d'appartenance à une communauté ou à une activité collective",
-  "Vaccination records available for review":
-    "Des dossiers de vaccination disponibles pour examen",
   "A current medicine list shared with a clinician or pharmacist":
     "Une liste à jour des médicaments partagée avec un professionnel de santé ou un pharmacien",
   "A regular brief stress-management practice":

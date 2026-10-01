@@ -45,6 +45,26 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
     copy:
       "L'ajout fréquent de sel en présence d'une hypertension connue mérite d'être discuté lors d'un suivi de routine.",
   },
+  "exertional-chest-pain-review": {
+    title: "Gêne thoracique liée à l'effort",
+    copy:
+      "Une douleur, une oppression ou une lourdeur thoracique qui survient à l'effort et s'estompe au repos est le tableau typique de l'angine de poitrine et mérite d'être discutée rapidement avec un professionnel de santé, même entre les épisodes.",
+  },
+  "exertional-leg-pain-review": {
+    title: "Douleur des jambes liée à la marche",
+    copy:
+      "Une douleur à type de crampe qui apparaît à la marche et cesse en quelques minutes d'arrêt est le tableau typique de l'artériopathie des membres inférieurs et mérite d'être discutée avec un professionnel de santé.",
+  },
+  "irregular-palpitations-review": {
+    title: "Palpitations irrégulières inexpliquées",
+    copy:
+      "Des épisodes de battements cardiaques irréguliers, de palpitations ou d'accélération du cœur non expliqués par un effort ou une frayeur méritent d'être discutés avec un professionnel de santé, qui pourra vérifier le rythme pendant un épisode.",
+  },
+  "atrial-fibrillation-review": {
+    title: "Trouble du rythme cardiaque connu",
+    copy:
+      "Un trouble du rythme diagnostiqué par un professionnel de santé, comme une fibrillation auriculaire, mérite un suivi régulier du traitement de prévention de l'AVC et du contrôle du rythme\u00a0; le score de risque cardiovasculaire affiché ailleurs ne le couvre pas.",
+  },
   "adult-short-sleep": {
     title: "Habitude de sommeil court",
     copy:
@@ -230,6 +250,11 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
     copy:
       "Une souffrance liée à la restriction, aux crises alimentaires, à la peur ou aux règles alimentaires mérite d'être discutée avec un professionnel de santé qualifié ou un service de soutien.",
   },
+  "cancer-alarm-signs-review": {
+    title: "Nouveau signe d'alerte méritant une évaluation rapide",
+    copy:
+      "Un nouveau signe d'alerte tel qu'une perte de poids inexpliquée, du sang dans les selles ou les urines, des crachats de sang, une grosseur qui grandit, un changement durable du transit, une difficulté nouvelle à avaler ou des saignements inhabituels justifie une évaluation clinique rapide selon les recommandations sur les suspicions de cancer. La plupart de ces signes ont finalement une autre cause.",
+  },
   "changing-skin-mark-review": {
     title: "Marque cutanée qui change ou ne guérit pas",
     copy:
@@ -300,6 +325,25 @@ export const riskFactorLabelsFr: Readonly<Record<string, string>> = {
   "Frequent daytime sleepiness": "Somnolence diurne fréquente",
   "Becomes breathless with less activity than before":
     "Essoufflement pour un effort moindre qu'auparavant",
+  "Effort-related chest discomfort that eases with rest":
+    "Gêne thoracique liée à l'effort et calmée par le repos",
+  "Walking-induced leg pain relieved by rest":
+    "Douleur des jambes déclenchée par la marche et soulagée par le repos",
+  "Unexplained irregular or racing heartbeat episodes":
+    "Épisodes inexpliqués de battements cardiaques irréguliers ou rapides",
+  "Clinician-diagnosed atrial fibrillation or irregular rhythm":
+    "Fibrillation auriculaire ou trouble du rythme diagnostiqué par un professionnel de santé",
+  "Unexplained weight loss": "Perte de poids inexpliquée",
+  "Blood in stool or urine": "Sang dans les selles ou les urines",
+  "Coughing up blood": "Crachats de sang",
+  "A new lump that is growing or does not go away":
+    "Une nouvelle grosseur qui grandit ou ne disparaît pas",
+  "A change in bowel habit lasting more than three weeks":
+    "Un changement du transit intestinal depuis plus de trois semaines",
+  "New or worsening difficulty swallowing":
+    "Difficulté à avaler nouvelle ou qui s'aggrave",
+  "Bleeding after menopause or other unusual bleeding":
+    "Saignements après la ménopause ou autres saignements inhabituels",
   "Current anabolic, SARM, or steroid-like product use":
     "Utilisation actuelle d'un produit anabolisant, d'un SARM ou d'un produit apparenté aux stéroïdes",
   "Yellow skin or eyes or dark urine reported":

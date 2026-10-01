@@ -1,25 +1,26 @@
 # Evidence register
 
-Register audit date: **2026-08-03**. This document describes the exact checked-in private-research prototype. It is an inventory of transparent rule outputs and source consumption, not a claim that the product or any rule is clinically validated.
+Register audit date: **2026-08-03**, updated **2026-09-29** for the probable-conditions module (five new rules, twenty new sources, published screening instruments). This document describes the exact checked-in private-research prototype. It is an inventory of transparent rule outputs and source consumption, not a claim that the product or any rule is clinically validated.
 
 ## Policy and release boundary
 
-The running results route selects `prototypePolicy`: audience `private-research`, qualitative rules enabled, prompt-review and urgent signals enabled, and validated probabilities disabled. The public-wellness and regulated policies in source are separate policy foundations and are not active release modes. A public wellness release needs a new content, privacy, security, regulatory, and access review. Any regulated module additionally needs a named jurisdiction, frozen validated model version, exact eligibility, endpoint and horizon, test vectors, rights, quality/risk management, and the relevant conformity work.
+The running results route selects `prototypePolicy`: audience `private-research`, qualitative rules enabled, prompt-review and urgent signals enabled, and **validated probabilities enabled** since 2026-09-29. The flag `allowValidatedProbabilities` has two readers: the separate module `app/lib/pathology-risk.ts`, which re-implements published screening instruments and shows their published percentage only when the flag is true, and `policyAllows` in `app/lib/risk-engine.ts`, which would gate rules of evidence tier `validated-estimate` (no such rule exists today). `publicWellnessPolicy` keeps the flag `false`; under that policy the module still returns points and category but withholds every percentage. The public-wellness and regulated policies in source are separate policy foundations and are not active release modes. A public wellness release needs a new content, privacy, security, regulatory, and access review. Any regulated module additionally needs a named jurisdiction, frozen validated model version, exact eligibility, endpoint and horizon, test vectors, rights, quality/risk management, and the relevant conformity work.
 
-All active outputs are deterministic checks over declared questionnaire IDs. There is no hidden model, remote inference, learned weighting, mortality predictor, life-expectancy estimate, or date-of-death estimate. No rule emits a numeric disease probability. The active inventory contains **zero `validated-estimate` rules**; a publication's presence does not activate a model.
+All active rule outputs are deterministic checks over declared questionnaire IDs. There is no hidden model, remote inference, learned weighting, mortality predictor, life-expectancy estimate, or date-of-death estimate. No rule emits a numeric disease probability. The active rule inventory contains **zero `validated-estimate` rules**; a publication's presence does not activate a model. The only numeric risk outputs are the published bands and formulas listed under [Published screening instruments](#published-screening-instruments-pathology-module); they never pass through `RiskLeaf.copy`, so `assertEvidenceContract` is unchanged.
 
 An evidence tier classifies what a specific output/rule is permitted to say. It does **not** label a publication as intrinsically “authoritative,” “guideline,” or “limited.” The same publication could support outputs with different allowed claims. Here, `authoritative-safety` permits a regulator/public-health safety warning without a probability; `guideline-action` permits a measurement, screening, support, or clinician-discussion action; and `evidence-limited-association` permits qualitative context only.
 
 ## Inventory summary
 
-- **54 active rules** across **14 declared groups**; **12 groups are nonempty**. `metabolic` and `kidney` are deliberately empty because no safe standalone rule has been qualified for their current inputs.
-- Group counts in declared enum order: **9 / 1 / 0 / 2 / 1 / 1 / 0 / 2 / 4 / 26 / 1 / 1 / 5 / 1**.
-- Evidence tiers: **29 authoritative-safety**, **21 guideline-action**, **4 evidence-limited-association**, **0 validated-estimate**.
-- Urgency: **9 urgent**, **31 prompt-review**, **3 long-term**, **11 support**.
-- Signals: **9 urgent**, **27 high-signal**, **18 worth-attention**, **0 low-signal**.
-- `app/data/evidence.ts` declares **71** sources and **71 unique URLs**. Rules reference **65** records; **6** are inactive. There are no unknown source references.
-- Rule use contains **146 source occurrences**: **122 base/direct** occurrences across **61 distinct** source IDs, plus **24 conditional** occurrences across **4 distinct** product-label source IDs. Combined rule consumption is **65 distinct** source IDs.
-- The Purity Score uses **8 supplemental `ScoreSource` records** outside the evidence registry. Across rule evidence plus score evidence there are **73 active source records** and **70 unique URLs** because three score URLs exactly match registry URLs.
+- **59 active rules** across **14 declared groups**; **12 groups are nonempty**. `metabolic` and `kidney` remain empty of qualitative rules: their inputs are now covered by the published scores and lab bands of the pathology module (FINDRISC, HbA1c, fasting glucose, eGFR), and no safe standalone rule has been qualified for them.
+- Group counts in declared enum order: **9 / 5 / 0 / 2 / 1 / 1 / 0 / 2 / 4 / 26 / 2 / 1 / 5 / 1**.
+- Evidence tiers: **29 authoritative-safety**, **26 guideline-action**, **4 evidence-limited-association**, **0 validated-estimate**.
+- Urgency: **9 urgent**, **35 prompt-review**, **4 long-term**, **11 support**.
+- Signals: **9 urgent**, **30 high-signal**, **20 worth-attention**, **0 low-signal**.
+- `app/data/evidence.ts` declares **91** sources and **91 unique URLs**. Rules reference **71** records. Of the remaining **20**, **14** are consumed only by the pathology module and **6** are inactive. There are no unknown source references.
+- Rule use contains **155 source occurrences**: **131 base/direct** occurrences across **67 distinct** source IDs, plus **24 conditional** occurrences across **4 distinct** product-label source IDs. Combined rule consumption is **71 distinct** source IDs. `escPrevention2021` is consumed both directly by three cardiovascular rules and by the pathology module for SCORE2 risk categories.
+- The pathology module consumes **15 registry records** (14 instrument, guideline or commission publications plus `escPrevention2021`) and emits **8 instruments**, **3 lab classifications** and **14 dementia factors**; see the dedicated section below.
+- The Purity Score uses **8 supplemental `ScoreSource` records** outside the evidence registry. Across rule evidence, pathology evidence and score evidence there are **93 active source records** and **90 unique URLs** because three score URLs exactly match registry URLs.
 
 ## Rule groups
 
@@ -28,16 +29,16 @@ All nonempty groups below are enabled under the selected private-research policy
 | Group | Rules | Status |
 | --- | ---: | --- |
 | `immediate-red-flags` | 9 | enabled |
-| `cardiovascular` | 1 | enabled |
-| `metabolic` | 0 | empty; no standalone rule released |
+| `cardiovascular` | 5 | enabled |
+| `metabolic` | 0 | empty; covered by FINDRISC and the HbA1c/glucose bands of the pathology module, no standalone qualitative rule released |
 | `sleep` | 2 | enabled |
 | `respiratory` | 1 | enabled |
 | `liver` | 1 | enabled |
-| `kidney` | 0 | empty; no standalone rule released |
+| `kidney` | 0 | empty; covered by the KDIGO eGFR bands of the pathology module, no standalone qualitative rule released |
 | `mental-wellbeing` | 2 | enabled |
 | `dependency` | 4 | enabled |
 | `medication-substance-review` | 26 | enabled |
-| `preventive-follow-up` | 1 | enabled |
+| `preventive-follow-up` | 2 | enabled |
 | `skin-hair` | 1 | enabled |
 | `reproductive-health` | 5 | enabled |
 | `musculoskeletal` | 1 | enabled |
@@ -58,6 +59,10 @@ Population is the exact rule-level applicability. `all` means all questionnaire 
 | `urgent-adolescent-pregnancy-safety` | `immediate-red-flags` | `guideline-action` | `urgent` | `urgent` | ages 13–17; `countries: all` | `whoPregnancyHealthServices`, `whoBasicEmergencyCare`, `us911EmergencyAssistance`, `nhsWhenToCall999`, `swissEmergencyNumbers` |
 | `urgent-adolescent-substance-safety` | `immediate-red-flags` | `guideline-action` | `urgent` | `urgent` | ages 13–17; `countries: all` | `whoBasicEmergencyCare`, `us911EmergencyAssistance`, `nhsWhenToCall999`, `swissEmergencyNumbers` |
 | `blood-pressure-salt-context` | `cardiovascular` | `guideline-action` | `long-term` | `worth-attention` | age 18+; `countries: all` | `whoHealthyDiet` |
+| `exertional-chest-pain-review` | `cardiovascular` | `guideline-action` | `prompt-review` | `high-signal` | age 18+; `countries: all` | `nhsAngina`, `escPrevention2021` |
+| `exertional-leg-pain-review` | `cardiovascular` | `guideline-action` | `prompt-review` | `high-signal` | age 18+; `countries: all` | `nhsPeripheralArterialDisease`, `escPrevention2021` |
+| `irregular-palpitations-review` | `cardiovascular` | `guideline-action` | `prompt-review` | `worth-attention` | age 18+; `countries: all` | `nhsHeartPalpitations`, `nhsAtrialFibrillation` |
+| `atrial-fibrillation-review` | `cardiovascular` | `guideline-action` | `long-term` | `worth-attention` | age 18+; `countries: all` | `nhsAtrialFibrillation`, `escPrevention2021` |
 | `adult-short-sleep` | `sleep` | `guideline-action` | `long-term` | `worth-attention` | age 18+; `countries: all` | `cdcAdultSleep` |
 | `sleep-breathing-review` | `sleep` | `guideline-action` | `prompt-review` | `high-signal` | age 18+; `countries: all` | `nhsSleepApnoea`, `nhsDaytimeSleepiness` |
 | `breathlessness-review` | `respiratory` | `guideline-action` | `prompt-review` | `high-signal` | age 18+; `countries: all` | `nhsShortnessOfBreath`, `whoBasicEmergencyCare` |
@@ -95,6 +100,7 @@ Population is the exact rule-level applicability. `all` means all questionnaire 
 | `psychedelic-aftereffect-review` | `medication-substance-review` | `evidence-limited-association` | `support` | `worth-attention` | age 18+; `countries: all` | `nidaPsychedelicAfterEffects` |
 | `recreational-drug-effect-review` | `medication-substance-review` | `guideline-action` | `prompt-review` | `high-signal` | age 18+; `countries: all` | `cdcPolysubstanceOverdose`, `nhsPoisoning` |
 | `eating-distress-support` | `preventive-follow-up` | `guideline-action` | `support` | `worth-attention` | age 18+; `countries: all` | `niceEatingDisorders` |
+| `cancer-alarm-signs-review` | `preventive-follow-up` | `guideline-action` | `prompt-review` | `high-signal` | age 18+; `countries: all` | `niceSuspectedCancer` |
 | `changing-skin-mark-review` | `skin-hair` | `guideline-action` | `prompt-review` | `high-signal` | age 18+; `countries: all` | `nhsChangingMole` |
 | `sexual-safety-support` | `reproductive-health` | `guideline-action` | `support` | `worth-attention` | age 13+; `countries: all` | `nhsSexualAssaultSupport`, `whoSexualViolenceSurvivorCare`, `whoChildAdolescentSexualAbuse` |
 | `pregnancy-new-concern-review` | `reproductive-health` | `guideline-action` | `prompt-review` | `high-signal` | age 18+; `countries: all` | `cdcPregnantPostpartum`, `whoPregnancyHealthServices`, `whoPostpartumHealthServices` |
@@ -180,6 +186,47 @@ Population is the exact rule-level applicability. `all` means all questionnaire 
 | `fdaCompoundedSemaglutide` / `fda-compounded-semaglutide` | Dosing errors associated with compounded injectable semaglutide products; U.S. Food and Drug Administration | <https://www.fda.gov/drugs/human-drug-compounding/fda-alerts-health-care-providers-compounders-and-patients-dosing-errors-associated-compounded> | 2026-08-03 | `US` | `countries: all` | **inactive** |
 | `fophAddictionHelp` / `foph-addiction-help` | Addiction support services; Swiss Federal Office of Public Health | <https://www.bag.admin.ch/de/hilfsangebote-sucht> | 2026-08-03 | `CH` | `countries: CH` | active — direct |
 | `fophUfiEmergency` / `foph-ufi-emergency` | The UFI code: rapid aid in an emergency; Swiss Federal Office of Public Health | <https://www.bag.admin.ch/en/the-ufi-code-rapid-aid-in-an-emergency> | 2026-08-03 | `CH` | `countries: CH` | active — direct |
+| `nhsAngina` / `nhs-angina` | Angina; NHS | <https://www.nhs.uk/conditions/angina/> | 2026-09-29 | `GB` | `minAge: 18; countries: all` | active — direct |
+| `nhsPeripheralArterialDisease` / `nhs-peripheral-arterial-disease` | Peripheral arterial disease (PAD); NHS | <https://www.nhs.uk/conditions/peripheral-arterial-disease-pad/> | 2026-09-29 | `GB` | `minAge: 18; countries: all` | active — direct |
+| `nhsHeartPalpitations` / `nhs-heart-palpitations` | Heart palpitations and ectopic beats; NHS | <https://www.nhs.uk/conditions/heart-palpitations/> | 2026-09-29 | `GB` | `minAge: 18; countries: all` | active — direct |
+| `nhsAtrialFibrillation` / `nhs-atrial-fibrillation` | Atrial fibrillation; NHS | <https://www.nhs.uk/conditions/atrial-fibrillation/> | 2026-09-29 | `GB` | `minAge: 18; countries: all` | active — direct |
+| `niceSuspectedCancer` / `nice-suspected-cancer-ng12` | Suspected cancer: recognition and referral (NG12); National Institute for Health and Care Excellence | <https://www.nice.org.uk/guidance/ng12> | 2026-09-29 | `GB` | `minAge: 18; countries: all` | active — direct |
+| `findriscLindstrom2003` / `findrisc-lindstrom-2003` | The Diabetes Risk Score: a practical tool to predict type 2 diabetes risk (FINDRISC); Diabetes Care, American Diabetes Association | <https://doi.org/10.2337/diacare.26.3.725> | 2026-09-29 | `all` | `minAge: 18; countries: all` | active — pathology module (FINDRISC) |
+| `score2Esc2021` / `score2-esc-2021` | SCORE2 risk prediction algorithms: new models to estimate 10-year risk of cardiovascular disease in Europe; European Heart Journal, European Society of Cardiology | <https://doi.org/10.1093/eurheartj/ehab309> | 2026-09-29 | `all` | `minAge: 40; maxAge: 69; countries: CH, GB` | active — pathology module (SCORE2) |
+| `score2OpEsc2021` / `score2-op-esc-2021` | SCORE2-OP risk prediction algorithms: estimating incident cardiovascular event risk in older persons in four geographical risk regions; European Heart Journal, European Society of Cardiology | <https://doi.org/10.1093/eurheartj/ehab312> | 2026-09-29 | `all` | `minAge: 70; maxAge: 89; countries: CH, GB` | active — pathology module (SCORE2-OP) |
+| `escPrevention2021` / `esc-prevention-guidelines-2021` | 2021 ESC Guidelines on cardiovascular disease prevention in clinical practice; European Heart Journal, European Society of Cardiology | <https://doi.org/10.1093/eurheartj/ehab484> | 2026-09-29 | `all` | `minAge: 40; maxAge: 89; countries: CH, GB` | active — direct + pathology module (SCORE2 risk categories) |
+| `stopBangChung2008` / `stop-bang-chung-2008` | STOP Questionnaire: a tool to screen patients for obstructive sleep apnea; Anesthesiology, American Society of Anesthesiologists | <https://doi.org/10.1097/ALN.0b013e31816d83e4> | 2026-09-29 | `all` | `minAge: 18; countries: all` | active — pathology module (STOP-Bang) |
+| `stopBangChung2016` / `stop-bang-chung-2016` | STOP-Bang Questionnaire: a practical approach to screen for obstructive sleep apnea; Chest, American College of Chest Physicians | <https://doi.org/10.1378/chest.15-0903> | 2026-09-29 | `all` | `minAge: 18; countries: all` | active — pathology module (STOP-Bang) |
+| `auditCBush1998` / `audit-c-bush-1998` | The AUDIT Alcohol Consumption Questions (AUDIT-C): an effective brief screening test for problem drinking; Archives of Internal Medicine, JAMA Network | <https://doi.org/10.1001/archinte.158.16.1789> | 2026-09-29 | `all` | `minAge: 18; countries: all` | active — pathology module (AUDIT-C) |
+| `auditCBradley2007` / `audit-c-bradley-2007` | AUDIT-C as a brief screen for alcohol misuse in primary care; Alcoholism: Clinical and Experimental Research | <https://doi.org/10.1111/j.1530-0277.2007.00403.x> | 2026-09-29 | `all` | `minAge: 18; countries: all` | active — pathology module (AUDIT-C) |
+| `phq2Kroenke2003` / `phq-2-kroenke-2003` | The Patient Health Questionnaire-2: validity of a two-item depression screener; Medical Care | <https://doi.org/10.1097/01.MLR.0000093487.78664.3C> | 2026-09-29 | `all` | `minAge: 18; countries: all` | active — pathology module (PHQ-2) |
+| `gad2Kroenke2007` / `gad-2-kroenke-2007` | Anxiety disorders in primary care: prevalence, impairment, comorbidity, and detection (GAD-2); Annals of Internal Medicine, American College of Physicians | <https://doi.org/10.7326/0003-4819-146-5-200703060-00004> | 2026-09-29 | `all` | `minAge: 18; countries: all` | active — pathology module (GAD-2) |
+| `copdPsMartinez2008` / `copd-ps-martinez-2008` | Development and initial validation of a self-scored COPD Population Screener questionnaire (COPD-PS); COPD: Journal of Chronic Obstructive Pulmonary Disease | <https://doi.org/10.1080/15412550801940721> | 2026-09-29 | `all` | `minAge: 35; countries: all` | active — pathology module (COPD-PS) |
+| `caideKivipelto2006` / `caide-kivipelto-2006` | Risk score for the prediction of dementia risk in 20 years among middle aged people: a longitudinal, population-based study (CAIDE); The Lancet Neurology | <https://doi.org/10.1016/S1474-4422(06)70537-3> | 2026-09-29 | `all` | `minAge: 40; maxAge: 64; countries: all` | active — pathology module (CAIDE) |
+| `adaDiagnosisStandards2025` / `ada-standards-of-care-2025-diagnosis` | 2. Diagnosis and Classification of Diabetes: Standards of Care in Diabetes—2025; Diabetes Care, American Diabetes Association | <https://doi.org/10.2337/dc25-S002> | 2026-09-29 | `US` | `minAge: 18; countries: all` | active — pathology module (HbA1c and fasting glucose bands) |
+| `kdigoCkd2024` / `kdigo-ckd-2024` | KDIGO 2024 Clinical Practice Guideline for the Evaluation and Management of Chronic Kidney Disease; Kidney International, Kidney Disease: Improving Global Outcomes | <https://doi.org/10.1016/j.kint.2023.10.018> | 2026-09-29 | `all` | `minAge: 18; countries: all` | active — pathology module (eGFR G1–G5 bands) |
+| `lancetDementia2024` / `lancet-dementia-commission-2024` | Dementia prevention, intervention, and care: 2024 report of the Lancet standing Commission; The Lancet | <https://doi.org/10.1016/S0140-6736(24)01296-0> | 2026-09-29 | `all` | `minAge: 18; countries: all` | active — pathology module (modifiable dementia factors) |
+
+## Published screening instruments (pathology module)
+
+`app/lib/pathology-risk.ts` (`PATHOLOGY_RULESET_VERSION = "pathology-scores-v1"`) computes the instruments below from structured answers, the profile and confirmed lab values, for adults only and never for Express. Each result carries its `status` (`complete`, `incomplete` with named `missingInputs`, or `not-applicable` with a reason among `age-out-of-range`, `diagnosed-condition`, `established-cvd`, `sex-not-supported`, `region-not-calibrated`), its `inputs` with derived values flagged, and its `sourceIds`. Percentages are the instruments' own published bands or formulas and are emitted only when `policy.allowValidatedProbabilities` is true. "Unsure"/"unknown" answers count as missing rather than negative. Nothing here is a diagnosis, and none of the publications validates this product.
+
+| Instrument | Pathology | Applicability | Output | Sources |
+| --- | --- | --- | --- | --- |
+| FINDRISC | Type 2 diabetes | 18+; not applicable with diagnosed diabetes; waist thresholds need declared sex | 0–26 points; < 7 low (1%), 7–11 slightly elevated (4%), 12–14 moderate (17%), 15–20 high (33%), > 20 very high (50%) over 10 years | `findriscLindstrom2003` |
+| SCORE2 / SCORE2-OP | Fatal and non-fatal cardiovascular disease | 40–69 / 70–89; sex male or female; low-risk region calibration for `CH` and `GB` only (`region-not-calibrated` for `US` and other); not applicable with diagnosed diabetes or prior cardiovascular event; needs systolic pressure and imported total and HDL cholesterol | 10-year risk %; ESC 2021 categories by age (< 50: 2.5 / 7.5%; 50–69: 5 / 10%; ≥ 70: 7.5 / 15%); displayed modifiers: early family CVD, inflammatory condition, current statin, and a declared heart/blood-vessel or kidney condition (the broad `diagnosed_conditions_core` options do not exclude the estimate, but ESC places established atherosclerotic disease and moderate/severe CKD at high or very high risk regardless of it) | `score2Esc2021` or `score2OpEsc2021`, `escPrevention2021` |
+| STOP-Bang | Obstructive sleep apnoea | 18+; not applicable with diagnosed sleep apnoea | 0–8 points; 0–2 low, 3–4 intermediate, ≥ 5 high; also high when STOP ≥ 2 with male sex, BMI > 35 or neck > 40 cm | `stopBangChung2008`, `stopBangChung2016` |
+| AUDIT-C | Hazardous drinking | 18+ | 0–12 points; positive ≥ 3 for women, ≥ 4 otherwise (the less sensitive male cut-off is also applied when sex is not declared, a deliberate conservative choice); ≥ 8 also feeds the dementia "excessive alcohol" factor | `auditCBush1998`, `auditCBradley2007` |
+| PHQ-2 | Depression | 18+ | 0–6 points; positive ≥ 3 | `phq2Kroenke2003` |
+| GAD-2 | Anxiety | 18+ | 0–6 points; positive ≥ 3 | `gad2Kroenke2007` |
+| COPD-PS | COPD | 35+ | 0–10 points; ≥ 5 suggests spirometry | `copdPsMartinez2008` |
+| CAIDE (model 1) | Dementia at 20 years | 40–64; total cholesterol item needs an imported value | 0–15 points; 0–5 (1.0%), 6–7 (1.9%), 8–9 (4.2%), 10–11 (7.4%), 12–15 (16.4%). Approximation: the instrument's "inactive" item (fewer than two 20–30-minute sessions a week) is mapped to fewer than 60 reported minutes of weekly moderate activity | `caideKivipelto2006` |
+| Lab bands | HbA1c, fasting glucose, eGFR | 18+; glucose thresholds only when the confirmed row is marked fasting (`not-fasting` and `fasting-unknown` rows are listed without a band) | ADA normal / prediabetes range / diabetes range; KDIGO G1–G5. A single value does not define a disease | `adaDiagnosisStandards2025`, `kdigoCkd2024` |
+| Dementia factors | 14 modifiable factors | 18+ | present / absent / unanswered, without any percentage | `lancetDementia2024` |
+
+The dementia block also shows the `dementia_family_history` answer as context (`reported`, `not-reported` or `unanswered`). Family history is not one of the Commission's modifiable factors, so it never enters the factor count and carries no source of its own.
+
+Test vectors in `app/lib/pathology-risk.test.ts` reproduce the ESC worked example for SCORE2 (man aged 50, smoker, systolic 140 mmHg, total cholesterol 6.3 mmol/L, HDL 1.4 mmol/L, low-risk region → 6.3%), FINDRISC 0, 15 and 26 points, STOP-Bang 2/3/4 with the male-sex escalation, the AUDIT-C, PHQ-2, GAD-2 and COPD-PS cut-offs, CAIDE 12 points → 16.4%, the withheld percentage under `publicWellnessPolicy`, and the empty synthesis for minors.
 
 ## Supplemental Purity Score sources
 
@@ -198,4 +245,4 @@ The following eight records are consumed by the adult Purity Score and action pl
 
 ## Audit interpretation
 
-The six inactive records are `cdcStiTesting`, `fdaUnapprovedGlp1`, `fdaCompoundedRisks`, `cdcInjectionSafety`, `mhraCorticosteroids`, and `fdaCompoundedSemaglutide`. Inactive means “not consumed by a current rule,” not invalid or unreviewed. The four DailyMed product labels are conditional-only. No source key used by a rule is missing from the registry, and no duplicate URL exists within either registry. Three URLs overlap between the active evidence registry and supplemental score table, producing the combined **73 active records / 70 unique URLs** total.
+The six inactive records are `cdcStiTesting`, `fdaUnapprovedGlp1`, `fdaCompoundedRisks`, `cdcInjectionSafety`, `mhraCorticosteroids`, and `fdaCompoundedSemaglutide`. Inactive means “not consumed by a current rule or by the pathology module,” not invalid or unreviewed. The fourteen instrument, guideline and commission publications added on 2026-09-29 are consumed by the pathology module through `resolvePathologySources`, not by qualitative rules. The four DailyMed product labels are conditional-only. No source key used by a rule or by the pathology module is missing from the registry, and no duplicate URL exists within either registry. Three URLs overlap between the active evidence registry and supplemental score table, producing the combined **93 active records / 90 unique URLs** total.

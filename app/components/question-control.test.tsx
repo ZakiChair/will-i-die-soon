@@ -152,18 +152,35 @@ test("localizes scale accessibility copy without changing the selected number", 
   expect(onAnswer).toHaveBeenCalledWith(8);
 });
 
-test("localizes text presentation while preserving user-entered text", async () => {
+test("trims user-entered text on a synthetic free-text question", async () => {
   const user = userEvent.setup();
-  const onAnswer = renderControl("gender_identity_optional");
-  await chooseFrench(user);
+  const onAnswer = vi.fn();
+  const syntheticText: Question = {
+    ...requiredQuestion("urgent_chest_discomfort_now"),
+    id: "synthetic_free_text",
+    prompt: "Describe anything else you want to share?",
+    answerType: "text",
+    options: undefined,
+  };
+  render(
+    <I18nProvider>
+      <h1 id="question-title">{syntheticText.prompt}</h1>
+      <QuestionControl
+        question={syntheticText}
+        onAnswer={onAnswer}
+        onBack={vi.fn()}
+        canGoBack
+      />
+    </I18nProvider>,
+  );
 
   const input = screen.getByRole("textbox", {
-    name: /comment décrivez-vous votre identité de genre/i,
+    name: /describe anything else you want to share/i,
   });
-  await user.type(input, "  non-binaire  ");
-  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  await user.type(input, "  non-binary  ");
+  await user.click(screen.getByRole("button", { name: "Continue" }));
 
-  expect(onAnswer).toHaveBeenCalledWith("non-binaire");
+  expect(onAnswer).toHaveBeenCalledWith("non-binary");
 });
 
 function withinScale(group: HTMLElement, value: string): HTMLElement {
@@ -214,12 +231,12 @@ test.each([
   ["usual_sleep_hours", "100"],
   ["movement_walking_days", "8"],
   ["movement_strength_days", "-1"],
-  ["diet_nuts_seeds", "8"],
+  ["diet_legumes", "-1"],
   ["height_cm", "0"],
   ["weight_kg", "-20"],
-  ["sleep_fall_asleep_minutes", "-5"],
+  ["neck_circumference_cm", "0"],
   ["weekly_moderate_activity_minutes", "-1"],
-  ["smoking_total_years", "-1"],
+  ["waist_circumference_cm", "-1"],
 ])("keeps an impossible %s answer on screen with a described error", async (id, value) => {
   const user = userEvent.setup();
   const onAnswer = renderControl(id);

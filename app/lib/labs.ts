@@ -254,7 +254,7 @@ function canonicalName(value: string): string {
     .trim();
 }
 
-function canonicalUnit(value: string): string {
+export function canonicalUnit(value: string): string {
   const compact = value
     .normalize("NFKC")
     .replace(/[uμ]/g, "µ")

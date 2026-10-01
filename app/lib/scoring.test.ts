@@ -683,7 +683,7 @@ describe("question-bank contract and reachable coverage", () => {
       if (depth === "quick") expect(queue).toHaveLength(20);
       else if (depth === "detailed") expect(queue).toHaveLength(50);
       else {
-        expect(queue.length).toBeGreaterThanOrEqual(150);
+        expect(queue.length).toBeGreaterThanOrEqual(80);
         expect(queue.length).toBeLessThanOrEqual(200);
       }
     },

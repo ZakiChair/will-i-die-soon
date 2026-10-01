@@ -16,7 +16,6 @@ const HEALTH_DOMAINS = [
   "current-symptoms",
   "emergency-symptoms",
   "diet",
-  "hydration",
   "movement",
   "sedentary-time",
   "sleep",
@@ -26,12 +25,9 @@ const HEALTH_DOMAINS = [
   "anxiety",
   "cognition",
   "social-connection",
-  "work-exposures",
   "environment",
   "sun",
-  "dental-health",
   "sexual-health",
-  "reproductive-health",
   "pregnancy",
   "tobacco-nicotine",
   "alcohol",
@@ -47,15 +43,11 @@ const HEALTH_DOMAINS = [
   "isotretinoin",
   "minoxidil",
   "prescription-medications",
-  "otc-medications",
-  "supplements",
   "medication-adherence",
   "interactions",
   "preventive-care",
-  "vaccinations",
   "blood-pressure",
   "blood-testing",
-  "lab-values",
 ] as const satisfies ReadonlyArray<HealthDomain>;
 
 const expectedDynamicKeys = {
@@ -148,7 +140,7 @@ describe("complete bilingual UI copy", () => {
   });
 
   test("maps every live dynamic identifier to an exact typed UI key", () => {
-    expect(HEALTH_DOMAINS).toHaveLength(47);
+    expect(HEALTH_DOMAINS).toHaveLength(39);
     expect([...new Set(questionBank.map(({ domain }) => domain))].sort()).toEqual(
       [...HEALTH_DOMAINS].sort(),
     );
@@ -174,8 +166,8 @@ describe("complete bilingual UI copy", () => {
     }
   });
 
-  test("retains the approved nine-item protective-root presentation corpus", () => {
-    expect(Object.keys(protectiveRootLabelsFr)).toHaveLength(9);
+  test("retains the approved seven-item protective-root presentation corpus", () => {
+    expect(Object.keys(protectiveRootLabelsFr)).toHaveLength(7);
     expect(Object.values(protectiveRootLabelsFr).every((value) => value.trim() !== ""))
       .toBe(true);
   });

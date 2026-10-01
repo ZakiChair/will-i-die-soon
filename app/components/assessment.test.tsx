@@ -164,7 +164,7 @@ test.each(["quick", "deep"] as const)("termine le parcours %s masculin sans ques
   const answers = onComplete.mock.calls[0][0];
   expect(answers.sex_assigned_at_birth).toBe("male");
   expect(answers).not.toHaveProperty("pregnancy_relevant");
-  expect(Object.keys(answers)).toHaveLength(depth === "quick" ? 20 : 150);
+  expect(Object.keys(answers)).toHaveLength(depth === "quick" ? 20 : 91);
 }, 20000);
 
 test("remounts the question sheet in a motion screen keyed by the active question ID", async () => {
@@ -279,7 +279,7 @@ test("requires guardian-assisted mode for a child under 13", async () => {
   await user.click(screen.getByRole("button", { name: /start quick/i }));
   await continuePastIntermission(user);
 
-  expect(screen.getByText("Question 1 of 20")).toBeVisible();
+  expect(screen.getByText("Question 1 of 17")).toBeVisible();
 });
 
 test("lets an adolescent choose assisted or private completion", async () => {
@@ -309,7 +309,7 @@ test("offers Detailed instead of silently downgrading an unavailable child Deep 
   );
 
   expect(
-    screen.getByText(/deep needs at least 150 eligible questions/i),
+    screen.getByText(/deep is reserved for adults with enough eligible questions/i),
   ).toBeVisible();
   expect(screen.queryByRole("button", { name: /start deep/i })).not.toBeInTheDocument();
 
@@ -317,16 +317,16 @@ test("offers Detailed instead of silently downgrading an unavailable child Deep 
   await user.click(screen.getByRole("button", { name: /start detailed/i }));
   await continuePastIntermission(user);
 
-  expect(screen.getByText("Question 1 of 50")).toBeVisible();
+  expect(screen.getByText("Question 1 of 42")).toBeVisible();
 });
 
-test("starts the full Deep queue when at least 150 questions are eligible", async () => {
+test("starts the full Deep queue with every eligible adult question", async () => {
   const user = await chooseDepth("deep");
   await fillProfile(user, 35);
   await user.click(screen.getByRole("button", { name: /start deep/i }));
   await continuePastIntermission(user);
 
-  expect(screen.getByText("Question 1 of 150")).toBeVisible();
+  expect(screen.getByText("Question 1 of 92")).toBeVisible();
 });
 
 test("interrupts immediately for a confirmed red flag and lets the user correct it", async () => {
@@ -477,7 +477,7 @@ test("Enter advances only after a valid answer and Back restores that answer", a
   expect(screen.getByText("Question 2 of 20")).toBeVisible();
   expect(
     screen.getByRole("group", {
-      name: /did a parent or sibling have a heart attack or stroke/i,
+      name: /which ongoing conditions have a clinician told you that you have/i,
     }),
   ).toBeVisible();
   await user.click(screen.getByRole("button", { name: /back/i }));
@@ -548,7 +548,9 @@ test("Quick completes after exactly 20 deliberate skips stored only as null", as
       intermissions += 1;
       await user.click(continueButton);
     }
-    await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+    await user.click(
+      screen.getByRole("button", { name: /prefer not to say|I don't know this measurement/i }),
+    );
   }
 
   expect(intermissions).toBe(4);
@@ -583,11 +585,11 @@ test("runs nine Express questions without an intermission", async () => {
 });
 
 test.each([
-  ["quick", 20, 4, 0],
-  ["detailed", 50, 4, 5],
-  ["deep", 158, 4, 5],
+  ["quick", 20, 4, null],
+  ["detailed", 50, 4, 1],
+  ["deep", 96, 4, 1],
 ] as const)(
-  "%s adaptation completes %i questions with %i intermissions and %i medication follow-ups",
+  "%s adaptation completes %i questions with %i intermissions and %s medication follow-ups",
   async (depth, questionCount, expectedIntermissions, expectedFollowUps) => {
     const user = userEvent.setup();
     const onComplete = vi.fn();
@@ -598,10 +600,15 @@ test.each([
     expect(onComplete).toHaveBeenCalledOnce();
     const completedAnswers = onComplete.mock.calls[0][0];
     expect(Object.keys(completedAnswers)).toHaveLength(questionCount);
-    expect(completedAnswers.current_medications).toBe(true);
-    expect(
-      Object.keys(completedAnswers).filter((id) => id.startsWith("med_detail_")),
-    ).toHaveLength(expectedFollowUps);
+    const followUps = Object.keys(completedAnswers).filter((id) => id.startsWith("med_detail_"));
+    if (expectedFollowUps === null) {
+      // Quick keeps its twenty slots for validated-score inputs; the medication gate starts at Detailed.
+      expect(completedAnswers).not.toHaveProperty("current_medications");
+      expect(followUps).toHaveLength(0);
+    } else {
+      expect(completedAnswers.current_medications).toBe(true);
+      expect(followUps).toHaveLength(expectedFollowUps);
+    }
   },
   20_000,
 );
@@ -614,14 +621,14 @@ test("an affirmative medication gate inserts a real follow-up into the Detailed 
   await skipUntilQuestion(user, /currently taking or using any prescription medicine/i);
   await user.click(screen.getByRole("radio", { name: "Yes" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  await skipUntilQuestion(user, /exact medicine or ingredient names/i);
+  await skipUntilQuestion(user, /is a prescriber currently following each medicine/i);
 
   expect(screen.getByText(/Question \d+ of 50/)).toBeVisible();
-  await user.type(screen.getByRole("textbox"), "Metformin");
+  await user.click(screen.getByRole("radio", { name: "Yes, for all" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
   await completeAssessment(user, onComplete);
 
-  expect(onComplete.mock.calls[0][0].med_detail_names).toBe("Metformin");
+  expect(onComplete.mock.calls[0][0].med_detail_prescriber_followup).toBe("yes_all");
   expect(Object.keys(onComplete.mock.calls[0][0])).toHaveLength(50);
 }, 10_000);
 
@@ -684,9 +691,11 @@ test("changing an earlier gate with Back closes its branch and removes stale ans
   await skipUntilQuestion(user, /currently taking or using any prescription medicine/i);
   await user.click(screen.getByRole("radio", { name: "Yes" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
-  await skipUntilQuestion(user, /exact medicine or ingredient names/i);
-  await user.type(screen.getByRole("textbox"), "Metformin");
+  await skipUntilQuestion(user, /is a prescriber currently following each medicine/i);
+  await user.click(screen.getByRole("radio", { name: "Yes, for all" }));
   await user.click(screen.getByRole("button", { name: "Continue" }));
+  // The follow-up closes its chapter, so the next chapter's introduction may sit between it and Back.
+  await continuePastIntermission(user);
 
   for (let step = 0; step < 50; step += 1) {
     const heading = screen.getByRole("heading", { level: 1 }).textContent ?? "";

@@ -50,19 +50,15 @@ describe("questions adaptées au sexe déclaré", () => {
       const queue = buildAssessmentQueue(depth, questionBank, adult, answers);
 
       expect(queue.some((question) => question.domain === "pregnancy")).toBe(false);
-      for (const id of ["reproductive_period_pattern", "reproductive_menopause_change", "reproductive_screening_history"]) {
-        expect(queue.map((question) => question.id)).not.toContain(id);
-      }
-      expect(queue).toHaveLength({ express: 9, quick: 20, detailed: 50, deep: 150 }[depth]);
+      expect(queue).toHaveLength({ express: 9, quick: 20, detailed: 50, deep: 91 }[depth]);
       expect(getAvailableDepths(questionBank, adult, answers)).toContain(depth);
     },
   );
 
-  test("conserve fertilité, douleur pelvienne et santé sexuelle pour un homme", () => {
+  test("conserve la déclaration de sécurité sexuelle pour un homme", () => {
     const eligible = getEligibleQuestions(questionBank, adult, { sex_assigned_at_birth: "male" });
-    expect(eligible.map(({ id }) => id)).toEqual(expect.arrayContaining([
-      "reproductive_fertility_concern", "reproductive_pelvic_pain", "sexual_health_symptoms",
-    ]));
+    expect(eligible.map(({ id }) => id)).toContain("sexual_contact_safety");
+    expect(eligible.map(({ id }) => id)).not.toContain("pregnancy_relevant");
   });
 
   test.each(["female", "intersex", null, undefined])(
@@ -70,10 +66,10 @@ describe("questions adaptées au sexe déclaré", () => {
     (sex) => {
       const eligible = getEligibleQuestions(questionBank, adult, { sex_assigned_at_birth: sex });
       expect(eligible.map(({ id }) => id)).toContain("pregnancy_relevant");
-      expect(eligible.map(({ id }) => id)).not.toContain("pregnancy_current_context");
+      expect(eligible.map(({ id }) => id)).not.toContain("pregnancy_new_concern");
       expect(getEligibleQuestions(questionBank, adult, {
         sex_assigned_at_birth: sex, pregnancy_relevant: true,
-      }).map(({ id }) => id)).toContain("pregnancy_current_context");
+      }).map(({ id }) => id)).toContain("pregnancy_new_concern");
     },
   );
 
@@ -81,20 +77,17 @@ describe("questions adaptées au sexe déclaré", () => {
     const state = reconcileAssessmentState("deep", questionBank, adult, {
       sex_assigned_at_birth: "male",
       pregnancy_relevant: true,
-      pregnancy_current_context: "pregnant",
       pregnancy_new_concern: true,
       pregnancy_care_access: false,
       pregnancy_medication_review: "no",
-      reproductive_period_pattern: "changed",
-      reproductive_menopause_change: true,
-      reproductive_screening_history: "no",
+      pregnancy_feeling_safe: true,
       uses_isotretinoin: true,
       isotretinoin_detail_program_pregnancy: "not_complete",
-      reproductive_fertility_concern: true,
+      current_medications: false,
     });
 
     expect(state.answers).toEqual({
-      sex_assigned_at_birth: "male", uses_isotretinoin: true, reproductive_fertility_concern: true,
+      sex_assigned_at_birth: "male", uses_isotretinoin: true, current_medications: false,
     });
     expect(state.queue.some(({ domain }) => domain === "pregnancy")).toBe(false);
     expect(state.queue.map(({ id }) => id)).not.toContain("isotretinoin_detail_program_pregnancy");
@@ -139,9 +132,12 @@ function selectedIdsBeforePillarGrouping(
   ];
 
   if (depth === "deep") {
+    const base = ordered.filter((question) => question.condition === undefined);
     const selected = new Set([
-      ...ordered.filter((question) => question.condition === undefined).slice(0, 150),
-      ...ordered.filter((question) => question.condition !== undefined).slice(0, 50),
+      ...base,
+      ...ordered
+        .filter((question) => question.condition !== undefined)
+        .slice(0, Math.max(0, 200 - base.length)),
     ].map((question) => question.id));
     return ordered.filter((question) => selected.has(question.id)).map((question) => question.id);
   }
@@ -171,7 +167,6 @@ const expectedDomains: ReadonlyArray<HealthDomain> = [
   "current-symptoms",
   "emergency-symptoms",
   "diet",
-  "hydration",
   "movement",
   "sedentary-time",
   "sleep",
@@ -181,12 +176,9 @@ const expectedDomains: ReadonlyArray<HealthDomain> = [
   "anxiety",
   "cognition",
   "social-connection",
-  "work-exposures",
   "environment",
   "sun",
-  "dental-health",
   "sexual-health",
-  "reproductive-health",
   "pregnancy",
   "tobacco-nicotine",
   "alcohol",
@@ -202,20 +194,16 @@ const expectedDomains: ReadonlyArray<HealthDomain> = [
   "isotretinoin",
   "minoxidil",
   "prescription-medications",
-  "otc-medications",
-  "supplements",
   "medication-adherence",
   "interactions",
   "preventive-care",
-  "vaccinations",
   "blood-pressure",
   "blood-testing",
-  "lab-values",
 ];
 
 describe("question bank invariants", () => {
-  test("contains at least 220 curated questions with stable unique IDs and prompts", () => {
-    expect(questionBank.length).toBeGreaterThanOrEqual(220);
+  test("contains 137 curated questions with stable unique IDs and prompts", () => {
+    expect(questionBank).toHaveLength(137);
     expect(new Set(questionBank.map((question) => question.id)).size).toBe(
       questionBank.length,
     );
@@ -234,13 +222,13 @@ describe("question bank invariants", () => {
           id: "urgent_overdose_poisoning_now",
           answerType: "boolean",
           domain: "emergency-symptoms",
-          tiers: ["detailed", "deep"],
+          tiers: ["deep"],
         }),
         expect.objectContaining({
           id: "urgent_severe_bleeding_now",
           answerType: "boolean",
           domain: "emergency-symptoms",
-          tiers: ["detailed", "deep"],
+          tiers: ["deep"],
         }),
       ]),
     );
@@ -523,7 +511,7 @@ describe("questionnaire selection", () => {
 
     for (const depth of ["quick", "detailed", "deep"] as const) {
       const queue = buildAssessmentQueue(depth, questionBank, adult, {});
-      const expectedCount = depth === "quick" ? 20 : depth === "detailed" ? 50 : 150;
+      const expectedCount = depth === "quick" ? 20 : depth === "detailed" ? 50 : 92;
 
       expect(queue).toHaveLength(expectedCount);
       expect(queue.map(({ id }) => id).sort()).toEqual(
@@ -556,7 +544,7 @@ describe("questionnaire selection", () => {
   test("builds the promised deterministic queue size for each depth", () => {
     expect(buildAssessmentQueue("quick", questionBank, adult, {})).toHaveLength(20);
     expect(buildAssessmentQueue("detailed", questionBank, adult, {})).toHaveLength(50);
-    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(150);
+    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(92);
     expect(buildAssessmentQueue("deep", questionBank, adult, {})).toEqual(
       buildAssessmentQueue("deep", questionBank, adult, {}),
     );
@@ -569,7 +557,7 @@ describe("questionnaire selection", () => {
 
       expect(buildAssessmentQueue("quick", questionBank, profile, {})).toHaveLength(20);
       expect(buildAssessmentQueue("detailed", questionBank, profile, {})).toHaveLength(50);
-      expect(buildAssessmentQueue("deep", questionBank, profile, {})).toHaveLength(150);
+      expect(buildAssessmentQueue("deep", questionBank, profile, {})).toHaveLength(89);
     },
   );
 
@@ -617,7 +605,7 @@ describe("questionnaire selection", () => {
       );
       expect(buildAssessmentQueue("quick", questionBank, profile, {})).toHaveLength(20);
       expect(() => buildAssessmentQueue("deep", questionBank, profile, {})).toThrow(
-        /Deep.+at least 150 eligible questions/,
+        /Deep.+adults only.+at least 80 are required/,
       );
     },
   );
@@ -632,9 +620,9 @@ describe("questionnaire selection", () => {
     }
   });
 
-  test("keeps broad substance gates reachable in the adult Detailed queue", () => {
+  test("keeps broad substance gates reachable in the adult Deep queue", () => {
     expect(
-      buildAssessmentQueue("detailed", questionBank, adult, {}).map(
+      buildAssessmentQueue("deep", questionBank, adult, {}).map(
         (question) => question.id,
       ),
     ).toEqual(
@@ -665,7 +653,7 @@ describe("questionnaire selection", () => {
       { deep_base_000: null },
     );
 
-    expect(initial).toHaveLength(150);
+    expect(initial).toHaveLength(151);
     expect(reconciled.queue.map((question) => question.id)).toEqual(
       initial.map((question) => question.id),
     );
@@ -720,7 +708,7 @@ describe("questionnaire selection", () => {
     ).toEqual(["core_z", "regular_a", "regular_b"]);
   });
 
-  test("advertises Deep only when the profile has at least 150 eligible Deep items", () => {
+  test("advertises Deep only to adults with at least 80 eligible Deep base items", () => {
     expect(getAvailableDepths(questionBank, child, {})).toEqual(["quick", "detailed"]);
     expect(getAvailableDepths(questionBank, adolescent, {})).toEqual([
       "quick",
@@ -734,20 +722,25 @@ describe("questionnaire selection", () => {
     ]);
   });
 
-  test("keeps the existing falls and balance check available to every adult", () => {
-    expect(getEligibleQuestions(questionBank, adult, {})).toContainEqual(
-      expect.objectContaining({ id: "preventive_fall_review", priority: 139 }),
+  test("keeps the vision and hearing dementia-factor checks available to every adult", () => {
+    const eligible = getEligibleQuestions(questionBank, adult, {});
+
+    expect(eligible).toContainEqual(
+      expect.objectContaining({ id: "vision_difficulty", priority: 88.1 }),
+    );
+    expect(eligible).toContainEqual(
+      expect.objectContaining({ id: "hearing_difficulty", priority: 88.2 }),
     );
   });
 
   test("rejects unavailable Deep queues instead of returning a misleading short assessment", () => {
     expect(() => buildAssessmentQueue("deep", questionBank, child, {})).toThrow(
-      /Deep.+at least 150 eligible questions/,
+      /Deep.+adults only.+at least 80 are required/,
     );
     expect(() => buildAssessmentQueue("deep", questionBank, adolescent, {})).toThrow(
-      /Deep.+at least 150 eligible questions/,
+      /Deep.+adults only.+at least 80 are required/,
     );
-    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(150);
+    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(92);
   });
 
   test("removes adult-only questions from a child profile", () => {
@@ -756,17 +749,13 @@ describe("questionnaire selection", () => {
     );
   });
 
-  test("keeps guardian-assisted child Quick mode at 20 with child-safe alternatives", () => {
+  test("keeps guardian-assisted child Quick mode within 20 with child-safe alternatives", () => {
     const queue = buildAssessmentQueue("quick", questionBank, child, {});
 
-    expect(queue).toHaveLength(20);
+    expect(queue).toHaveLength(17);
+    expect(queue.length).toBeLessThanOrEqual(20);
     expect(queue.map((question) => question.id)).toEqual(
-      expect.arrayContaining([
-        "child_feeling_support",
-        "child_food_access",
-        "child_household_smoke",
-        "child_trusted_adult_support",
-      ]),
+      expect.arrayContaining(["child_feeling_support", "reliable_social_support"]),
     );
     expect(queue).not.toContainEqual(
       expect.objectContaining({ id: "current_tobacco_nicotine" }),
@@ -824,12 +813,12 @@ describe("adaptive branches", () => {
     expect(medicationsYes.queue).toHaveLength(50);
     expect(
       medicationsYes.queue.filter((question) => question.id.startsWith("med_detail_")),
-    ).toHaveLength(5);
+    ).toHaveLength(1);
     const activatedBranchCount =
       medicationsYes.queue.filter((question) => question.condition !== undefined)
         .length -
       initial.queue.filter((question) => question.condition !== undefined).length;
-    expect(activatedBranchCount).toBeGreaterThanOrEqual(5);
+    expect(activatedBranchCount).toBeGreaterThanOrEqual(4);
     expect(
       initial.queue.filter(
         (question) =>
@@ -842,8 +831,8 @@ describe("adaptive branches", () => {
     expect(
       medicationsSkipped.queue.some((question) => question.id.startsWith("med_detail_")),
     ).toBe(false);
-    expect(deepMedicationsYes.queue).toHaveLength(158);
-    expect(deepInitial.queue).toHaveLength(150);
+    expect(deepMedicationsYes.queue).toHaveLength(96);
+    expect(deepInitial.queue).toHaveLength(92);
     expect(
       deepInitial.queue.every((question) =>
         deepMedicationsYes.queue.some((candidate) => candidate.id === question.id),
@@ -1008,29 +997,16 @@ describe("adaptive branches", () => {
     ).toBe(true);
   });
 
-  test("keeps the adult steroid gate and nested structured omission branch reachable", () => {
-    const initialDetailed = buildAssessmentQueue(
-      "detailed",
-      questionBank,
-      adult,
-      {},
-    );
+  test("keeps the adult steroid gate and nested structured omission branch reachable in Deep", () => {
+    const initialDeep = buildAssessmentQueue("deep", questionBank, adult, {});
+    const initialDetailed = buildAssessmentQueue("detailed", questionBank, adult, {});
     const afterGate = questionnaireModule.reconcileAssessmentState(
-      "detailed",
+      "deep",
       questionBank,
       adult,
       { uses_systemic_corticosteroids: true },
     );
     const afterOmission = questionnaireModule.reconcileAssessmentState(
-      "detailed",
-      questionBank,
-      adult,
-      {
-        uses_systemic_corticosteroids: true,
-        corticosteroid_detail_missed_or_stopped: true,
-      },
-    );
-    const deepAfterOmission = questionnaireModule.reconcileAssessmentState(
       "deep",
       questionBank,
       adult,
@@ -1039,8 +1015,12 @@ describe("adaptive branches", () => {
         corticosteroid_detail_missed_or_stopped: true,
       },
     );
+    const deepAfterOmission = afterOmission;
 
-    expect(initialDetailed.map((question) => question.id)).toContain(
+    expect(initialDeep.map((question) => question.id)).toContain(
+      "uses_systemic_corticosteroids",
+    );
+    expect(initialDetailed.map((question) => question.id)).not.toContain(
       "uses_systemic_corticosteroids",
     );
     expect(afterGate.queue.map((question) => question.id)).toContain(
@@ -1077,15 +1057,15 @@ describe("adaptive branches", () => {
     );
   });
 
-  test("has_recent_labs=false removes lab-value questions", () => {
-    const eligible = getEligibleQuestions(questionBank, adult, { has_recent_labs: false });
+  test("has_recent_labs no longer opens free-text laboratory questions", () => {
+    const withLabs = getEligibleQuestions(questionBank, adult, { has_recent_labs: true });
+    const withoutLabs = getEligibleQuestions(questionBank, adult, { has_recent_labs: false });
 
-    expect(eligible.some((question) => question.domain === "lab-values")).toBe(false);
-    expect(
-      getEligibleQuestions(questionBank, adult, { has_recent_labs: true }).some(
-        (question) => question.domain === "lab-values",
-      ),
-    ).toBe(true);
+    expect(questionBank.some((question) => question.id.startsWith("lab_value_"))).toBe(false);
+    expect(questionBank.some((question) => question.answerType === "text")).toBe(false);
+    expect(withLabs.map((question) => question.id)).toEqual(
+      withoutLabs.map((question) => question.id),
+    );
   });
 
   test("current_medications=false removes every medicine-only follow-up", () => {
@@ -1184,6 +1164,6 @@ describe("adaptive branches", () => {
     expect(ids.some((id) => id.startsWith("alcohol_detail_"))).toBe(false);
     expect(ids.some((id) => id.startsWith("cannabis_detail_"))).toBe(false);
     expect(ids.some((id) => id.startsWith("recreational_detail_"))).toBe(false);
-    expect(ids.includes("pregnancy_current_context")).toBe(false);
+    expect(ids.includes("pregnancy_new_concern")).toBe(false);
   });
 });

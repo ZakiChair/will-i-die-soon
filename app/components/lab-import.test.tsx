@@ -465,11 +465,11 @@ test("recent-labs yes reaches import and confirmed rows survive the in-memory co
 
   expect(onComplete).toHaveBeenCalledOnce();
   expect(onComplete.mock.calls[0][0]).toEqual(
-    expect.objectContaining({
-      has_recent_labs: true,
-      lab_value_hba1c: "5.7 % (4.0 - 5.6)",
-    }),
+    expect.objectContaining({ has_recent_labs: true }),
   );
+  expect(
+    Object.keys(onComplete.mock.calls[0][0]).filter((id) => id.startsWith("lab_value_")),
+  ).toEqual([]);
   expect(onComplete.mock.calls[0][1]).toEqual([
     {
       source: expect.objectContaining({ marker: "hba1c", value: 5.7, rawUnit: "%" }),
@@ -515,7 +515,7 @@ test("does not attach a source flag to an AnswerMap value after the marker is co
 
   expect(onComplete).toHaveBeenCalledOnce();
   const [answers, confirmedLabs] = onComplete.mock.calls[0];
-  expect(answers.lab_value_ast).toBe("48 U/L (Not printed)");
+  expect(Object.keys(answers).filter((id) => id.startsWith("lab_value_"))).toEqual([]);
   expect(confirmedLabs).toEqual([
     expect.objectContaining({
       source: expect.objectContaining({
@@ -596,8 +596,7 @@ test("a subset re-import removes only stale imported mappings and preserves manu
 
   const [answers, confirmedLabs] = onComplete.mock.calls[0];
   expect(answers.sex_assigned_at_birth).toBeNull();
-  expect(answers.lab_value_ast).toBe("48 U/L (0 - 40)");
-  expect(answers.lab_value_glucose).toBeNull();
+  expect(Object.keys(answers).filter((id) => id.startsWith("lab_value_"))).toEqual([]);
   expect(confirmedLabs).toEqual([
     expect.objectContaining({
       reviewed: expect.objectContaining({ marker: "ast", value: 48 }),

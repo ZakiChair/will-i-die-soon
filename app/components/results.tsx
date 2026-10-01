@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useI18n } from "../i18n/context";
+import { pathologyCopy } from "../i18n/pathology-copy";
 import { resultsExplorerCopy } from "../i18n/results-explorer-copy";
 import { useSectionReveal } from "../hooks/use-section-reveal";
 import {
@@ -19,12 +20,14 @@ import { uiCopyKeys } from "../i18n/ui-copy";
 import { createRedactedExport } from "../lib/export";
 import { ScrollTrigger } from "../lib/gsap-client";
 import type { ConfirmedLabValue } from "../lib/labs";
+import { evaluatePathologyRisk } from "../lib/pathology-risk";
 import { prototypePolicy } from "../lib/release-policy";
 import { evaluateRisks } from "../lib/risk-engine";
 import { buildActionPlan, calculatePurityScore } from "../lib/scoring";
 import type { ActionItem } from "../lib/scoring";
 import type { AnalysisDepth, AnswerMap, ProfileContext, RiskLeaf } from "../lib/types";
 import { ExpressResults } from "./express-results";
+import { PathologySynthesisSection } from "./pathology-synthesis";
 import { ResultsOverview } from "./results-overview";
 import { RiskTree } from "./risk-tree";
 
@@ -354,6 +357,7 @@ export function Results({
 }: ResultsProps) {
   const { locale, t } = useI18n();
   const explorerCopy = resultsExplorerCopy[locale];
+  const conditionsLink = pathologyCopy[locale].navLink;
   const expressAdult = Number.isInteger(profile.age) && profile.age >= 18 && profile.age <= 120;
   const needsPrivateHandoff =
     profile.age >= 13 && profile.age < 18 && profile.assistedMinor === true;
@@ -381,6 +385,13 @@ export function Results({
     () => assessmentDepth === "express" ? [] : buildActionPlan(leaves, score),
     [assessmentDepth, leaves, score],
   );
+  const pathologyRisk = useMemo(
+    () =>
+      assessmentDepth === "express"
+        ? null
+        : evaluatePathologyRisk(answers, profile, confirmedLabs, prototypePolicy),
+    [answers, assessmentDepth, confirmedLabs, profile],
+  );
   const presentedLeaves = useMemo(
     () => localizeRiskLeaves(leaves, locale, profile),
     [leaves, locale, profile],
@@ -407,11 +418,13 @@ export function Results({
       actions: presentedActions,
       confirmedLabs,
       answers,
+      pathologyRisk,
     }),
     [
       answers,
       assessmentDepth,
       confirmedLabs,
+      pathologyRisk,
       presentedActions,
       presentedLeaves,
       presentedScore,
@@ -455,6 +468,9 @@ export function Results({
             </>
           ) : (
             <>
+              {pathologyRisk && pathologyRisk.scores.length > 0 ? (
+                <a href="#pathology-synthesis">{conditionsLink}</a>
+              ) : null}
               <a href="#score-distribution">{explorerCopy.referenceLink}</a>
               <a href="#results-details">{explorerCopy.detailsLink}</a>
             </>
@@ -468,6 +484,13 @@ export function Results({
           {profile.age >= 18 ? (
             <>
               <ResultsOverview leaves={presentedLeaves} protectiveRoots={roots} score={presentedScore} />
+              {pathologyRisk ? (
+                <PathologySynthesisSection
+                  synthesis={pathologyRisk}
+                  depth={assessmentDepth}
+                  answers={answers}
+                />
+              ) : null}
               <ActionPlan actions={presentedActions} />
             </>
           ) : null}

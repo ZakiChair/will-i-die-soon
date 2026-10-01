@@ -661,7 +661,7 @@ function withoutApprovedDisplay(value: unknown): unknown {
 }
 
 describe("live French presentation corpus", () => {
-  it("covers all 54 risk rules, 80 distinct factor labels, and 9 emergency kinds", () => {
+  it("covers all 59 risk rules, 91 distinct factor labels, and 9 emergency kinds", () => {
     const factorLabels = riskRules.flatMap((rule) =>
       rule.factors.map((factor) => factor.label),
     );
@@ -669,12 +669,12 @@ describe("live French presentation corpus", () => {
       rule.emergencyKind ? [rule.emergencyKind] : [],
     );
 
-    expect(riskRules).toHaveLength(54);
+    expect(riskRules).toHaveLength(59);
     expect(Object.keys(riskRuleCopyFr).sort()).toEqual(
       riskRules.map((rule) => rule.id).sort(),
     );
-    expect(factorLabels).toHaveLength(100);
-    expect(new Set(factorLabels).size).toBe(80);
+    expect(factorLabels).toHaveLength(111);
+    expect(new Set(factorLabels).size).toBe(91);
     expect(Object.keys(riskFactorLabelsFr).sort()).toEqual(
       [...new Set(factorLabels)].sort(),
     );
@@ -1489,27 +1489,23 @@ describe("action and protective-root presentation", () => {
     );
   });
 
-  it("reproduces all nine canonical roots in order and localizes only their labels", () => {
+  it("reproduces all seven canonical roots in order and localizes only their labels", () => {
     const answers: AnswerMap = {
       reliable_social_support: true,
-      hydration_heat_access: true,
       movement_balance_training: true,
       circadian_morning_light: true,
       mood_support_access: true,
       social_community_belonging: true,
-      vaccinations_records_available: true,
       interaction_shared_list: true,
       stress_recovery_practice: "often",
       unrelated_answer: "must not be inspected",
     };
     const expected = [
       "A person you can contact for practical or emotional support",
-      "Reliable drinking-water access during heat or activity",
       "A regular balance or coordination practice",
       "Outdoor or bright light after waking",
       "A known route to timely wellbeing support",
       "A sense of community or shared activity",
-      "Vaccination records available for review",
       "A current medicine list shared with a clinician or pharmacist",
       "A regular brief stress-management practice",
     ];
@@ -1575,7 +1571,7 @@ describe("localized export equivalence", () => {
     );
     expect(localizedJson.rawAnswers).toEqual(canonicalJson.rawAnswers);
     expect(JSON.stringify(localizedJson)).not.toContain("SECRET FREE TEXT");
-    expect(localizedJson.schemaVersion).toBe("health-risk-explorer-report-v2");
+    expect(localizedJson.schemaVersion).toBe("health-risk-explorer-report-v3");
     expect(localizedJson.score).not.toEqual(canonicalJson.score);
     expect(localizedJson.riskLeaves).not.toEqual(canonicalJson.riskLeaves);
     expect(localizedJson.actions).not.toEqual(canonicalJson.actions);

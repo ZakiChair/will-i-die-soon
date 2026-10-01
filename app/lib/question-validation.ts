@@ -10,12 +10,18 @@ export type QuestionValidationError =
 const MAXIMUM_BY_QUESTION: Readonly<Record<string, number>> = {
   usual_sleep_hours: 24,
   sedentary_total_hours: 24,
-  sedentary_screen_evening: 2,
   movement_walking_days: 7,
   movement_strength_days: 7,
-  diet_nuts_seeds: 7,
-  cannabis_detail_frequency: 30,
+  waist_circumference_cm: 250,
+  neck_circumference_cm: 80,
 };
+
+const POSITIVE_MEASUREMENTS: ReadonlySet<string> = new Set([
+  "height_cm",
+  "weight_kg",
+  "waist_circumference_cm",
+  "neck_circumference_cm",
+]);
 
 /** Bornes d'unité uniquement : aucune valeur « normale » médicale n'est imposée. */
 export function validateQuestionAnswer(
@@ -32,7 +38,7 @@ export function validateQuestionAnswer(
   if (maximum !== undefined && (value < 0 || value > maximum)) {
     return { kind: "range", maximum };
   }
-  if ((question.id === "height_cm" || question.id === "weight_kg") && value <= 0) {
+  if (POSITIVE_MEASUREMENTS.has(question.id) && value <= 0) {
     return { kind: "positive" };
   }
   if (value < 0) return { kind: "nonnegative" };

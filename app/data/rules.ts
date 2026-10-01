@@ -242,6 +242,90 @@ const cardiovascularRules: RiskRule[] = [
     ],
     applicability: adults,
   },
+  {
+    id: "exertional-chest-pain-review",
+    group: "cardiovascular",
+    title: "Effort-related chest discomfort",
+    copy:
+      "Chest pain, tightness, or heaviness that comes on with effort and eases with rest is the typical pattern of angina and is worth discussing promptly with a clinician, even between episodes.",
+    inputs: ["exertional_chest_pain"],
+    sourceIds: ["nhsAngina", "escPrevention2021"],
+    evidenceTier: "guideline-action",
+    urgency: "prompt-review",
+    signal: "high-signal",
+    condition: equals("exertional_chest_pain", true),
+    factors: [
+      factor(
+        "exertional_chest_pain",
+        "Effort-related chest discomfort that eases with rest",
+        equals("exertional_chest_pain", true),
+      ),
+    ],
+    applicability: adults,
+  },
+  {
+    id: "exertional-leg-pain-review",
+    group: "cardiovascular",
+    title: "Walking-related leg pain",
+    copy:
+      "Cramping leg pain that starts with walking and stops within minutes of standing still is the typical pattern of peripheral arterial disease and is worth discussing with a clinician.",
+    inputs: ["exertional_leg_pain"],
+    sourceIds: ["nhsPeripheralArterialDisease", "escPrevention2021"],
+    evidenceTier: "guideline-action",
+    urgency: "prompt-review",
+    signal: "high-signal",
+    condition: equals("exertional_leg_pain", true),
+    factors: [
+      factor(
+        "exertional_leg_pain",
+        "Walking-induced leg pain relieved by rest",
+        equals("exertional_leg_pain", true),
+      ),
+    ],
+    applicability: adults,
+  },
+  {
+    id: "irregular-palpitations-review",
+    group: "cardiovascular",
+    title: "Unexplained irregular palpitations",
+    copy:
+      "Episodes of an irregular, fluttering, or racing heartbeat that are not explained by exercise or a fright are worth discussing with a clinician, who can check the rhythm during an episode.",
+    inputs: ["palpitations_irregular"],
+    sourceIds: ["nhsHeartPalpitations", "nhsAtrialFibrillation"],
+    evidenceTier: "guideline-action",
+    urgency: "prompt-review",
+    signal: "worth-attention",
+    condition: equals("palpitations_irregular", true),
+    factors: [
+      factor(
+        "palpitations_irregular",
+        "Unexplained irregular or racing heartbeat episodes",
+        equals("palpitations_irregular", true),
+      ),
+    ],
+    applicability: adults,
+  },
+  {
+    id: "atrial-fibrillation-review",
+    group: "cardiovascular",
+    title: "Known irregular heart rhythm",
+    copy:
+      "A clinician-diagnosed irregular heart rhythm such as atrial fibrillation deserves regular follow-up of stroke-prevention treatment and rhythm control; the cardiovascular risk score shown elsewhere does not cover it.",
+    inputs: ["diagnosed_conditions_core"],
+    sourceIds: ["nhsAtrialFibrillation", "escPrevention2021"],
+    evidenceTier: "guideline-action",
+    urgency: "long-term",
+    signal: "worth-attention",
+    condition: includes("diagnosed_conditions_core", "atrial_fibrillation"),
+    factors: [
+      factor(
+        "diagnosed_conditions_core",
+        "Clinician-diagnosed atrial fibrillation or irregular rhythm",
+        includes("diagnosed_conditions_core", "atrial_fibrillation"),
+      ),
+    ],
+    applicability: adults,
+  },
 ];
 
 const sleepRules: RiskRule[] = [
@@ -1894,6 +1978,65 @@ const preventiveRules: RiskRule[] = [
     ],
     applicability: adults,
   },
+  {
+    id: "cancer-alarm-signs-review",
+    group: "preventive-follow-up",
+    title: "New alarm sign worth prompt assessment",
+    copy:
+      "A new alarm sign such as unexplained weight loss, blood in stool or urine, coughing up blood, a growing lump, a lasting change in bowel habit, new difficulty swallowing, or unusual bleeding warrants prompt clinical assessment under suspected-cancer guidance. Most such signs turn out to have another cause.",
+    inputs: ["cancer_alarm_signs"],
+    sourceIds: ["niceSuspectedCancer"],
+    evidenceTier: "guideline-action",
+    urgency: "prompt-review",
+    signal: "high-signal",
+    condition: includesAny("cancer_alarm_signs", [
+      "unexplained_weight_loss",
+      "blood_in_stool_or_urine",
+      "coughing_blood",
+      "new_lump",
+      "persistent_bowel_change",
+      "swallowing_difficulty",
+      "postmenopausal_or_unusual_bleeding",
+    ]),
+    factors: [
+      factor(
+        "cancer_alarm_signs",
+        "Unexplained weight loss",
+        includes("cancer_alarm_signs", "unexplained_weight_loss"),
+      ),
+      factor(
+        "cancer_alarm_signs",
+        "Blood in stool or urine",
+        includes("cancer_alarm_signs", "blood_in_stool_or_urine"),
+      ),
+      factor(
+        "cancer_alarm_signs",
+        "Coughing up blood",
+        includes("cancer_alarm_signs", "coughing_blood"),
+      ),
+      factor(
+        "cancer_alarm_signs",
+        "A new lump that is growing or does not go away",
+        includes("cancer_alarm_signs", "new_lump"),
+      ),
+      factor(
+        "cancer_alarm_signs",
+        "A change in bowel habit lasting more than three weeks",
+        includes("cancer_alarm_signs", "persistent_bowel_change"),
+      ),
+      factor(
+        "cancer_alarm_signs",
+        "New or worsening difficulty swallowing",
+        includes("cancer_alarm_signs", "swallowing_difficulty"),
+      ),
+      factor(
+        "cancer_alarm_signs",
+        "Bleeding after menopause or other unusual bleeding",
+        includes("cancer_alarm_signs", "postmenopausal_or_unusual_bleeding"),
+      ),
+    ],
+    applicability: adults,
+  },
 ];
 
 export type RiskRuleGroupDefinition = {
@@ -1910,12 +2053,14 @@ export const riskRuleGroups: Readonly<Record<RiskGroup, RiskRuleGroupDefinition>
   },
   cardiovascular: {
     label: "Cardiovascular signals",
-    auditNote: "Qualitative context only; no cardiovascular probability is released.",
+    auditNote:
+      "Qualitative symptom and diagnosis routes only; the SCORE2 estimate is produced by the separate validated-score module.",
     rules: cardiovascularRules,
   },
   metabolic: {
     label: "Metabolic signals",
-    auditNote: "No safe standalone rule: printed laboratory strings are deliberately not parsed.",
+    auditNote:
+      "No qualitative rule: type 2 diabetes risk is covered by the FINDRISC score and confirmed laboratory markers in the validated-score module.",
     rules: [],
   },
   sleep: {
@@ -1935,7 +2080,8 @@ export const riskRuleGroups: Readonly<Record<RiskGroup, RiskRuleGroupDefinition>
   },
   kidney: {
     label: "Kidney",
-    auditNote: "No safe standalone rule: printed laboratory strings are deliberately not parsed.",
+    auditNote:
+      "No qualitative rule: kidney function is classified from confirmed eGFR in the validated-score module, never from printed strings.",
     rules: [],
   },
   "mental-wellbeing": {

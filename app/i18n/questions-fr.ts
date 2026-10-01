@@ -1,7 +1,6 @@
 import type { Question } from "../lib/types";
 import { clinicalFrQuestionTranslations } from "./questions-fr-clinical";
 import { coreFrQuestionTranslations } from "./questions-fr-core";
-import { labsFrQuestionTranslations } from "./questions-fr-labs";
 import { lifestyleFrQuestionTranslations } from "./questions-fr-lifestyle";
 import { medicationsFrQuestionTranslations } from "./questions-fr-medications";
 import { performanceFrQuestionTranslations } from "./questions-fr-performance";
@@ -16,7 +15,6 @@ export const frQuestionTranslations: Readonly<Record<string, QuestionTranslation
   ...clinicalFrQuestionTranslations,
   ...substancesFrQuestionTranslations,
   ...medicationsFrQuestionTranslations,
-  ...labsFrQuestionTranslations,
 };
 
 function missingOption(questionId: string, optionValue: string): never {

@@ -159,7 +159,9 @@ test("localizes every consent country and the child Deep fallback without changi
   await user.click(
     screen.getByRole("radio", { name: "Un parent, un tuteur ou un adulte de confiance m'aide" }),
   );
-  expect(screen.getByRole("status")).toHaveTextContent(/150 questions admissibles/i);
+  expect(screen.getByRole("status")).toHaveTextContent(
+    /réservée aux adultes .* au plus 50 questions admissibles/i,
+  );
   expect(screen.getByRole("button", { name: "Utiliser l'analyse détaillée" })).toBeVisible();
 });
 

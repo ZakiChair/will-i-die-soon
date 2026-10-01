@@ -15,8 +15,7 @@ test("does not invent an age limit without the person's age", () => {
 
 test.each([
   ["sedentary_total_hours", 24, 25],
-  ["sedentary_screen_evening", 2, 3],
-  ["cannabis_detail_frequency", 30, 31],
+  ["movement_walking_days", 7, 8],
 ])("uses the stated observation period for %s", (id, valid, invalid) => {
   expect(validateQuestionAnswer({ id, answerType: "number" }, valid)).toBeNull();
   expect(validateQuestionAnswer({ id, answerType: "number" }, invalid)).toEqual({ kind: "range", maximum: valid });

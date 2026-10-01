@@ -8,7 +8,6 @@ export type HealthDomain =
   | "current-symptoms"
   | "emergency-symptoms"
   | "diet"
-  | "hydration"
   | "movement"
   | "sedentary-time"
   | "sleep"
@@ -18,12 +17,9 @@ export type HealthDomain =
   | "anxiety"
   | "cognition"
   | "social-connection"
-  | "work-exposures"
   | "environment"
   | "sun"
-  | "dental-health"
   | "sexual-health"
-  | "reproductive-health"
   | "pregnancy"
   | "tobacco-nicotine"
   | "alcohol"
@@ -39,15 +35,11 @@ export type HealthDomain =
   | "isotretinoin"
   | "minoxidil"
   | "prescription-medications"
-  | "otc-medications"
-  | "supplements"
   | "medication-adherence"
   | "interactions"
   | "preventive-care"
-  | "vaccinations"
   | "blood-pressure"
-  | "blood-testing"
-  | "lab-values";
+  | "blood-testing";
 
 export type AnswerValue = string | number | boolean | ReadonlyArray<string> | null;
 
@@ -228,4 +220,97 @@ export type ReleasePolicy = {
   allowUrgentSignals: boolean;
   jurisdiction?: string;
   enabledModelVersion?: string;
+};
+
+export type PathologyInstrumentId =
+  | "findrisc"
+  | "score2"
+  | "stop-bang"
+  | "audit-c"
+  | "phq-2"
+  | "gad-2"
+  | "copd-ps"
+  | "caide";
+
+export type PathologyRiskLevel = "low" | "moderate" | "high" | "very-high";
+
+export type PathologyNotApplicableReason =
+  | "age-out-of-range"
+  | "diagnosed-condition"
+  | "established-cvd"
+  | "sex-not-supported"
+  | "region-not-calibrated";
+
+/** One value the instrument used; `derived` marks values reconstructed from other answers. */
+export type PathologyScoreInput = {
+  id: string;
+  value: string | number | boolean;
+  derived?: true;
+};
+
+type PathologyScoreBase = {
+  instrument: PathologyInstrumentId;
+  inputs: ReadonlyArray<PathologyScoreInput>;
+  sourceIds: ReadonlyArray<string>;
+};
+
+export type PathologyScoreResult = PathologyScoreBase &
+  (
+    | {
+        status: "complete";
+        category: string;
+        level: PathologyRiskLevel;
+        points?: number;
+        maxPoints?: number;
+        /** Published absolute risk; present only when the release policy allows it. */
+        riskPercent?: number;
+        riskHorizonYears?: number;
+        modifiers: ReadonlyArray<string>;
+      }
+    | { status: "incomplete"; missingInputs: ReadonlyArray<string> }
+    | { status: "not-applicable"; reason: PathologyNotApplicableReason }
+  );
+
+export type ClassifiedLabMarker = "hba1c" | "glucose" | "egfr";
+
+export type LabClassification = {
+  marker: ClassifiedLabMarker;
+  value: number;
+  unit: string;
+  category: string;
+  sourceIds: ReadonlyArray<string>;
+};
+
+export type DementiaFactorId =
+  | "less-education"
+  | "hearing-loss"
+  | "high-ldl"
+  | "depression"
+  | "head-injury"
+  | "physical-inactivity"
+  | "diabetes"
+  | "smoking"
+  | "hypertension"
+  | "obesity"
+  | "excessive-alcohol"
+  | "social-isolation"
+  | "air-pollution"
+  | "vision-loss";
+
+export type DementiaFactor = {
+  id: DementiaFactorId;
+  status: "present" | "absent" | "unanswered";
+  inputs: ReadonlyArray<string>;
+};
+
+/** Family history is context beside the modifiable factors, never a factor itself. */
+export type DementiaFamilyHistory = "reported" | "not-reported" | "unanswered";
+
+export type PathologySynthesis = {
+  rulesetVersion: string;
+  scores: ReadonlyArray<PathologyScoreResult>;
+  labClassifications: ReadonlyArray<LabClassification>;
+  dementiaFactors: ReadonlyArray<DementiaFactor>;
+  dementiaFamilyHistory: DementiaFamilyHistory;
+  dementiaSourceIds: ReadonlyArray<string>;
 };

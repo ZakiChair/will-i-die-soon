@@ -28,12 +28,18 @@ const DEPTH_LIMITS: Readonly<Record<AnalysisDepth, number>> = {
   deep: 200,
 };
 
+// Quick and Detailed ask up to their limit; minors with fewer eligible
+// questions still get the depth as long as it reaches the minimum. Deep asks
+// every eligible base question plus active branches, so its minimum only
+// guards against a profile too thin for a deep pass.
 const DEPTH_MINIMUMS: Readonly<Record<AnalysisDepth, number>> = {
   express: 9,
-  quick: 20,
-  detailed: 50,
-  deep: 150,
+  quick: 10,
+  detailed: 30,
+  deep: 80,
 };
+
+const DEEP_MINIMUM_AGE = 18;
 
 const DEPTH_ORDER: ReadonlyArray<AnalysisDepth> = [
   "express",
@@ -43,9 +49,6 @@ const DEPTH_ORDER: ReadonlyArray<AnalysisDepth> = [
 ];
 
 const MALE_INAPPLICABLE_QUESTION_IDS = new Set([
-  "reproductive_period_pattern",
-  "reproductive_menopause_change",
-  "reproductive_screening_history",
   "isotretinoin_detail_program_pregnancy",
 ]);
 
@@ -245,13 +248,34 @@ export function getAvailableDepths(
           && EXPRESS_QUESTION_IDS.every((id) => eligibleIds.has(id));
       }
       const depthEligible = eligible.filter((question) => question.tiers.includes(depth));
-      const availableCount =
-        depth === "deep"
-          ? depthEligible.filter((question) => question.condition === undefined).length
-          : depthEligible.length;
-      return availableCount >= DEPTH_MINIMUMS[depth];
+      if (depth === "deep") {
+        return isDeepAvailable(context, countDeepBase(depthEligible));
+      }
+      return depthEligible.length >= DEPTH_MINIMUMS[depth];
     },
   );
+}
+
+function countDeepBase(eligible: ReadonlyArray<Question>): number {
+  return eligible.filter((question) => question.condition === undefined).length;
+}
+
+function isDeepAvailable(context: ProfileContext, deepBaseCount: number): boolean {
+  return context.age >= DEEP_MINIMUM_AGE && deepBaseCount >= DEPTH_MINIMUMS.deep;
+}
+
+function assertDeepAvailable(
+  depth: AnalysisDepth,
+  context: ProfileContext,
+  eligible: ReadonlyArray<Question>,
+): void {
+  if (depth !== "deep") return;
+  const deepBaseCount = countDeepBase(eligible);
+  if (!isDeepAvailable(context, deepBaseCount)) {
+    throw new RangeError(
+      `Deep assessment is unavailable: adults only, ${deepBaseCount} eligible base questions; at least ${DEPTH_MINIMUMS.deep} are required.`,
+    );
+  }
 }
 
 export function buildAssessmentQueue(
@@ -267,14 +291,7 @@ export function buildAssessmentQueue(
       question.tiers.includes(depth),
     ),
   );
-  const deepBaseCount = eligible.filter(
-    (question) => question.condition === undefined,
-  ).length;
-  if (depth === "deep" && deepBaseCount < DEPTH_MINIMUMS.deep) {
-    throw new RangeError(
-      `Deep assessment is unavailable: ${deepBaseCount} eligible base questions; at least 150 eligible questions are required.`,
-    );
-  }
+  assertDeepAvailable(depth, context, eligible);
 
   return groupQuestionsByPillar(selectAssessmentQuestions(depth, eligible, stableAnswers));
 }
@@ -300,12 +317,10 @@ function selectAssessmentQuestions(
   }
 
   if (depth === "deep") {
-    const base = eligible
-      .filter((question) => question.condition === undefined)
-      .slice(0, DEPTH_MINIMUMS.deep);
+    const base = eligible.filter((question) => question.condition === undefined);
     const activeBranches = eligible
       .filter((question) => question.condition !== undefined)
-      .slice(0, DEPTH_LIMITS.deep - base.length);
+      .slice(0, Math.max(0, DEPTH_LIMITS.deep - base.length));
     const selectedIds = new Set(
       [...base, ...activeBranches].map((question) => question.id),
     );
@@ -347,14 +362,7 @@ export function reconcileAssessmentState(
       question.tiers.includes(depth),
     ),
   );
-  const deepBaseCount = eligible.filter(
-    (question) => question.condition === undefined,
-  ).length;
-  if (depth === "deep" && deepBaseCount < DEPTH_MINIMUMS.deep) {
-    throw new RangeError(
-      `Deep assessment is unavailable: ${deepBaseCount} eligible base questions; at least 150 eligible questions are required.`,
-    );
-  }
+  assertDeepAvailable(depth, context, eligible);
 
   return {
     queue: groupQuestionsByPillar(selectAssessmentQuestions(depth, eligible, stableAnswers)),

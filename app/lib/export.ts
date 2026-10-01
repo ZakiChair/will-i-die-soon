@@ -7,11 +7,13 @@ import type {
   AnalysisDepth,
   AnswerMap,
   AnswerValue,
+  PathologyScoreResult,
+  PathologySynthesis,
   Question,
   RiskLeaf,
 } from "./types";
 
-export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v2" as const;
+export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v3" as const;
 
 export type ResultReport = {
   readonly subjectAgeYears: number | null;
@@ -21,6 +23,7 @@ export type ResultReport = {
   readonly actions: ReadonlyArray<ActionItem>;
   readonly confirmedLabs: ReadonlyArray<ConfirmedLabValue>;
   readonly answers: AnswerMap;
+  readonly pathologyRisk?: PathologySynthesis | null;
 };
 
 export type ExportOptions = {
@@ -100,6 +103,43 @@ function reviewedLab(value: ConfirmedLabValue) {
   };
 }
 
+function interpretedScore(score: PathologyScoreResult) {
+  const base = {
+    instrument: score.instrument,
+    status: score.status,
+    // Input values are raw answers: only their identifiers cross the export boundary.
+    inputs: score.inputs.map(({ id, derived }) => (derived ? { id, derived } : { id })),
+    sourceIds: score.sourceIds,
+  };
+  if (score.status === "complete") {
+    return {
+      ...base,
+      category: score.category,
+      level: score.level,
+      ...(score.points !== undefined ? { points: score.points } : {}),
+      ...(score.maxPoints !== undefined ? { maxPoints: score.maxPoints } : {}),
+      ...(score.riskPercent !== undefined
+        ? { riskPercent: score.riskPercent, riskHorizonYears: score.riskHorizonYears }
+        : {}),
+      modifiers: score.modifiers,
+    };
+  }
+  if (score.status === "incomplete") return { ...base, missingInputs: score.missingInputs };
+  return { ...base, reason: score.reason };
+}
+
+function interpretedPathologyRisk(synthesis: PathologySynthesis) {
+  return {
+    rulesetVersion: synthesis.rulesetVersion,
+    interpretation: "published-screening-instruments-not-a-diagnosis",
+    scores: synthesis.scores.map(interpretedScore),
+    labClassifications: synthesis.labClassifications,
+    dementiaFactors: synthesis.dementiaFactors,
+    dementiaFamilyHistory: synthesis.dementiaFamilyHistory,
+    dementiaSourceIds: synthesis.dementiaSourceIds,
+  };
+}
+
 function interpretedAction(action: ActionItem) {
   return {
     id: action.id,
@@ -136,6 +176,9 @@ export function createRedactedExport(
     riskLeaves: report.riskLeaves.map(interpretedLeaf),
     actions: report.actions.map(interpretedAction),
     confirmedLabs: report.confirmedLabs.map(reviewedLab),
+    ...(report.pathologyRisk && report.pathologyRisk.scores.length > 0
+      ? { pathologyRisk: interpretedPathologyRisk(report.pathologyRisk) }
+      : {}),
     ...(expressAssessment && expressAssessment.kind !== "not-available"
       ? {
           expressAssessment: {

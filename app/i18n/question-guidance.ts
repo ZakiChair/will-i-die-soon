@@ -9,15 +9,7 @@ type Guidance = Readonly<{
 }>;
 
 const SCALE_ANCHORS = {
-  pain_interference: { en: ["No interference", "Completely disruptive"], fr: ["Aucune gêne", "Gêne totale"] },
-  diet_meal_regular: { en: ["Very irregular", "Very regular"], fr: ["Très irréguliers", "Très réguliers"] },
   sleep_refreshed: { en: ["Not at all rested", "Fully rested"], fr: ["Pas du tout reposé", "Complètement reposé"] },
-  sleep_environment: { en: ["Not at all suitable", "Fully suitable"], fr: ["Pas du tout adapté", "Tout à fait adapté"] },
-  stress_current_level: { en: ["Not overwhelming", "Completely overwhelming"], fr: ["Pas envahissant", "Complètement envahissant"] },
-  stress_control: { en: ["Never", "Always"], fr: ["Jamais", "Toujours"] },
-  mood_function_impact: { en: ["No difficulty", "Extreme difficulty"], fr: ["Aucune difficulté", "Difficulté extrême"] },
-  work_schedule_control: { en: ["No control", "Full control"], fr: ["Aucune maîtrise", "Maîtrise complète"] },
-  sun_protection_habits: { en: ["Never", "Always"], fr: ["Jamais", "Toujours"] },
 } as const;
 
 const PRACTICAL_WHY = {
@@ -65,7 +57,7 @@ const PRACTICAL_WHY = {
 
 const UNKNOWN_MEASUREMENTS = new Set([
   "reported_vo2_max_ml_kg_min", "squat_one_rep_max_kg", "deadlift_one_rep_max_kg",
-  "grip_strength_kg", "resting_heart_rate_bpm", "waist_circumference_cm",
+  "waist_circumference_cm", "neck_circumference_cm",
 ]);
 
 export function getQuestionGuidance(questionId: string, locale: Locale): Guidance {

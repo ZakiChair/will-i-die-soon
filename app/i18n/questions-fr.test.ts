@@ -25,8 +25,8 @@ describe("French question translations", () => {
     expect(localized.options?.map(({ value }) => value)).toEqual(["procedure", "none"]);
   });
 
-  it("covers the audited 246-question bank with every canonical option value", () => {
-    expect(questionBank).toHaveLength(254);
+  it("covers the audited 137-question bank with every canonical option value", () => {
+    expect(questionBank).toHaveLength(137);
     expect(Object.keys(frQuestionTranslations).sort()).toEqual(
       questionBank.map(({ id }) => id).sort(),
     );
@@ -85,19 +85,10 @@ describe("French question translations", () => {
         .map(({ value }) => frQuestionTranslations[question.id].options?.[value]),
     );
 
-    expect(localizedLabels).toEqual(Array.from({ length: 15 }, () => "Je ne sais pas"));
+    expect(localizedLabels).toEqual(Array.from({ length: 9 }, () => "Je ne sais pas"));
   });
 
-  it("keeps preference-led support wording advisory", () => {
-    expect(frQuestionTranslations.tobacco_detail_quit_interest.why).toBe(
-      "La disposition à changer et les préférences devraient guider l'affichage des options de soutien.",
-    );
-  });
-
-  it("uses natural French for meal help and missed medicine doses", () => {
-    expect(frQuestionTranslations.child_food_access.prompt).toBe(
-      "Avez-vous généralement suffisamment de nourriture et un adulte de confiance qui peut vous apporter une aide pour les repas ?",
-    );
+  it("uses natural French for missed medicine doses", () => {
     expect(frQuestionTranslations.adherence_missed_doses.prompt).toBe(
       "À quelle fréquence vous arrive-t-il de ne pas prendre, de retarder ou de répéter involontairement une dose de médicament ?",
     );

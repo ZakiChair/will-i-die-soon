@@ -269,6 +269,210 @@ async function readBlob(blob: Blob) {
   return JSON.parse(text) as Record<string, unknown>;
 }
 
+const FINDRISC_ANSWERS: AnswerMap = {
+  sex_assigned_at_birth: "female",
+  diagnosed_conditions_core: ["sleep_apnoea"],
+  height_cm: 170,
+  weight_kg: 60,
+  waist_circumference_cm: 75,
+  daily_activity_30_min: true,
+  plant_food_frequency: 3,
+  bp_medication_ever: false,
+  glucose_high_ever: false,
+  family_diabetes: "no",
+  cvd_event_history: false,
+  current_tobacco_nicotine: false,
+  blood_pressure_systolic: 118,
+};
+
+test("adult results publish validated screening scores with category, points, percentage, inputs, and gaps", async () => {
+  const user = userEvent.setup();
+  const { container } = renderLocalizedResults({
+    answers: FINDRISC_ANSWERS,
+    assessmentDepth: "deep",
+    confirmedLabs: [confirmedLab],
+    profile: { age: 42, countryCode: "CH" },
+  });
+
+  const navigation = screen.getByRole("navigation", { name: "Explore your results" });
+  expect(within(navigation).getByRole("link", { name: "Conditions" })).toHaveAttribute("href", "#pathology-synthesis");
+  const section = screen.getByRole("region", { name: "Most probable conditions to discuss" });
+  expect(section).toHaveAttribute("id", "pathology-synthesis");
+  const overview = container.querySelector("#results-overview");
+  const details = screen.getByRole("heading", { name: "Four health pillars you can inspect." });
+  expect(overview && (overview.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+  expect(section.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+  const diabetes = within(section).getByRole("heading", { name: "Type 2 diabetes" }).closest("li");
+  expect(diabetes).toHaveAttribute("data-status", "complete");
+  expect(diabetes).toHaveAttribute("data-level", "low");
+  expect(diabetes).toHaveTextContent("FINDRISC");
+  expect(diabetes).toHaveTextContent("Low risk");
+  expect(diabetes).toHaveTextContent("0 / 26 points");
+  expect(diabetes).toHaveTextContent("about 1% estimated risk over 10 years");
+  expect(within(diabetes as HTMLElement).getByRole("link", { name: /Finnish Diabetes Risk Score|FINDRISC/i })).toHaveAttribute(
+    "target",
+    "_blank",
+  );
+  await user.click(within(diabetes as HTMLElement).getByText("Answers used"));
+  expect(diabetes).toHaveTextContent("Body-mass index · derived");
+  expect(diabetes).toHaveTextContent("Family history of diabetes");
+  expect(diabetes).toHaveTextContent("No");
+
+  const cardiovascular = within(section).getByRole("heading", { name: /Cardiovascular disease/ }).closest("li");
+  expect(cardiovascular).toHaveAttribute("data-status", "incomplete");
+  expect(cardiovascular).toHaveTextContent("Estimate not yet possible");
+  expect(cardiovascular).toHaveTextContent("Still needed");
+  expect(cardiovascular).toHaveTextContent("Total cholesterol");
+  expect(cardiovascular).toHaveTextContent("from an imported blood test");
+
+  const copd = within(section).getByRole("heading", { name: /Chronic obstructive pulmonary disease/ }).closest("li");
+  expect(copd).toHaveAttribute("data-status", "incomplete");
+  expect(copd).toHaveTextContent("Breathlessness in past four weeks");
+  expect(copd).toHaveTextContent("not available from your answers");
+
+  const sleep = within(section).getByRole("heading", { name: "Obstructive sleep apnoea" }).closest("li");
+  expect(sleep).toHaveAttribute("data-status", "not-applicable");
+  expect(sleep).toHaveTextContent("already diagnosed this condition");
+  expect(within(section).getAllByRole("listitem").filter((item) => item.classList.contains("pathology-score")).map((item) => item.dataset.status))
+    .toEqual(["complete", ...Array<string>(6).fill("incomplete"), "not-applicable"]);
+
+  const labs = screen.getByRole("region", { name: "Confirmed blood-test classification" });
+  expect(within(labs).getByRole("row", { name: /HbA1c/ })).toHaveTextContent("Prediabetes range");
+  const factors = screen.getByRole("region", { name: "Modifiable dementia factors" });
+  expect(factors).toHaveTextContent("Physical inactivity");
+  expect(within(factors).getAllByRole("listitem")).toHaveLength(15);
+  expect(section).toHaveTextContent("Screening estimates, not a diagnosis.");
+  expect(section.textContent).not.toMatch(/you have (?:diabetes|a disease)|you will develop/i);
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  const french = screen.getByRole("region", { name: "Pathologies les plus probables à discuter" });
+  expect(within(french).getByRole("heading", { name: "Diabète de type 2" }).closest("li")).toHaveTextContent("Risque faible");
+  expect(french).toHaveTextContent("0 / 26 points");
+  // toHaveTextContent collapses the non-breaking space Intl places before the percent sign.
+  expect(french).toHaveTextContent(/environ 1\s% de risque estimé sur 10 ans/);
+  expect(within(screen.getByRole("navigation", { name: "Explorer vos résultats" })).getByRole("link", { name: "Pathologies" })).toBeVisible();
+});
+
+test("missing-input hints reflect the actual queue instead of the shallowest tier label", () => {
+  renderLocalizedResults({
+    answers: {
+      sex_assigned_at_birth: "male",
+      current_tobacco_nicotine: true,
+      tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
+      low_interest_frequency: "several_days",
+    },
+    assessmentDepth: "quick",
+    confirmedLabs: [],
+    profile: { age: 45, countryCode: "CH" },
+  });
+
+  const section = screen.getByRole("region", { name: "Most probable conditions to discuss" });
+  const depression = within(section).getByRole("heading", { name: "Depression" }).closest("li");
+  expect(depression).toHaveAttribute("data-status", "incomplete");
+  expect(depression).toHaveTextContent("Low mood");
+  // The Quick budget went to the nicotine branch, so the tier label would mislead.
+  expect(depression).toHaveTextContent("not available from your answers");
+  expect(depression).not.toHaveTextContent("asked from Quick depth onward");
+});
+
+test("a closed gate names the question that would have opened the missing input", () => {
+  const withoutSystolic = { ...FINDRISC_ANSWERS };
+  delete withoutSystolic.blood_pressure_systolic;
+  renderLocalizedResults({
+    answers: {
+      ...withoutSystolic,
+      has_recent_blood_pressure: false,
+    },
+    assessmentDepth: "deep",
+    confirmedLabs: [confirmedLab],
+    profile: { age: 42, countryCode: "CH" },
+  });
+
+  const section = screen.getByRole("region", { name: "Most probable conditions to discuss" });
+  const cardiovascular = within(section).getByRole("heading", { name: /Cardiovascular disease/ }).closest("li");
+  expect(cardiovascular).toHaveTextContent("Systolic blood pressure");
+  expect(cardiovascular).toHaveTextContent(/asked after .Do you know a blood-pressure reading/);
+});
+
+test("an answer left blank is named as skipped rather than missing from another depth", () => {
+  renderLocalizedResults({
+    answers: {
+      ...FINDRISC_ANSWERS,
+      education_years: null,
+    },
+    assessmentDepth: "deep",
+    confirmedLabs: [confirmedLab],
+    profile: { age: 42, countryCode: "CH" },
+  });
+
+  const section = screen.getByRole("region", { name: "Most probable conditions to discuss" });
+  const dementia = within(section).getByRole("heading", { name: /Dementia in later life/ }).closest("li");
+  expect(dementia).toHaveAttribute("data-status", "incomplete");
+  expect(dementia).toHaveTextContent("Years of education");
+  expect(dementia).toHaveTextContent("left unanswered or marked not sure");
+});
+
+test("adolescents never see screening scores and adult downloads carry them in schema v3", async () => {
+  const user = userEvent.setup();
+  const blobs: Blob[] = [];
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: vi.fn((blob: Blob) => {
+      blobs.push(blob);
+      return `blob:report-${blobs.length}`;
+    }),
+  });
+  Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+  const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+  const adolescent = render(
+    <Results
+      answers={FINDRISC_ANSWERS}
+      assessmentDepth="detailed"
+      confirmedLabs={[]}
+      profile={{ age: 16, countryCode: "CH" }}
+      onRestart={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole("region", { name: "Most probable conditions to discuss" })).not.toBeInTheDocument();
+  adolescent.unmount();
+
+  render(
+    <Results
+      answers={FINDRISC_ANSWERS}
+      assessmentDepth="quick"
+      confirmedLabs={[]}
+      profile={{ age: 42, countryCode: "CH" }}
+      onRestart={vi.fn()}
+    />,
+  );
+  expect(screen.getByRole("region", { name: "Most probable conditions to discuss" })).toBeVisible();
+  await user.click(screen.getByRole("button", { name: /download json/i }));
+  const json = await readBlob(blobs[0]);
+  expect(json.schemaVersion).toBe("health-risk-explorer-report-v3");
+  const pathologyRisk = json.pathologyRisk as {
+    scores: Array<{
+      instrument: string;
+      status: string;
+      category?: string;
+      riskPercent?: number;
+      inputs: Array<Record<string, unknown>>;
+    }>;
+  };
+  expect(pathologyRisk.scores.find((score) => score.instrument === "findrisc")).toMatchObject({
+    status: "complete",
+    category: "low",
+    riskPercent: 1,
+  });
+  const exportedInputs = pathologyRisk.scores.flatMap((score) => score.inputs);
+  expect(exportedInputs.length).toBeGreaterThan(0);
+  expect(exportedInputs.every((input) => typeof input.id === "string")).toBe(true);
+  expect(exportedInputs.some((input) => "value" in input)).toBe(false);
+  expect(JSON.stringify(json)).not.toMatch(/SECRET RAW LAB LINE|Private report name/);
+  click.mockRestore();
+});
+
 test("the health signal pillars are complete semantic navigation with an adjacent evidence panel", async () => {
   const user = userEvent.setup();
   render(
@@ -637,7 +841,9 @@ test("page completion hands depth into Results and restart clears the in-memory 
   for (let answered = 0; answered < 20; answered += 1) {
     const intermission = screen.queryByRole("button", { name: /continue assessment/i });
     if (intermission) await user.click(intermission);
-    await user.click(screen.getByRole("button", { name: /prefer not to say/i }));
+    await user.click(
+      screen.getByRole("button", { name: /prefer not to say|I don't know this measurement/i }),
+    );
   }
 
   expect(screen.getByRole("heading", { name: /wellness habits reflection/i })).toBeVisible();

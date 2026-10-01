@@ -2,11 +2,13 @@ import type { ReleasePolicy } from "./types";
 
 export const RISK_RULESET_VERSION = "risk-rules-v1";
 
+export const PATHOLOGY_RULESET_VERSION = "pathology-scores-v1";
+
 export const prototypePolicy: ReleasePolicy = {
   audience: "private-research",
   allowQualitativeRules: true,
   allowPromptReviewSignals: true,
-  allowValidatedProbabilities: false,
+  allowValidatedProbabilities: true,
   allowUrgentSignals: true,
 };
 

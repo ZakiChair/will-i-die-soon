@@ -587,7 +587,7 @@ function clinicalAdjustments(answers: AnswerMap): AdjustmentDraft[] {
   let familyYears = 0;
   if (answers.family_early_cvd === true) familyYears -= 1;
   if (answers.family_sudden_death === true) familyYears -= 1;
-  if (answers.family_diabetes === true) familyYears -= 0.5;
+  if (answers.family_diabetes === "first_degree") familyYears -= 0.5;
   if (familyYears !== 0) drafts.push({ id: "family_history", years: familyYears });
 
   let socialYears = 0;

@@ -345,10 +345,6 @@ const protectiveRootDefinitions: ReadonlyArray<{
     applies: (answers) => answers.reliable_social_support === true,
   },
   {
-    label: "Reliable drinking-water access during heat or activity",
-    applies: (answers) => answers.hydration_heat_access === true,
-  },
-  {
     label: "A regular balance or coordination practice",
     applies: (answers) => answers.movement_balance_training === true,
   },
@@ -363,10 +359,6 @@ const protectiveRootDefinitions: ReadonlyArray<{
   {
     label: "A sense of community or shared activity",
     applies: (answers) => answers.social_community_belonging === true,
-  },
-  {
-    label: "Vaccination records available for review",
-    applies: (answers) => answers.vaccinations_records_available === true,
   },
   {
     label: "A current medicine list shared with a clinician or pharmacist",
