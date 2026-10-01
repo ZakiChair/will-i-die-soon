@@ -338,4 +338,17 @@ Console et erreurs de page vides ; 17 et 21 requêtes GET (une série par parcou
 
 ### Non fait sur l'alias
 
-Parcours Detailed et Deep, import de bilan, mise en page mobile, impression et export JSON : couverts en local le 30 septembre, non rejoués en production. Les en-têtes de sécurité du Worker ne s'appliquent pas sur Vercel (seul `strict-transport-security` est renvoyé) ; les pourcentages de maladie restent affichés sur l'alias public (`publicWellnessPolicy` non branchée) ; 17 avis d'outillage de développement subsistent. Ces trois points sont décrits dans `privacy-and-release.md` et demandent une décision et une revue propres.
+Parcours Detailed et Deep, import de bilan, mise en page mobile, impression et export JSON : couverts en local le 30 septembre, non rejoués en production. Les en-têtes de sécurité du Worker ne s'appliquent pas sur Vercel (seul `strict-transport-security` est renvoyé) ; les pourcentages de maladie restent affichés sur l'alias public (`publicWellnessPolicy` non branchée) ; 17 avis d'outillage de développement subsistent. Ces trois points sont décrits dans `privacy-and-release.md` et demandent une décision et une revue propres. La version de suivi du même jour les règle (voir la section suivante).
+
+## Version de suivi du 1er octobre 2026
+
+À la demande du propriétaire, les points restés ouverts ont été réglés le même jour sur la branche `chore/finish-release-points`, puis intégrés à `main` en avance rapide. Le dossier détaillé est dans [`privacy-and-release.md`](../privacy-and-release.md#2026-10-01-follow-up-release-record).
+
+- **En-têtes de sécurité sur Vercel** : `next.config.ts` renvoie, par `headers()` et pour `/:path*`, la liste `SECURITY_HEADERS` exportée par `worker/security-headers.ts` (CSP minimale, COOP, Permissions-Policy, Referrer-Policy, `nosniff`, `X-Frame-Options`). Un test exige que les deux déclarations restent identiques.
+- **Pourcentages** : le propriétaire garde les pourcentages FINDRISC, SCORE2/SCORE2-OP et CAIDE visibles sur l'alias public. `prototypePolicy` reste branchée. `publicWellnessPolicy` ne l'est pas, car elle couperait aussi l'interruption sur signal urgent (`allowUrgentSignals`) et les règles « À examiner rapidement » (`allowPromptReviewSignals`).
+- **Outillage de développement** : `@cloudflare/vite-plugin` 1.62.4, Wrangler 4.146.0, Vite 8.3.2 et Vitest 4.1.11 ; image-size 2.0.4 imposée par `overrides`, car vinext 0.0.50 épingle la version 2.0.2 ; dépendances transitives rafraîchies par `npm audit fix`. `npm audit` complet passe de 17 nœuds signalés à 0, et `npm audit --omit=dev` reste à 0.
+- **Déploiement par Git** : le projet Vercel est relié au dépôt GitHub `ZakiChair/will-i-die-soon`. Un push sur `main` déploie la production ; les autres branches produisent des aperçus protégés.
+
+### Portes de la version de suivi
+
+`tsc --noEmit --incremental false` 0 erreur ; `npm run lint` 0 erreur (2 avertissements préexistants hors `app/`) ; `vitest` **61 fichiers / 5 516 tests** ; `npm run build` 5/5 étapes ; `next build` compilé ; `npm audit` et `npm audit --omit=dev` 0 vulnérabilité ; `git diff --check` propre. En local, `next start` et `vinext start` renvoient les six en-têtes sur `/` et sur une route inconnue (404).
