@@ -1142,8 +1142,6 @@ test("puts urgent instructions before the overview with its score, followed by p
     expect(orderedSections[index - 1].compareDocumentPosition(orderedSections[index])
       & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   }
-  expect(screen.queryByRole("heading", { name: /longevity synthesis/i })).not.toBeInTheDocument();
-  expect(document.querySelector(".longevity")).not.toBeInTheDocument();
 });
 
 test("focuses the result title on arrival and only links to accessible report sections", async () => {

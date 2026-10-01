@@ -306,7 +306,7 @@ Coefficients, centrages, survie de base et recalibration « faible risque » de 
 | P3 | Espaces simples avant `?` et `;` dans `depression_history` et `head_injury_history` (FR) | U+00A0 |
 | P3 | `\u00a0` avant `%` dans les bandes HbA1c FR, espace avant `%` en EN | `\u202f` en FR, pas d'espace en EN |
 | P3 | `reviewedAt` 2026-08-03 pour les 20 nouvelles sources alors que le registre et l'UI annoncent 2026-09-29 | `REVIEWED_AT_PATHOLOGY`, paramètre optionnel de `source()` ; 20 × 2026-09-29, 71 × 2026-08-03 |
-| P3 | `longevity.ts` inatteignable, lit encore 16 questions supprimées | Décision : suppression du module, de `longevity-synthesis.tsx`, de leurs tests et clés de copie dans un commit dédié |
+| P3 | `longevity.ts` inatteignable, lit encore 16 questions supprimées | Décision : suppression du module, de `longevity-synthesis.tsx`, de leurs tests et clés de copie dans un commit dédié. *Fait : 4 fichiers supprimés, 61 clés `longevity.*` retirées en EN et en FR, bloc CSS `.longevity*` retiré, README et privacy mis à jour.* |
 
 ### Décisions d'architecture
 
@@ -320,4 +320,4 @@ CAIDE « inactif » = moins de 60 minutes hebdomadaires déclarées (l'instrumen
 
 ### Portes après la revue
 
-`tsc --noEmit --incremental false` 0 erreur ; `npm run lint` 0 erreur (2 avertissements préexistants hors `app/`) ; `vitest` **63 fichiers / 5 537 tests** ; `npm run build` complet ; `git diff --check` propre sur les fichiers suivis et nouveaux. Commit de la fonctionnalité puis commit séparé de suppression du module `longevity`, tous deux locaux ; aucune poussée ni déploiement.
+`tsc --noEmit --incremental false` 0 erreur ; `npm run lint` 0 erreur (2 avertissements préexistants hors `app/`) ; `vitest` **63 fichiers / 5 537 tests** ; `npm run build` complet ; `git diff --check` propre sur les fichiers suivis et nouveaux. Commit de la fonctionnalité puis commit séparé de suppression du module `longevity` (après suppression : 61 fichiers / 5 515 tests, les 22 tests du module en moins ; tsc, lint, build et `diff --check` inchangés), tous deux locaux ; aucune poussée ni déploiement.

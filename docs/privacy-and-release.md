@@ -36,7 +36,7 @@ The score reference uses only an already available `adult-score`. Detailed/Deep 
 
 Quick, insufficient habits coverage and unresolved core gates display an explanation instead of a position or curve. The SVG provides an accessible title and description; HTML score values, legend and graduations remain readable independently of SVG scaling. Express does not render this Gaussian section; its four-axis radar uses the separate product reference described below. Printing retains the visible report. Theoretical curve parameters do not enter the exported score as observed population data; the adult raw-answer opt-in remains unchanged.
 
-The longevity helper and component remain in source (`app/lib/longevity.ts`, `app/components/longevity-synthesis.tsx`) but are no longer imported or rendered by `Results`. Their heuristic age-at-death estimates, cause-family weightings and year-gain claims are not used in the overview, pillar cards, score reference or current export report. Retaining that code does not validate the underlying estimates.
+The former longevity helper and component (`app/lib/longevity.ts`, `app/components/longevity-synthesis.tsx`) were removed from source on 2026-09-30 after the Fable 5 review; they had not been imported or rendered by `Results` since the atlas redesign. No heuristic age-at-death estimate, cause-family weighting or year-gain claim exists in the codebase, the results presentation or the export report.
 
 See [the dated project review](reviews/2026-09-07-revue-globale-et-proposition-front.md) for the implementation review and current verification evidence. This interface update does not change the memory-only data boundary or authorize a broader release.
 
