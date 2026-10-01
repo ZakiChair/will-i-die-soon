@@ -104,6 +104,7 @@ function isReady(row: EditableLabRow): boolean {
 export function LabImport({ onConfirm, onCancel }: LabImportProps) {
   const { t } = useI18n();
   const heading = useRef<HTMLHeadingElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const activeExtraction = useRef<AbortController | null>(null);
   const mounted = useRef(false);
   const [rows, setRows] = useState<EditableLabRow[]>([]);
@@ -131,7 +132,12 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
   function openManual(nextError?: LabError) {
     setManualMode(true);
     setRows([emptyRow(0)]);
-    if (nextError) setError(nextError);
+    if (nextError) {
+      setError(nextError);
+      // Browsers fire no change event when the same file is chosen again, so a
+      // retry after a failed extraction needs the selection cleared.
+      if (fileInput.current) fileInput.current.value = "";
+    }
   }
 
   async function selectFile(file: File | undefined) {
@@ -254,6 +260,7 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
       <div className="lab-import__source">
         <label htmlFor="lab-report-file">{t("lab.file.label")}</label>
         <input
+          ref={fileInput}
           id="lab-report-file"
           type="file"
           accept=".txt,.text,.pdf,image/*"

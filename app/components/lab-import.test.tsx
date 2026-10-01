@@ -265,6 +265,30 @@ test("opens the manual grid after unsupported or failed extraction", async () =>
   expect(screen.getByLabelText(/reported value/i)).toHaveValue(null);
 });
 
+test("lets the same file be chosen again after a failed extraction", async () => {
+  const user = userEvent.setup();
+  const extract = vi
+    .spyOn(labsModule, "extractLabText")
+    .mockRejectedValueOnce(new Error("Failed to fetch"))
+    .mockResolvedValueOnce("AST 48 U/L (0 - 40)");
+  render(<LabImport onConfirm={vi.fn()} onCancel={vi.fn()} />);
+  const input = screen.getByLabelText<HTMLInputElement>(/choose a lab report/i);
+  const file = new File(["image bytes"], "lab-report.png", { type: "image/png" });
+
+  await user.upload(input, file);
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "The report lab-report.png could not be extracted on this device",
+  );
+  expect(input.value).toBe("");
+
+  await user.upload(input, file);
+
+  expect(await screen.findByDisplayValue("48")).toBeVisible();
+  expect(extract).toHaveBeenCalledTimes(2);
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
 test("shows a distinct bilingual processing-limit message and keeps manual entry available", async () => {
   const user = userEvent.setup();
   const file = new File(["small fixture"], "oversized-report.pdf", {
