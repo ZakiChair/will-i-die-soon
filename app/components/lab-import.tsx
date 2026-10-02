@@ -22,6 +22,8 @@ import type {
 export type LabImportProps = {
   onConfirm: (values: ConfirmedLabValue[]) => void;
   onCancel: () => void;
+  /** 1 on the assessment screen; 3 when the import completes estimates inside the results. */
+  headingLevel?: 1 | 3;
 };
 
 type EditableLabRow = {
@@ -101,7 +103,7 @@ function isReady(row: EditableLabRow): boolean {
   );
 }
 
-export function LabImport({ onConfirm, onCancel }: LabImportProps) {
+export function LabImport({ onConfirm, onCancel, headingLevel = 1 }: LabImportProps) {
   const { t } = useI18n();
   const heading = useRef<HTMLHeadingElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -247,12 +249,14 @@ export function LabImport({ onConfirm, onCancel }: LabImportProps) {
   const canConfirm =
     selectedRows.length > 0 && selectedRows.every((row) => isReady(row));
 
+  const Heading = headingLevel === 3 ? "h3" : "h1";
+
   return (
     <section className="lab-import" aria-labelledby="lab-import-title">
       <p className="data-label">{t("lab.eyebrow")}</p>
-      <h1 id="lab-import-title" ref={heading} tabIndex={-1}>
+      <Heading id="lab-import-title" ref={heading} tabIndex={-1}>
         {t("lab.title")}
-      </h1>
+      </Heading>
       <p className="lab-import__privacy">
         <strong>{t("lab.privacy.strong")}</strong> {t("lab.privacy.body")}
       </p>

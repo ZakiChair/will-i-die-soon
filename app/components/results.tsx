@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 
+import { questionBank } from "../data/questions";
 import { useI18n } from "../i18n/context";
 import { pathologyCopy } from "../i18n/pathology-copy";
 import { resultsExplorerCopy } from "../i18n/results-explorer-copy";
@@ -20,14 +21,16 @@ import { uiCopyKeys } from "../i18n/ui-copy";
 import { createRedactedExport } from "../lib/export";
 import { ScrollTrigger } from "../lib/gsap-client";
 import type { ConfirmedLabValue } from "../lib/labs";
+import type { FollowUpScope } from "../lib/pathology-follow-up";
 import { evaluatePathologyRisk } from "../lib/pathology-risk";
+import { pruneIneligibleAnswers } from "../lib/questionnaire";
 import { prototypePolicy } from "../lib/release-policy";
 import { evaluateRisks } from "../lib/risk-engine";
 import { buildActionPlan, calculatePurityScore } from "../lib/scoring";
 import type { ActionItem } from "../lib/scoring";
-import type { AnalysisDepth, AnswerMap, ProfileContext, RiskLeaf } from "../lib/types";
+import type { AnalysisDepth, AnswerMap, AnswerValue, ProfileContext, RiskLeaf } from "../lib/types";
 import { ExpressResults } from "./express-results";
-import { PathologySynthesisSection } from "./pathology-synthesis";
+import { PathologySynthesisSection, type PathologyFollowUpControls } from "./pathology-synthesis";
 import { ResultsOverview } from "./results-overview";
 import { RiskTree } from "./risk-tree";
 
@@ -47,7 +50,13 @@ const SUPPORT_QUESTION_IDS = [
   "adolescent_other_drug_support",
 ] as const;
 
-function UrgentSummary({ leaves }: { readonly leaves: ReadonlyArray<RiskLeaf> }) {
+function UrgentSummary({
+  leaves,
+  headingRef,
+}: {
+  readonly leaves: ReadonlyArray<RiskLeaf>;
+  readonly headingRef: RefObject<HTMLHeadingElement | null>;
+}) {
   const { t } = useI18n();
   if (leaves.length === 0) return null;
   return (
@@ -58,7 +67,7 @@ function UrgentSummary({ leaves }: { readonly leaves: ReadonlyArray<RiskLeaf> })
       data-reveal="single"
     >
       <p className="data-label">{t("results.urgent.eyebrow")}</p>
-      <h2 id="results-urgent-title">{t("results.urgent.title")}</h2>
+      <h2 id="results-urgent-title" ref={headingRef} tabIndex={-1}>{t("results.urgent.title")}</h2>
       <ul>
         {leaves.map((leaf) => (
           <li key={leaf.id}>
@@ -349,9 +358,9 @@ function PrivateResultsRevealBoundary({ children }: { readonly children: ReactNo
 }
 
 export function Results({
-  answers,
+  answers: initialAnswers,
   assessmentDepth,
-  confirmedLabs,
+  confirmedLabs: initialConfirmedLabs,
   profile,
   onRestart,
 }: ResultsProps) {
@@ -361,6 +370,10 @@ export function Results({
   const expressAdult = Number.isInteger(profile.age) && profile.age >= 18 && profile.age <= 120;
   const needsPrivateHandoff =
     profile.age >= 13 && profile.age < 18 && profile.assistedMinor === true;
+  // Follow-up answers complete this screen in place; the parent never changes these props after mount.
+  const [answers, setAnswers] = useState(initialAnswers);
+  const [confirmedLabs, setConfirmedLabs] = useState(initialConfirmedLabs);
+  const [followUpScope, setFollowUpScope] = useState<FollowUpScope | null>(null);
   const [includeRawAnswers, setIncludeRawAnswers] = useState(false);
   const [privateResultsVisible, setPrivateResultsVisible] = useState(
     () => !needsPrivateHandoff,
@@ -368,6 +381,8 @@ export function Results({
   const resultsRoot = useRef<HTMLElement>(null);
   const resultsTitle = useRef<HTMLHeadingElement>(null);
   const revealedResultsHeading = useRef<HTMLHeadingElement>(null);
+  const urgentHeading = useRef<HTMLHeadingElement>(null);
+  const focusUrgentSummary = useRef(false);
   useSectionReveal(resultsRoot);
   const leaves = useMemo(
     () => evaluateRisks(answers, profile, prototypePolicy),
@@ -386,11 +401,8 @@ export function Results({
     [assessmentDepth, leaves, score],
   );
   const pathologyRisk = useMemo(
-    () =>
-      assessmentDepth === "express"
-        ? null
-        : evaluatePathologyRisk(answers, profile, confirmedLabs, prototypePolicy),
-    [answers, assessmentDepth, confirmedLabs, profile],
+    () => evaluatePathologyRisk(answers, profile, confirmedLabs, prototypePolicy),
+    [answers, confirmedLabs, profile],
   );
   const presentedLeaves = useMemo(
     () => localizeRiskLeaves(leaves, locale, profile),
@@ -442,6 +454,49 @@ export function Results({
     }
   }, [needsPrivateHandoff, privateResultsVisible]);
 
+  useEffect(() => {
+    if (focusUrgentSummary.current && urgentLeaves.length > 0) {
+      focusUrgentSummary.current = false;
+      urgentHeading.current?.focus();
+    }
+  }, [urgentLeaves.length]);
+
+  function answerFollowUp(questionId: string, value: AnswerValue) {
+    const nextAnswers = pruneIneligibleAnswers(questionBank, profile, { ...answers, [questionId]: value });
+    const knownSignals = new Set(leaves.filter((leaf) => leaf.urgency === "urgent").map((leaf) => leaf.id));
+    setAnswers(nextAnswers);
+    const newSignal = evaluateRisks(nextAnswers, profile, prototypePolicy).some(
+      (leaf) => leaf.urgency === "urgent" && !knownSignals.has(leaf.id),
+    );
+    if (newSignal) {
+      focusUrgentSummary.current = true;
+      setFollowUpScope(null);
+    }
+  }
+
+  function addFollowUpLabs(values: ConfirmedLabValue[]) {
+    setConfirmedLabs((current) => {
+      const replaced = new Set(values.map((value) => value.reviewed.marker));
+      return [...current.filter((value) => !replaced.has(value.reviewed.marker)), ...values];
+    });
+  }
+
+  const followUpControls: PathologyFollowUpControls = {
+    profile,
+    scope: followUpScope,
+    onScopeChange: setFollowUpScope,
+    onAnswer: answerFollowUp,
+    onLabs: addFollowUpLabs,
+  };
+  const pathologySection = pathologyRisk.scores.length > 0 ? (
+    <PathologySynthesisSection
+      synthesis={pathologyRisk}
+      depth={assessmentDepth}
+      answers={answers}
+      followUp={followUpControls}
+    />
+  ) : null;
+
   function downloadJson() {
     const blob = createRedactedExport(report, {
       includeRawAnswers: profile.age >= 18 && includeRawAnswers,
@@ -465,12 +520,11 @@ export function Results({
             <>
               <a href="#express-priorities">{explorerCopy.prioritiesLink}</a>
               <a href="#express-method">{explorerCopy.methodLink}</a>
+              {pathologySection ? <a href="#pathology-synthesis">{conditionsLink}</a> : null}
             </>
           ) : (
             <>
-              {pathologyRisk && pathologyRisk.scores.length > 0 ? (
-                <a href="#pathology-synthesis">{conditionsLink}</a>
-              ) : null}
+              {pathologySection ? <a href="#pathology-synthesis">{conditionsLink}</a> : null}
               <a href="#score-distribution">{explorerCopy.referenceLink}</a>
               <a href="#results-details">{explorerCopy.detailsLink}</a>
             </>
@@ -478,19 +532,16 @@ export function Results({
         </nav>
       ) : null}
       {assessmentDepth === "express" ? (
-        <ExpressResults answers={answers} ageYears={profile.age} />
+        <>
+          <ExpressResults answers={answers} ageYears={profile.age} />
+          {expressAdult ? pathologySection : null}
+        </>
       ) : (
         <>
           {profile.age >= 18 ? (
             <>
               <ResultsOverview leaves={presentedLeaves} protectiveRoots={roots} score={presentedScore} />
-              {pathologyRisk ? (
-                <PathologySynthesisSection
-                  synthesis={pathologyRisk}
-                  depth={assessmentDepth}
-                  answers={answers}
-                />
-              ) : null}
+              {pathologySection}
               <ActionPlan actions={presentedActions} />
             </>
           ) : null}
@@ -570,7 +621,7 @@ export function Results({
         <p data-reveal-item>{t("results.intro")}</p>
       </div>
 
-      <UrgentSummary leaves={urgentLeaves} />
+      <UrgentSummary leaves={urgentLeaves} headingRef={urgentHeading} />
 
       {profile.age < 13 ? (
         <ChildGuide onRestart={onRestart} />

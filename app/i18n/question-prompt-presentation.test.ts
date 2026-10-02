@@ -148,6 +148,16 @@ describe("question prompt presentation", () => {
     expect(lifting.detail).toMatch(locale === "fr" ? /déjà effectué.*kilogrammes/ : /already completed.*kilograms/);
   });
 
+  test.each(["en", "fr"] satisfies Locale[])("explains how to take each pathology measurement in %s", (locale) => {
+    const detail = (id: string) =>
+      getQuestionPromptPresentation(id, locale, localizeQuestion(requiredQuestion(id), locale).prompt).detail;
+    expect(detail("waist_circumference_cm")).toMatch(locale === "fr" ? /dernière côte.*hanche.*nombril/ : /lowest rib.*hip bone.*navel/);
+    expect(detail("neck_circumference_cm")).toMatch(locale === "fr" ? /pomme d'Adam/ : /Adam's apple/);
+    expect(detail("has_recent_blood_pressure")).toMatch(locale === "fr" ? /pharmacie/ : /pharmacy/);
+    expect(detail("blood_pressure_systolic")).toMatch(/mmHg.*125\/80/);
+    if (locale === "fr") expect(detail("blood_pressure_systolic")).toContain("12,5/8");
+  });
+
   test.each(COMMON_QUESTION_PROMPT_IDS)("uses both common presentations for %s and falls back if its meaning changes", (id) => {
     const question = requiredQuestion(id);
     const before = structuredClone(question);

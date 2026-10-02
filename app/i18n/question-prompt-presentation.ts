@@ -274,6 +274,55 @@ const commonQuestionPromptPresentations = {
       detail: "Comptez les heures d'éveil dans une journée habituelle. N'incluez pas le temps de sommeil.",
     },
   },
+  // Measurement steps follow the WHO STEPS manual (part 3, section 5) and the NHS blood-pressure test page.
+  waist_circumference_cm: {
+    en: {
+      completePrompt: "What is your waist circumference in centimetres, measured at the midpoint?",
+      title: "What is your waist circumference?",
+      detail: "Standing, at the end of a normal breath out, place a tape measure horizontally midway between your lowest rib and the top of your hip bone, often around the navel, without squeezing. Answer in centimetres.",
+    },
+    fr: {
+      completePrompt: "Quel est votre tour de taille en centimètres, mesuré au milieu\u00a0?",
+      title: "Quel est votre tour de taille ?",
+      detail: "Debout, en fin d'expiration normale, placez un mètre ruban à l'horizontale à mi-distance entre la dernière côte et le haut de l'os de la hanche, souvent au niveau du nombril, sans serrer. Répondez en centimètres.",
+    },
+  },
+  neck_circumference_cm: {
+    en: {
+      completePrompt: "What is your neck circumference in centimetres, if you know it?",
+      title: "What is your neck circumference?",
+      detail: "Place a tape measure around your neck just below the Adam's apple, without squeezing. Answer in centimetres, or skip if you cannot measure it.",
+    },
+    fr: {
+      completePrompt: "Quel est votre tour de cou en centimètres, si vous le connaissez\u00a0?",
+      title: "Quel est votre tour de cou ?",
+      detail: "Placez un mètre ruban autour du cou, juste sous la pomme d'Adam, sans serrer. Répondez en centimètres, ou passez si vous ne pouvez pas le mesurer.",
+    },
+  },
+  has_recent_blood_pressure: {
+    en: {
+      completePrompt: "Do you know a blood-pressure reading taken within the past year?",
+      title: "Do you know a recent blood-pressure reading?",
+      detail: "A reading from the past year counts. If you have none, a pharmacy, a doctor or a validated home monitor can measure it in a few minutes.",
+    },
+    fr: {
+      completePrompt: "Connaissez-vous une mesure de tension artérielle prise au cours de l'année écoulée\u00a0?",
+      title: "Connaissez-vous une mesure récente de votre tension ?",
+      detail: "Une mesure de l'année écoulée convient. Sinon, une pharmacie, un médecin ou un tensiomètre validé la mesurent en quelques minutes.",
+    },
+  },
+  blood_pressure_systolic: {
+    en: {
+      completePrompt: "What was the systolic, or top, number of your most recent blood-pressure reading?",
+      title: "What was the top number of your latest blood-pressure reading?",
+      detail: "The systolic value is the first, higher number, in mmHg: 125 for a reading of 125/80. A reliable reading is taken seated after a few minutes of rest, with the arm supported at heart level.",
+    },
+    fr: {
+      completePrompt: "Quel était le chiffre systolique, ou maximum, de votre lecture de tension artérielle la plus récente\u00a0?",
+      title: "Quel était le chiffre du haut de votre dernière mesure de tension ?",
+      detail: "La systolique est le premier chiffre, le plus élevé, en mmHg : 125 pour une tension de 125/80, parfois notée 12,5/8. Une mesure fiable se prend assis après quelques minutes de repos, le bras posé à hauteur du cœur.",
+    },
+  },
 } as const satisfies Readonly<Record<string, Readonly<Record<Locale, CompleteQuestionPromptPresentation>>>>;
 
 export const COMMON_QUESTION_PROMPT_IDS = Object.keys(commonQuestionPromptPresentations);

@@ -184,7 +184,7 @@ function orderQuestions(questions: ReadonlyArray<Question>): Question[] {
   return [...core, ...remaining];
 }
 
-function pruneIneligibleAnswers(
+export function pruneIneligibleAnswers(
   bank: ReadonlyArray<Question>,
   context: ProfileContext,
   answers: AnswerMap,

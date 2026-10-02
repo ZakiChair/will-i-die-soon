@@ -286,12 +286,13 @@ const en = {
   gainReadout: (habits: string, result: string) => `With ${habits}, the score would correspond to ${result}.`,
   gainPeople: (count: number, denominator: number) =>
     count === 0 ? `fewer than 1 in ${denominator === 1000 ? "1,000" : "100"}` : `about ${count} in ${denominator === 1000 ? "1,000" : "100"}`,
+  gainCategory: (category: string, points?: string) => (points ? `“${category}” (${points})` : `“${category}”`),
   gainBoundary: "Same age, sex and measurements: a comparison of scores, not a promise of the result.",
   habits: {
     "daily-activity": "30 minutes of activity a day",
     "daily-fruit-vegetables": "vegetables or fruit every day",
     "weekly-activity": "150 minutes of moderate activity a week (WHO)",
-    "no-smoking": "no smoking",
+    "no-smoking": "smoking stopped",
   } satisfies Readonly<Record<PathologyHabitId, string>>,
   orientationHeading: "What to do with this result",
   orientations: {
@@ -333,6 +334,8 @@ const en = {
     stop: "Stop here",
     doneTitle: "Estimates updated",
     doneBody: "Your answers were added. The cards below and the rest of your results now take them into account.",
+    unchangedTitle: "Nothing was added",
+    unchangedBody: "Your estimates stay as they were. You can come back to these questions at any time on this page.",
     seeEstimate: "See the estimate",
     close: "Close",
   },
@@ -622,12 +625,14 @@ const fr = {
     count === 0
       ? `moins de 1 sur ${denominator === 1000 ? "1\u00a0000" : "100"}`
       : `environ ${count} sur ${denominator === 1000 ? "1\u00a0000" : "100"}`,
+  gainCategory: (category: string, points?: string) =>
+    points ? `«\u00a0${category}\u00a0» (${points})` : `«\u00a0${category}\u00a0»`,
   gainBoundary: "Mêmes âge, sexe et mesures\u00a0: une comparaison de scores, pas une promesse de résultat.",
   habits: {
     "daily-activity": "30 minutes d’activité par jour",
     "daily-fruit-vegetables": "des légumes ou des fruits chaque jour",
     "weekly-activity": "150 minutes d’activité modérée par semaine (OMS)",
-    "no-smoking": "sans tabac",
+    "no-smoking": "l’arrêt du tabac",
   } satisfies Readonly<Record<PathologyHabitId, string>>,
   orientationHeading: "Que faire de ce résultat",
   orientations: {
@@ -671,6 +676,8 @@ const fr = {
     stop: "Arrêter ici",
     doneTitle: "Estimations mises à jour",
     doneBody: "Vos réponses ont été ajoutées. Les cartes ci-dessous et le reste de vos résultats en tiennent compte.",
+    unchangedTitle: "Rien n’a été ajouté",
+    unchangedBody: "Vos estimations restent inchangées. Vous pouvez revenir à ces questions à tout moment sur cette page.",
     seeEstimate: "Voir l’estimation",
     close: "Fermer",
   },

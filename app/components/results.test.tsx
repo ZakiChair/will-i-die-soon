@@ -310,10 +310,15 @@ test("adult results publish validated screening scores with category, points, pe
   expect(diabetes).toHaveTextContent("Low risk");
   expect(diabetes).toHaveTextContent("0 / 26 points");
   expect(diabetes).toHaveTextContent("about 1% estimated risk over 10 years");
-  expect(within(diabetes as HTMLElement).getByRole("link", { name: /Finnish Diabetes Risk Score|FINDRISC/i })).toHaveAttribute(
-    "target",
-    "_blank",
-  );
+  expect(diabetes).toHaveTextContent("About 1 in 100 people with this result develops type 2 diabetes within 10 years.");
+  expect(diabetes?.querySelectorAll('.people-grid__cells span[data-state="filled"]')).toHaveLength(1);
+  expect(diabetes?.querySelector(".pathology-score__pictograms")).toHaveAttribute("aria-hidden", "true");
+  const orientation = diabetes?.querySelector<HTMLElement>(".pathology-score__orientation");
+  expect(orientation).toHaveTextContent("What to do with this result");
+  expect(orientation).toHaveTextContent("Keep at least 30 minutes of activity a day");
+  for (const link of within(diabetes as HTMLElement).getAllByRole("link", { name: /Finnish Diabetes Risk Score|FINDRISC/i })) {
+    expect(link).toHaveAttribute("target", "_blank");
+  }
   await user.click(within(diabetes as HTMLElement).getByText("Answers used"));
   expect(diabetes).toHaveTextContent("Body-mass index · derived");
   expect(diabetes).toHaveTextContent("Family history of diabetes");
