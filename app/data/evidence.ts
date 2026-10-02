@@ -2,6 +2,7 @@ import type { EvidenceSource } from "../lib/types";
 
 const REVIEWED_AT = "2026-08-03";
 const REVIEWED_AT_PATHOLOGY = "2026-09-29";
+const REVIEWED_AT_FOLLOW_UP = "2026-10-02";
 
 function source(
   id: string,
@@ -751,5 +752,50 @@ export const evidenceSources = {
     "all",
     { applicability: { minAge: 18, countries: "all" } },
     REVIEWED_AT_PATHOLOGY,
+  ),
+  whoStepsPhysicalMeasurements: source(
+    "who-steps-physical-measurements",
+    "WHO STEPS surveillance manual, part 3 section 5: physical measurements",
+    "World Health Organization",
+    "https://cdn.who.int/media/docs/default-source/ncds/ncd-surveillance/steps/part3-section5.pdf",
+    "all",
+    { applicability: { minAge: 18, countries: "all" } },
+    REVIEWED_AT_FOLLOW_UP,
+  ),
+  nhsBloodPressureTest: source(
+    "nhs-blood-pressure-test",
+    "Blood pressure test",
+    "NHS",
+    "https://www.nhs.uk/tests-and-treatments/blood-pressure-test/",
+    ["GB"],
+    { applicability: { minAge: 18, countries: "all" } },
+    REVIEWED_AT_FOLLOW_UP,
+  ),
+  nhsCopdDiagnosis: source(
+    "nhs-copd-diagnosis",
+    "Chronic obstructive pulmonary disease (COPD): diagnosis",
+    "NHS",
+    "https://www.nhs.uk/conditions/chronic-obstructive-pulmonary-disease-copd/diagnosis/",
+    ["GB"],
+    { applicability: { minAge: 18, countries: "all" } },
+    REVIEWED_AT_FOLLOW_UP,
+  ),
+  nhsAlcoholSupport: source(
+    "nhs-alcohol-support",
+    "Alcohol support",
+    "NHS",
+    "https://www.nhs.uk/live-well/alcohol-advice/alcohol-support/",
+    ["GB"],
+    { applicability: { minAge: 18, countries: "all" } },
+    REVIEWED_AT_FOLLOW_UP,
+  ),
+  nhsGeneralisedAnxiety: source(
+    "nhs-generalised-anxiety-disorder",
+    "Generalised anxiety disorder (GAD)",
+    "NHS",
+    "https://www.nhs.uk/mental-health/conditions/generalised-anxiety-disorder-gad/",
+    ["GB"],
+    { applicability: { minAge: 18, countries: "all" } },
+    REVIEWED_AT_FOLLOW_UP,
   ),
 } as const satisfies Record<string, EvidenceSource>;

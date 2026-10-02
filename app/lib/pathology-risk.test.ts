@@ -640,3 +640,188 @@ describe("input provenance", () => {
     }
   });
 });
+
+/** The fifteen-point FINDRISC example for the default 50-year-old profile. */
+const FINDRISC_FIFTEEN: AnswerMap = {
+  sex_assigned_at_birth: "male",
+  height_cm: 175,
+  weight_kg: 95,
+  waist_circumference_cm: 105,
+  daily_activity_30_min: false,
+  plant_food_frequency: 0,
+  bp_medication_ever: false,
+  glucose_high_ever: false,
+  family_diabetes: "other_relatives",
+  diagnosed_conditions_core: ["none"],
+};
+
+describe("ranges over missing answers", () => {
+  test("spans every waist band when only the waist is missing", () => {
+    const result = incomplete(score("findrisc", omit(FINDRISC_FIFTEEN, "waist_circumference_cm")));
+    expect(result.missingInputs).toEqual(["waist_circumference_cm"]);
+    expect(result.range).toEqual({
+      low: { category: "slightly-elevated", level: "moderate", points: 11, riskPercent: 4 },
+      high: { category: "high", level: "high", points: 15, riskPercent: 33 },
+      maxPoints: 26,
+      riskHorizonYears: 10,
+    });
+  });
+
+  test("keeps one category when the missing answers cannot change it", () => {
+    const result = incomplete(score("findrisc", omit(FINDRISC_ZERO, "waist_circumference_cm"), CH_40));
+    expect(result.range?.low).toEqual({ category: "low", level: "low", points: 0, riskPercent: 1 });
+    expect(result.range?.high).toEqual({ category: "low", level: "low", points: 4, riskPercent: 1 });
+  });
+
+  test("covers two missing answers but not three", () => {
+    const two = incomplete(score("findrisc", omit(FINDRISC_FIFTEEN, "waist_circumference_cm", "family_diabetes")));
+    expect(two.range).toMatchObject({ low: { points: 8 }, high: { points: 17 } });
+    const three = incomplete(
+      score("findrisc", omit(FINDRISC_FIFTEEN, "waist_circumference_cm", "family_diabetes", "glucose_high_ever")),
+    );
+    expect(three).not.toHaveProperty("range");
+  });
+
+  test("never stands in for blood pressure, laboratory values, body size or sex", () => {
+    const cholesterol = [lab("total_cholesterol", 5, "mmol/L")];
+    const caide = {
+      sex_assigned_at_birth: "male",
+      education_years: "seven_to_nine",
+      blood_pressure_systolic: 150,
+      height_cm: 170,
+      weight_kg: 93,
+      weekly_moderate_activity_minutes: 30,
+    } satisfies AnswerMap;
+    const midlife: ProfileContext = { age: 55, countryCode: "CH" };
+    expect(incomplete(score("caide", omit(caide, "blood_pressure_systolic"), midlife, cholesterol))).not.toHaveProperty("range");
+    expect(incomplete(score("caide", caide, midlife))).not.toHaveProperty("range");
+    expect(
+      incomplete(score("score2", omit(SCORE2_MALE_50, "blood_pressure_systolic"), CH, SCORE2_MALE_50_LABS)),
+    ).not.toHaveProperty("range");
+    expect(incomplete(score("findrisc", omit(FINDRISC_FIFTEEN, "weight_kg")))).not.toHaveProperty("range");
+    expect(incomplete(score("findrisc", omit(FINDRISC_FIFTEEN, "sex_assigned_at_birth")))).not.toHaveProperty("range");
+  });
+
+  test("is withheld when one possible answer would make the instrument inapplicable", () => {
+    const result = incomplete(score("score2", omit(SCORE2_MALE_50, "cvd_event_history"), CH, SCORE2_MALE_50_LABS));
+    expect(result.missingInputs).toEqual(["cvd_event_history"]);
+    expect(result).not.toHaveProperty("range");
+  });
+
+  test("is withheld when an answer would open further questions", () => {
+    expect(incomplete(score("audit-c", {}))).not.toHaveProperty("range");
+  });
+
+  test("can already settle a positive screen", () => {
+    const result = incomplete(score("audit-c", { alcohol_frequency: "four_plus_weekly" }));
+    expect(result.range).toEqual({
+      low: { category: "positive", level: "moderate", points: 4 },
+      high: { category: "positive", level: "moderate", points: 12 },
+      maxPoints: 12,
+    });
+  });
+
+  test("replaces an unscored 'not sure' answer by the scored options only", () => {
+    const answers: AnswerMap = {
+      sex_assigned_at_birth: "female",
+      sleep_snoring: "unknown",
+      sleep_daytime_sleepiness: "sometimes",
+      sleep_witnessed_apnea: "no",
+      diagnosed_high_blood_pressure: true,
+      height_cm: 165,
+      weight_kg: 65,
+      neck_circumference_cm: 34,
+      diagnosed_conditions_core: ["none"],
+    };
+    const result = incomplete(score("stop-bang", answers, { age: 55, countryCode: "CH" }));
+    expect(result.range).toEqual({
+      low: { category: "low", level: "low", points: 2 },
+      high: { category: "intermediate", level: "moderate", points: 3 },
+      maxPoints: 8,
+    });
+  });
+
+  test("withholds range percentages when the policy forbids probabilities", () => {
+    const result = incomplete(
+      score("findrisc", omit(FINDRISC_FIFTEEN, "waist_circumference_cm"), CH, [], publicWellnessPolicy),
+    );
+    expect(result.range).toEqual({
+      low: { category: "slightly-elevated", level: "moderate", points: 11 },
+      high: { category: "high", level: "high", points: 15 },
+      maxPoints: 26,
+    });
+  });
+});
+
+describe("habit gain at an equal profile", () => {
+  test("compares FINDRISC with daily activity and daily fruit or vegetables", () => {
+    const result = complete(score("findrisc", FINDRISC_FIFTEEN));
+    expect(result.gain).toEqual({
+      habits: ["daily-activity", "daily-fruit-vegetables"],
+      category: "moderate",
+      level: "moderate",
+      points: 12,
+      riskPercent: 17,
+    });
+  });
+
+  test("is absent when the habits are already healthy or cannot change the band", () => {
+    expect(complete(score("findrisc", FINDRISC_ZERO, CH_40))).not.toHaveProperty("gain");
+    const maximum = complete(
+      score("findrisc", {
+        sex_assigned_at_birth: "female",
+        height_cm: 160,
+        weight_kg: 90,
+        waist_circumference_cm: 95,
+        daily_activity_30_min: false,
+        plant_food_frequency: 0,
+        bp_medication_ever: true,
+        glucose_high_ever: true,
+        family_diabetes: "first_degree",
+        diagnosed_conditions_core: ["none"],
+      }, { age: 66, countryCode: "CH" }),
+    );
+    expect(maximum.points).toBe(26);
+    expect(maximum).not.toHaveProperty("gain");
+  });
+
+  test("compares SCORE2 without smoking, other predictors unchanged", () => {
+    const result = complete(score("score2", SCORE2_MALE_50, CH, SCORE2_MALE_50_LABS));
+    const nonSmoker = score2TenYearRisk("male", { age: 50, smoker: false, systolic: 140, totalCholesterol: 6.3, hdl: 1.4 });
+    expect(result.gain).toMatchObject({ habits: ["no-smoking"], riskPercent: Math.round(nonSmoker * 1000) / 10 });
+    expect(result.gain?.riskPercent).toBeLessThan(6.3);
+    const nonSmokerResult = complete(
+      score("score2", { ...SCORE2_MALE_50, current_tobacco_nicotine: false }, CH, SCORE2_MALE_50_LABS),
+    );
+    expect(nonSmokerResult).not.toHaveProperty("gain");
+  });
+
+  test("compares CAIDE with the WHO weekly activity", () => {
+    const result = complete(
+      score(
+        "caide",
+        {
+          sex_assigned_at_birth: "male",
+          education_years: "seven_to_nine",
+          blood_pressure_systolic: 150,
+          height_cm: 170,
+          weight_kg: 93,
+          weekly_moderate_activity_minutes: 30,
+        },
+        { age: 55, countryCode: "CH" },
+        [lab("total_cholesterol", 5, "mmol/L")],
+      ),
+    );
+    expect(result.gain).toEqual({ habits: ["weekly-activity"], category: "high", level: "high", points: 11, riskPercent: 7.4 });
+  });
+
+  test("keeps the category comparison without percentages when the policy forbids them", () => {
+    const result = complete(score("findrisc", FINDRISC_FIFTEEN, CH, [], publicWellnessPolicy));
+    expect(result.gain).toEqual({
+      habits: ["daily-activity", "daily-fruit-vegetables"],
+      category: "moderate",
+      level: "moderate",
+      points: 12,
+    });
+  });
+});

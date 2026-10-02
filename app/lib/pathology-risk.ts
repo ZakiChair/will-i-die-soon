@@ -11,10 +11,14 @@ import type {
   DementiaFamilyHistory,
   EvidenceSource,
   LabClassification,
+  PathologyHabitGain,
+  PathologyHabitId,
   PathologyInstrumentId,
   PathologyNotApplicableReason,
+  PathologyRangeBound,
   PathologyRiskLevel,
   PathologyScoreInput,
+  PathologyScoreRange,
   PathologyScoreResult,
   PathologySynthesis,
   ProfileContext,
@@ -246,6 +250,13 @@ function buildContext(
 // Input collection and result builders
 // ---------------------------------------------------------------------------
 
+/** A "not sure" option is an honest answer, but the instrument has no point value for it. */
+const UNSCORED_OPTIONS = {
+  sleep_snoring: "unknown",
+  sleep_witnessed_apnea: "unknown",
+  family_diabetes: "unsure",
+} as const satisfies Readonly<Record<string, string>>;
+
 class InputCollector {
   readonly inputs: PathologyScoreInput[] = [];
   readonly missing: string[] = [];
@@ -274,10 +285,9 @@ class InputCollector {
     return this.record(id, readSingle(this.context.answers, id));
   }
 
-  /** A "not sure" option is an honest answer, but the instrument has no point value for it. */
-  knownSingle(id: string, unknownValue: string): string | undefined {
+  knownSingle(id: keyof typeof UNSCORED_OPTIONS): string | undefined {
     const value = readSingle(this.context.answers, id);
-    return this.record(id, value === unknownValue ? undefined : value);
+    return this.record(id, value === UNSCORED_OPTIONS[id] ? undefined : value);
   }
 
   derived<T>(derivation: Derived<T>): T | undefined {
@@ -446,7 +456,7 @@ function evaluateFindrisc(context: EvaluationContext): PathologyScoreResult {
   if (bloodPressureMedication) points += 2;
   const highGlucose = collector.boolean("glucose_high_ever");
   if (highGlucose) points += 5;
-  const family = collector.knownSingle("family_diabetes", "unsure");
+  const family = collector.knownSingle("family_diabetes");
   points += family === "first_degree" ? 5 : family === "other_relatives" ? 3 : 0;
 
   if (collector.missing.length > 0) return incomplete("findrisc", FINDRISC_SOURCES, collector);
@@ -705,9 +715,9 @@ function evaluateStopBang(context: EvaluationContext): PathologyScoreResult {
     ]);
   }
   const collector = new InputCollector(context);
-  const snoring = collector.knownSingle("sleep_snoring", "unknown");
+  const snoring = collector.knownSingle("sleep_snoring");
   const sleepiness = collector.single("sleep_daytime_sleepiness");
-  const witnessed = collector.knownSingle("sleep_witnessed_apnea", "unknown");
+  const witnessed = collector.knownSingle("sleep_witnessed_apnea");
   const pressure = collector.derived(context.hypertension);
   const bmi = collector.derived(context.bodyMassIndex);
   const age = collector.age();
@@ -1157,8 +1167,204 @@ function dementiaFamilyHistory(answers: AnswerMap): DementiaFamilyHistory {
 }
 
 // ---------------------------------------------------------------------------
+// Ranges over missing answers and habit gains at an equal profile
+// ---------------------------------------------------------------------------
+
+type Evaluator = (context: EvaluationContext) => PathologyScoreResult;
+type CompleteScore = Extract<PathologyScoreResult, { status: "complete" }>;
+type IncompleteScore = Extract<PathologyScoreResult, { status: "incomplete" }>;
+/** Re-runs one instrument with some answers replaced; everything else stays as answered. */
+type Reevaluate = (replacements: AnswerMap) => PathologyScoreResult;
+
+const RANGE_MAX_MISSING = 2;
+
+/** Numeric answers probed on each side of every scoring threshold that reads them. */
+const RANGE_PROBES: Readonly<Record<string, ReadonlyArray<number>>> = {
+  waist_circumference_cm: [70, 85, 98, 110],
+  neck_circumference_cm: [35, 45],
+  plant_food_frequency: [0, 2],
+  weekly_moderate_activity_minutes: [0, 60, 150],
+  alcohol_detail_typical_amount: [1, 3, 5, 7, 10],
+};
+
+const LEVEL_RANK: Readonly<Record<PathologyRiskLevel, number>> = {
+  low: 0,
+  moderate: 1,
+  high: 2,
+  "very-high": 3,
+};
+
+/**
+ * Values a missing answer could take. Sex, body size, blood pressure, labs and
+ * multiple-choice answers are never enumerated: they stay genuinely unknown.
+ */
+function possibleAnswers(id: string): ReadonlyArray<AnswerValue> | undefined {
+  if (id === "sex_assigned_at_birth") return undefined;
+  const probes = RANGE_PROBES[id];
+  if (probes) return probes;
+  const question = questionsById.get(id);
+  if (question?.answerType === "boolean") return [true, false];
+  if (question?.answerType !== "single") return undefined;
+  const unscored: string | undefined = UNSCORED_OPTIONS[id as keyof typeof UNSCORED_OPTIONS];
+  return question.options?.map((option) => option.value).filter((value) => value !== unscored);
+}
+
+function combinations(
+  ids: ReadonlyArray<string>,
+  values: ReadonlyArray<ReadonlyArray<AnswerValue>>,
+): AnswerMap[] {
+  return ids.reduce<AnswerMap[]>(
+    (partials, id, index) =>
+      partials.flatMap((partial) => values[index].map((value) => ({ ...partial, [id]: value }))),
+    [{}],
+  );
+}
+
+function bound(
+  category: string,
+  level: PathologyRiskLevel,
+  points: number | undefined,
+  riskPercent: number | undefined,
+): PathologyRangeBound {
+  return {
+    category,
+    level,
+    ...(points !== undefined ? { points } : {}),
+    ...(riskPercent !== undefined ? { riskPercent } : {}),
+  };
+}
+
+function rangeFor(score: IncompleteScore, reevaluate: Reevaluate): PathologyScoreRange | undefined {
+  const ids = score.missingInputs;
+  if (ids.length === 0 || ids.length > RANGE_MAX_MISSING) return undefined;
+  const values: Array<ReadonlyArray<AnswerValue>> = [];
+  for (const id of ids) {
+    const candidates = possibleAnswers(id);
+    if (!candidates || candidates.length === 0) return undefined;
+    values.push(candidates);
+  }
+
+  const outcomes: CompleteScore[] = [];
+  for (const replacements of combinations(ids, values)) {
+    const outcome = reevaluate(replacements);
+    // An answer that excludes the instrument or opens further questions leaves no honest range.
+    if (outcome.status !== "complete") return undefined;
+    outcomes.push(outcome);
+  }
+
+  const byLevel = [...outcomes].sort(
+    (left, right) =>
+      LEVEL_RANK[left.level] - LEVEL_RANK[right.level] ||
+      (left.points ?? left.riskPercent ?? 0) - (right.points ?? right.riskPercent ?? 0),
+  );
+  const lowest = byLevel[0];
+  const highest = byLevel[byLevel.length - 1];
+  const points = outcomes.flatMap((outcome) => (outcome.points === undefined ? [] : [outcome.points]));
+  const percents = outcomes.flatMap((outcome) => (outcome.riskPercent === undefined ? [] : [outcome.riskPercent]));
+  return {
+    low: bound(
+      lowest.category,
+      lowest.level,
+      points.length > 0 ? Math.min(...points) : undefined,
+      percents.length > 0 ? Math.min(...percents) : undefined,
+    ),
+    high: bound(
+      highest.category,
+      highest.level,
+      points.length > 0 ? Math.max(...points) : undefined,
+      percents.length > 0 ? Math.max(...percents) : undefined,
+    ),
+    ...(lowest.maxPoints !== undefined ? { maxPoints: lowest.maxPoints } : {}),
+    ...(percents.length > 0 && lowest.riskHorizonYears !== undefined
+      ? { riskHorizonYears: lowest.riskHorizonYears }
+      : {}),
+  };
+}
+
+type HabitRule = {
+  readonly id: PathologyHabitId;
+  readonly applies: (score: CompleteScore) => boolean;
+  readonly replacements: AnswerMap;
+};
+
+function usedValue(score: CompleteScore, inputId: string): PathologyScoreInput["value"] | undefined {
+  return score.inputs.find((input) => input.id === inputId)?.value;
+}
+
+/** Declared habits each instrument scores; weight and waist are deliberately left out. */
+const HABIT_RULES: Partial<Record<PathologyInstrumentId, ReadonlyArray<HabitRule>>> = {
+  findrisc: [
+    {
+      id: "daily-activity",
+      applies: (score) => usedValue(score, "daily_activity_30_min") === false,
+      replacements: { daily_activity_30_min: true },
+    },
+    {
+      id: "daily-fruit-vegetables",
+      applies: (score) => usedValue(score, "derived:daily_fruit_vegetables") === false,
+      replacements: { plant_food_frequency: 1 },
+    },
+  ],
+  caide: [
+    {
+      id: "weekly-activity",
+      applies: (score) => usedValue(score, "derived:physically_inactive") === true,
+      replacements: { weekly_moderate_activity_minutes: 150 },
+    },
+  ],
+  score2: [
+    {
+      id: "no-smoking",
+      applies: (score) => usedValue(score, "derived:current_smoker") === true,
+      replacements: { current_tobacco_nicotine: false },
+    },
+  ],
+};
+
+function gainFor(score: CompleteScore, reevaluate: Reevaluate): PathologyHabitGain | undefined {
+  const rules = (HABIT_RULES[score.instrument] ?? []).filter((rule) => rule.applies(score));
+  if (rules.length === 0) return undefined;
+  const healthier = reevaluate(Object.assign({}, ...rules.map((rule) => rule.replacements)));
+  if (healthier.status !== "complete") return undefined;
+  const better =
+    healthier.riskPercent !== undefined && score.riskPercent !== undefined
+      ? healthier.riskPercent < score.riskPercent
+      : healthier.category !== score.category;
+  if (!better) return undefined;
+  return {
+    habits: rules.map((rule) => rule.id),
+    ...bound(healthier.category, healthier.level, healthier.points, healthier.riskPercent),
+  };
+}
+
+function withEstimates(score: PathologyScoreResult, reevaluate: Reevaluate): PathologyScoreResult {
+  if (score.status === "incomplete") {
+    const range = rangeFor(score, reevaluate);
+    return range ? { ...score, range } : score;
+  }
+  if (score.status === "complete") {
+    const gain = gainFor(score, reevaluate);
+    return gain ? { ...score, gain } : score;
+  }
+  return score;
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
+
+const EVALUATORS: ReadonlyArray<Evaluator> = [
+  evaluateScore2,
+  evaluateFindrisc,
+  evaluateStopBang,
+  evaluateCopdPs,
+  evaluateCaide,
+  evaluateAuditC,
+  (context) =>
+    evaluateTwoItemScreen(context, "phq-2", ["low_interest_frequency", "mood_low_frequency"], ["phq2Kroenke2003"]),
+  (context) =>
+    evaluateTwoItemScreen(context, "gad-2", ["anxiety_worry_frequency", "anxiety_control_worry"], ["gad2Kroenke2007"]),
+];
 
 export function evaluatePathologyRisk(
   answers: AnswerMap,
@@ -1177,16 +1383,11 @@ export function evaluatePathologyRisk(
     };
   }
   const context = buildContext(answers, profile, confirmedLabs, policy);
-  const scores: PathologyScoreResult[] = [
-    evaluateScore2(context),
-    evaluateFindrisc(context),
-    evaluateStopBang(context),
-    evaluateCopdPs(context),
-    evaluateCaide(context),
-    evaluateAuditC(context),
-    evaluateTwoItemScreen(context, "phq-2", ["low_interest_frequency", "mood_low_frequency"], ["phq2Kroenke2003"]),
-    evaluateTwoItemScreen(context, "gad-2", ["anxiety_worry_frequency", "anxiety_control_worry"], ["gad2Kroenke2007"]),
-  ];
+  const scores: PathologyScoreResult[] = EVALUATORS.map((evaluate) =>
+    withEstimates(evaluate(context), (replacements) =>
+      evaluate(buildContext({ ...answers, ...replacements }, profile, confirmedLabs, policy)),
+    ),
+  );
   return {
     rulesetVersion: PATHOLOGY_RULESET_VERSION,
     scores,

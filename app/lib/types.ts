@@ -254,6 +254,32 @@ type PathologyScoreBase = {
   sourceIds: ReadonlyArray<string>;
 };
 
+export type PathologyRangeBound = {
+  category: string;
+  level: PathologyRiskLevel;
+  points?: number;
+  /** Published absolute risk; present only when the release policy allows it. */
+  riskPercent?: number;
+};
+
+/**
+ * Every result the missing answers could still produce. Never covers blood
+ * pressure, laboratory values, body size or sex: those stay unknown.
+ */
+export type PathologyScoreRange = {
+  low: PathologyRangeBound;
+  high: PathologyRangeBound;
+  maxPoints?: number;
+  riskHorizonYears?: number;
+};
+
+export type PathologyHabitId = "daily-activity" | "daily-fruit-vegetables" | "weekly-activity" | "no-smoking";
+
+/** The same instrument with healthier declared habits: a score comparison, not a causal effect. */
+export type PathologyHabitGain = PathologyRangeBound & {
+  habits: ReadonlyArray<PathologyHabitId>;
+};
+
 export type PathologyScoreResult = PathologyScoreBase &
   (
     | {
@@ -266,8 +292,9 @@ export type PathologyScoreResult = PathologyScoreBase &
         riskPercent?: number;
         riskHorizonYears?: number;
         modifiers: ReadonlyArray<string>;
+        gain?: PathologyHabitGain;
       }
-    | { status: "incomplete"; missingInputs: ReadonlyArray<string> }
+    | { status: "incomplete"; missingInputs: ReadonlyArray<string>; range?: PathologyScoreRange }
     | { status: "not-applicable"; reason: PathologyNotApplicableReason }
   );
 
