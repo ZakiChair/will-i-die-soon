@@ -127,7 +127,8 @@ test("a published percentage reads as X in 100 and compares healthier habits at 
   expect(french).toHaveTextContent("Demandez à un médecin une glycémie ou une HbA1c");
 });
 
-test("one missing answer shows every result it could still produce, without an orientation", () => {
+test("one missing answer shows every result it could still produce, without an orientation", async () => {
+  const user = userEvent.setup();
   renderResults(omit(FINDRISC_FIFTEEN, "waist_circumference_cm"), CH_50);
 
   const card = scoreCard("Type 2 diabetes");
@@ -138,11 +139,40 @@ test("one missing answer shows every result it could still produce, without an o
   expect(range).toHaveTextContent("from “Slightly elevated risk” to “High risk”");
   expect(range).toHaveTextContent("between 11 and 15 / 26 points");
   expect(range).toHaveTextContent(
-    "Between 4 and 33 in 100 people with this result develop type 2 diabetes within 10 years, depending on the missing answers.",
+    "Between 4 and 33 in 100 people with this result develop type 2 diabetes within 10 years, depending on the missing answer.",
   );
   expect(filledCells(range)).toBe(4);
   expect(range.querySelectorAll('[data-state="possible"]')).toHaveLength(29);
   expect(card.querySelector(".pathology-score__orientation")).toBeNull();
+
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  expect(scoreCard("Diabète de type 2").querySelector(".pathology-score__range")).toHaveTextContent(
+    "Entre 4 et 33 personnes sur 100 ayant ce résultat développent un diabète de type 2 dans les 10 ans, selon la réponse manquante.",
+  );
+});
+
+test("a category settled despite one missing answer reads in the singular", async () => {
+  const user = userEvent.setup();
+  renderResults(
+    {
+      sex_assigned_at_birth: "male",
+      height_cm: 175,
+      weight_kg: 95,
+      sleep_snoring: "yes",
+      sleep_daytime_sleepiness: "never",
+      sleep_witnessed_apnea: "yes",
+      diagnosed_high_blood_pressure: false,
+      diagnosed_conditions_core: ["none"],
+    },
+    CH_55,
+  );
+
+  expect(scoreCard("Obstructive sleep apnoea")).toHaveTextContent("“High probability” whatever the missing answer");
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  // The matcher folds the French non-breaking spaces into plain ones.
+  expect(scoreCard("Apnée obstructive du sommeil")).toHaveTextContent(
+    "« Probabilité élevée » quelle que soit la réponse manquante",
+  );
 });
 
 test("a range whose category is settled already carries the orientation", () => {

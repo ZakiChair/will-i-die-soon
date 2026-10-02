@@ -204,13 +204,16 @@ function RangeReading({
       : undefined;
   const lowCount = people && lowPercent !== undefined ? peopleCount(lowPercent, people.scale) : 0;
   const highCount = people && highPercent !== undefined ? peopleCount(highPercent, people.scale) : 0;
+  const missing = score.missingInputs.length;
 
   return (
     <div className="pathology-score__range">
-      <h4>{copy.rangeHeading(score.missingInputs.length)}</h4>
+      <h4>{copy.rangeHeading(missing)}</h4>
       <p className="pathology-score__range-category">
         <strong>
-          {settled ? copy.rangeSettled(label(low.category)) : copy.rangeCategories(label(low.category), label(high.category))}
+          {settled
+            ? copy.rangeSettled(label(low.category), missing)
+            : copy.rangeCategories(label(low.category), label(high.category))}
         </strong>
       </p>
       {low.points !== undefined && high.points !== undefined && range.maxPoints !== undefined ? (
@@ -225,7 +228,7 @@ function RangeReading({
           <p>
             {lowCount === highCount
               ? copy.people(lowCount, people.scale, people.instrument, people.horizon)
-              : copy.peopleRange(lowCount, highCount, people.scale, people.instrument, people.horizon)}
+              : copy.peopleRange(lowCount, highCount, people.scale, people.instrument, people.horizon, missing)}
           </p>
           {people.scale === 100 ? (
             <div className="pathology-score__pictograms" aria-hidden="true">

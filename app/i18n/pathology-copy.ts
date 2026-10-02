@@ -273,14 +273,22 @@ const en = {
     if (count === 0) return `Fewer than 1 in ${scale} people with this result ${event.one} within ${horizon} years.`;
     return `About ${count} in ${scale} people with this result ${count === 1 ? event.one : event.other} within ${horizon} years.`;
   },
-  peopleRange: (low: number, high: number, denominator: number, instrument: PercentInstrumentId, horizon: number) =>
-    `Between ${low} and ${high} in ${denominator === 1000 ? "1,000" : "100"} people with this result ${EN_EVENTS[instrument].other} within ${horizon} years, depending on the missing answers.`,
+  peopleRange: (
+    low: number,
+    high: number,
+    denominator: number,
+    instrument: PercentInstrumentId,
+    horizon: number,
+    missing: number,
+  ) =>
+    `Between ${low} and ${high} in ${denominator === 1000 ? "1,000" : "100"} people with this result ${EN_EVENTS[instrument].other} within ${horizon} years, depending on the missing answer${missing > 1 ? "s" : ""}.`,
   pictogramToday: "Today",
   pictogramWithHabits: "With these habits",
   rangeHeading: (missing: number) => `Range with ${missing} missing answer${missing > 1 ? "s" : ""}`,
   rangePoints: (low: number, high: number, max: number) => `between ${low} and ${high} / ${max} points`,
   rangeCategories: (low: string, high: string) => `from “${low}” to “${high}”`,
-  rangeSettled: (category: string) => `“${category}” whatever the missing answers`,
+  rangeSettled: (category: string, missing: number) =>
+    `“${category}” whatever the missing answer${missing > 1 ? "s" : ""}`,
   rangeNote: "The range covers every answer the instrument scores; answering narrows it to one result.",
   gainHeading: "Same profile, healthier habits",
   gainReadout: (habits: string, result: string) => `With ${habits}, the score would correspond to ${result}.`,
@@ -609,15 +617,23 @@ const fr = {
       ? `Environ 1 personne sur ${scale} ayant ce résultat ${event.one} dans les ${horizon} ans.`
       : `Environ ${count} personnes sur ${scale} ayant ce résultat ${event.other} dans les ${horizon} ans.`;
   },
-  peopleRange: (low: number, high: number, denominator: number, instrument: PercentInstrumentId, horizon: number) =>
-    `Entre ${low} et ${high} personnes sur ${denominator === 1000 ? "1\u00a0000" : "100"} ayant ce résultat ${FR_EVENTS[instrument].other} dans les ${horizon} ans, selon les réponses manquantes.`,
+  peopleRange: (
+    low: number,
+    high: number,
+    denominator: number,
+    instrument: PercentInstrumentId,
+    horizon: number,
+    missing: number,
+  ) =>
+    `Entre ${low} et ${high} personnes sur ${denominator === 1000 ? "1\u00a0000" : "100"} ayant ce résultat ${FR_EVENTS[instrument].other} dans les ${horizon} ans, ${missing > 1 ? "selon les réponses manquantes" : "selon la réponse manquante"}.`,
   pictogramToday: "Aujourd’hui",
   pictogramWithHabits: "Avec ces habitudes",
   rangeHeading: (missing: number) =>
     `Fourchette avec ${missing} réponse${missing > 1 ? "s" : ""} manquante${missing > 1 ? "s" : ""}`,
   rangePoints: (low: number, high: number, max: number) => `entre ${low} et ${high} / ${max} points`,
   rangeCategories: (low: string, high: string) => `de «\u00a0${low}\u00a0» à «\u00a0${high}\u00a0»`,
-  rangeSettled: (category: string) => `«\u00a0${category}\u00a0» quelles que soient les réponses manquantes`,
+  rangeSettled: (category: string, missing: number) =>
+    `«\u00a0${category}\u00a0» ${missing > 1 ? "quelles que soient les réponses manquantes" : "quelle que soit la réponse manquante"}`,
   rangeNote: "La fourchette couvre toutes les réponses que l’instrument note\u00a0; répondre la réduit à un seul résultat.",
   gainHeading: "Même profil, habitudes plus saines",
   gainReadout: (habits: string, result: string) => `Avec ${habits}, le score correspondrait à ${result}.`,
