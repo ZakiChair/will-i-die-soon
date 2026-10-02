@@ -209,6 +209,9 @@ test("Express adults see the conditions and can complete all estimates, going ba
   expect(within(navigation).getByRole("link", { name: "Conditions" })).toHaveAttribute("href", "#pathology-synthesis");
   const section = synthesisSection();
   expect(section).toHaveTextContent(/\d+ questions at most could complete \d+ estimates\. You answer only what is missing\./);
+  const invitation = section.querySelector(".pathology-follow-up-invite p")?.textContent ?? "";
+  const invited = Number(/^(\d+) questions at most could complete/.exec(invitation)?.[1]);
+  expect(invited).toBeGreaterThan(1);
 
   const plan = buildFollowUpPlan(
     evaluatePathologyRisk(EXPRESS_ANSWERS, CH_55, [], prototypePolicy),
@@ -228,9 +231,11 @@ test("Express adults see the conditions and can complete all estimates, going ba
   const flow = screen.getByRole("region", { name: "Complete my estimates" });
   expect(within(flow).getByRole("heading", { level: 3, name: titles[0] })).toHaveFocus();
   expect(within(flow).getByRole("button", { name: "Back" })).toBeDisabled();
+  expect(flow).toHaveTextContent(`${invited} questions left at most`);
 
   await user.click(within(flow).getByRole("button", { name: "Prefer not to say" }));
   expect(within(flow).getByRole("heading", { level: 3, name: titles[1] })).toHaveFocus();
+  expect(flow).toHaveTextContent(`${invited - 1} questions left at most`);
 
   await user.click(within(flow).getByRole("button", { name: "Back" }));
   expect(within(flow).getByRole("heading", { level: 3, name: titles[0] })).toHaveFocus();
@@ -273,6 +278,7 @@ test("a closed blood-pressure gate is offered again with help, then the reading,
   const flow = () => screen.getByRole("region", { name: "Complete my estimates" });
   expect(within(flow()).getByRole("heading", { level: 3, name: "Do you know a recent blood-pressure reading?" })).toHaveFocus();
   expect(flow()).toHaveTextContent("a pharmacy, a doctor or a validated home monitor");
+  expect(flow()).toHaveTextContent("3 questions left at most");
 
   await user.click(within(flow()).getByRole("radio", { name: "Yes" }));
   await user.click(within(flow()).getByRole("button", { name: "Continue" }));
@@ -280,11 +286,13 @@ test("a closed blood-pressure gate is offered again with help, then the reading,
     within(flow()).getByRole("heading", { level: 3, name: "What was the top number of your latest blood-pressure reading?" }),
   ).toHaveFocus();
   expect(flow()).toHaveTextContent("125 for a reading of 125/80");
+  expect(flow()).toHaveTextContent("2 questions left at most");
 
   await user.type(within(flow()).getByRole("spinbutton"), "150");
   await user.click(within(flow()).getByRole("button", { name: "Continue" }));
   expect(within(flow()).getByRole("heading", { level: 3, name: "Bring in results without sending them away." })).toHaveFocus();
   expect(flow()).toHaveTextContent("A recent blood test can complete these estimates.");
+  expect(flow()).not.toHaveTextContent(/left at most/);
 
   await user.click(within(flow()).getByRole("button", { name: "Continue without import" }));
   expect(screen.getByRole("heading", { name: "Estimates updated" })).toHaveFocus();

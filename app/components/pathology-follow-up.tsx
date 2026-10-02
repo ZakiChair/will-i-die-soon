@@ -65,8 +65,8 @@ export function PathologyFollowUp({
     revisitIndex !== null ? { kind: "question", questionId: handled[revisitIndex], unlocks: [] } : plan[0];
   const stepKey = step === undefined ? "done" : step.kind === "labs" ? "labs" : step.questionId;
   const position = revisitIndex ?? handled.length;
-  const remaining =
-    followUpQuestionCount(plan.filter((candidate) => candidate.kind === "question")) + (revisitIndex !== null ? 1 : 0);
+  // Same count as the invitation and the card buttons, where the lab import is one step.
+  const remaining = followUpQuestionCount(plan) + (revisitIndex !== null ? 1 : 0);
 
   useEffect(() => {
     // The lab import focuses its own heading when it mounts.
@@ -123,7 +123,9 @@ export function PathologyFollowUp({
     <section className="pathology-follow-up" aria-label={copy.followUp.title}>
       <div className="pathology-follow-up__bar">
         <p className="data-label">{copy.followUp.title}</p>
-        {remaining > 0 ? <p className="pathology-follow-up__remaining">{copy.followUp.remaining(remaining)}</p> : null}
+        {remaining > 0 && step.kind !== "labs" ? (
+          <p className="pathology-follow-up__remaining">{copy.followUp.remaining(remaining)}</p>
+        ) : null}
       </div>
       {step.kind === "labs" ? (
         <div className="pathology-follow-up__labs">
