@@ -338,7 +338,8 @@ const en = {
     startOne: (questions: number) => `Complete this estimate (${questions} question${questions > 1 ? "s" : ""} at most)`,
     remaining: (questions: number) => `${questions} question${questions > 1 ? "s" : ""} left at most`,
     unlocks: (estimates: string) => `Helps estimate: ${estimates}`,
-    labsStep: "A recent blood test can complete these estimates.",
+    labsStep: (estimates: number) =>
+      `A recent blood test can complete ${estimates > 1 ? "these estimates" : "this estimate"}.`,
     stop: "Stop here",
     doneTitle: "Estimates updated",
     doneBody: "Your answers were added. The cards below and the rest of your results now take them into account.",
@@ -688,7 +689,8 @@ const fr = {
     remaining: (questions: number) =>
       `${questions} question${questions > 1 ? "s" : ""} restante${questions > 1 ? "s" : ""} au plus`,
     unlocks: (estimates: string) => `Utile pour\u00a0: ${estimates}`,
-    labsStep: "Un bilan sanguin récent peut compléter ces estimations.",
+    labsStep: (estimates: number) =>
+      `Un bilan sanguin récent peut compléter ${estimates > 1 ? "ces estimations" : "cette estimation"}.`,
     stop: "Arrêter ici",
     doneTitle: "Estimations mises à jour",
     doneBody: "Vos réponses ont été ajoutées. Les cartes ci-dessous et le reste de vos résultats en tiennent compte.",

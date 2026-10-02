@@ -130,7 +130,7 @@ export function PathologyFollowUp({
       {step.kind === "labs" ? (
         <div className="pathology-follow-up__labs">
           <p className="pathology-follow-up__unlocks">
-            {copy.followUp.labsStep}
+            {copy.followUp.labsStep(step.unlocks.length)}
             {unlocks ? ` ${copy.followUp.unlocks(unlocks)}` : null}
           </p>
           <LabImport

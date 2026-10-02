@@ -16,6 +16,7 @@ import { prototypePolicy, publicWellnessPolicy } from "../lib/release-policy";
 import * as riskEngineModule from "../lib/risk-engine";
 import type { AnswerMap, ProfileContext, RiskLeaf } from "../lib/types";
 import { LanguageSwitcher } from "./language-switcher";
+import { PathologyFollowUp } from "./pathology-follow-up";
 import { PathologySynthesisSection } from "./pathology-synthesis";
 import { Results } from "./results";
 
@@ -321,7 +322,7 @@ test("a closed blood-pressure gate is offered again with help, then the reading,
   await user.type(within(flow()).getByRole("spinbutton"), "150");
   await user.click(within(flow()).getByRole("button", { name: "Continue" }));
   expect(within(flow()).getByRole("heading", { level: 3, name: "Bring in results without sending them away." })).toHaveFocus();
-  expect(flow()).toHaveTextContent("A recent blood test can complete these estimates.");
+  expect(flow()).toHaveTextContent("A recent blood test can complete this estimate. Helps estimate: Dementia in later life");
   expect(flow()).not.toHaveTextContent(/left at most/);
 
   await user.click(within(flow()).getByRole("button", { name: "Continue without import" }));
@@ -330,6 +331,59 @@ test("a closed blood-pressure gate is offered again with help, then the reading,
   expect(updated).toHaveAttribute("data-status", "incomplete");
   expect(updated.querySelector(".pathology-score__missing")).not.toHaveTextContent("Systolic blood pressure");
   expect(updated.querySelector(".pathology-score__missing")).toHaveTextContent("Total cholesterol");
+});
+
+/** Everything SCORE2 and CAIDE read at 55 in Switzerland, except the blood test. */
+const LABS_ONLY: AnswerMap = {
+  sex_assigned_at_birth: "male",
+  diagnosed_conditions_core: ["none"],
+  cvd_event_history: false,
+  current_tobacco_nicotine: false,
+  has_recent_blood_pressure: true,
+  blood_pressure_systolic: 150,
+  education_years: "seven_to_nine",
+  height_cm: 170,
+  weight_kg: 93,
+  weekly_moderate_activity_minutes: 30,
+};
+
+test.each([
+  [
+    "all" as const,
+    "A recent blood test can complete these estimates. Helps estimate: Cardiovascular disease (heart attack, stroke) and Dementia in later life",
+    "Un bilan sanguin récent peut compléter ces estimations. Utile pour : Maladie cardiovasculaire (infarctus, AVC) et Démence plus tard dans la vie",
+  ],
+  [
+    "caide" as const,
+    "A recent blood test can complete this estimate. Helps estimate: Dementia in later life",
+    "Un bilan sanguin récent peut compléter cette estimation. Utile pour : Démence plus tard dans la vie",
+  ],
+])("the lab import agrees in number with the estimates it completes (%s)", async (scope, english, french) => {
+  const user = userEvent.setup();
+  const synthesis = evaluatePathologyRisk(LABS_ONLY, CH_55, [], prototypePolicy);
+  const labScores = {
+    ...synthesis,
+    scores: synthesis.scores.filter((score) => score.instrument === "score2" || score.instrument === "caide"),
+  };
+  testingRender(
+    <I18nProvider>
+      <LanguageSwitcher />
+      <PathologyFollowUp
+        scope={scope}
+        synthesis={labScores}
+        answers={LABS_ONLY}
+        profile={CH_55}
+        onAnswer={vi.fn()}
+        onLabs={vi.fn()}
+        onClose={vi.fn()}
+      />
+    </I18nProvider>,
+  );
+
+  expect(screen.getByRole("region", { name: "Complete my estimates" })).toHaveTextContent(english);
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  // The matcher folds the French non-breaking spaces into plain ones.
+  expect(screen.getByRole("region", { name: "Compléter mes estimations" })).toHaveTextContent(french);
 });
 
 function captureDownloads(): Blob[] {
