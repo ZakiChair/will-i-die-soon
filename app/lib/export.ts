@@ -2,18 +2,20 @@ import { questionBank } from "../data/questions";
 import { buildExpressAssessment, EXPRESS_INDEX_REFERENCE } from "./express-assessment";
 import type { PresentedPurityScoreResult } from "../i18n/presentation";
 import type { ConfirmedLabValue } from "./labs";
+import { pathologyOrientation } from "./pathology-orientation";
 import type { ActionItem, PurityScoreResult } from "./scoring";
 import type {
   AnalysisDepth,
   AnswerMap,
   AnswerValue,
+  PathologyRangeBound,
   PathologyScoreResult,
   PathologySynthesis,
   Question,
   RiskLeaf,
 } from "./types";
 
-export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v3" as const;
+export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v4" as const;
 
 export type ResultReport = {
   readonly subjectAgeYears: number | null;
@@ -103,6 +105,15 @@ function reviewedLab(value: ConfirmedLabValue) {
   };
 }
 
+function interpretedBound(bound: PathologyRangeBound) {
+  return {
+    category: bound.category,
+    level: bound.level,
+    ...(bound.points !== undefined ? { points: bound.points } : {}),
+    ...(bound.riskPercent !== undefined ? { riskPercent: bound.riskPercent } : {}),
+  };
+}
+
 function interpretedScore(score: PathologyScoreResult) {
   const base = {
     instrument: score.instrument,
@@ -111,6 +122,8 @@ function interpretedScore(score: PathologyScoreResult) {
     inputs: score.inputs.map(({ id, derived }) => (derived ? { id, derived } : { id })),
     sourceIds: score.sourceIds,
   };
+  const orientation = pathologyOrientation(score);
+  const guidance = orientation ? { orientation } : {};
   if (score.status === "complete") {
     return {
       ...base,
@@ -122,9 +135,28 @@ function interpretedScore(score: PathologyScoreResult) {
         ? { riskPercent: score.riskPercent, riskHorizonYears: score.riskHorizonYears }
         : {}),
       modifiers: score.modifiers,
+      ...(score.gain ? { gain: { habits: score.gain.habits, ...interpretedBound(score.gain) } } : {}),
+      ...guidance,
     };
   }
-  if (score.status === "incomplete") return { ...base, missingInputs: score.missingInputs };
+  if (score.status === "incomplete") {
+    const range = score.range;
+    return {
+      ...base,
+      missingInputs: score.missingInputs,
+      ...(range
+        ? {
+            range: {
+              low: interpretedBound(range.low),
+              high: interpretedBound(range.high),
+              ...(range.maxPoints !== undefined ? { maxPoints: range.maxPoints } : {}),
+              ...(range.riskHorizonYears !== undefined ? { riskHorizonYears: range.riskHorizonYears } : {}),
+            },
+          }
+        : {}),
+      ...guidance,
+    };
+  }
   return { ...base, reason: score.reason };
 }
 

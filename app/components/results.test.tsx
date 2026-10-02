@@ -418,7 +418,7 @@ test("an answer left blank is named as skipped rather than missing from another 
   expect(dementia).toHaveTextContent("left unanswered or marked not sure");
 });
 
-test("adolescents never see screening scores and adult downloads carry them in schema v3", async () => {
+test("adolescents never see screening scores and adult downloads carry them in schema v4", async () => {
   const user = userEvent.setup();
   const blobs: Blob[] = [];
   Object.defineProperty(URL, "createObjectURL", {
@@ -455,7 +455,7 @@ test("adolescents never see screening scores and adult downloads carry them in s
   expect(screen.getByRole("region", { name: "Most probable conditions to discuss" })).toBeVisible();
   await user.click(screen.getByRole("button", { name: /download json/i }));
   const json = await readBlob(blobs[0]);
-  expect(json.schemaVersion).toBe("health-risk-explorer-report-v3");
+  expect(json.schemaVersion).toBe("health-risk-explorer-report-v4");
   const pathologyRisk = json.pathologyRisk as {
     scores: Array<{
       instrument: string;

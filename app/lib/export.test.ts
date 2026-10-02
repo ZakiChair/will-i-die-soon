@@ -2,10 +2,10 @@ import { expect, test } from "vitest";
 
 import { createRedactedExport } from "./export";
 import { evaluatePathologyRisk } from "./pathology-risk";
-import { prototypePolicy } from "./release-policy";
+import { prototypePolicy, publicWellnessPolicy } from "./release-policy";
 import { buildActionPlan, calculatePurityScore } from "./scoring";
 import type { ResultReport } from "./export";
-import type { RiskLeaf } from "./types";
+import type { AnswerMap, ReleasePolicy, RiskLeaf } from "./types";
 
 const source = {
   id: "who-example",
@@ -128,7 +128,7 @@ test("default JSON contains interpreted output and confirmed reviewed lab contex
 
   expect(blob.type).toBe("application/json");
   expect(json).toMatchObject({
-    schemaVersion: "health-risk-explorer-report-v3",
+    schemaVersion: "health-risk-explorer-report-v4",
     assessmentDepth: "deep",
     score: {
       kind: "insufficient-coverage",
@@ -183,7 +183,7 @@ test("validated screening scores travel in the report with status, inputs, and s
     dementiaFactors: Array<Record<string, unknown>>;
   };
 
-  expect(exported.rulesetVersion).toBe("pathology-scores-v1");
+  expect(exported.rulesetVersion).toBe("pathology-scores-v2");
   expect(exported.interpretation).toBe("published-screening-instruments-not-a-diagnosis");
   expect(exported.scores).toHaveLength(8);
   expect(exported.scores.find((score) => score.instrument === "findrisc")).toEqual({
@@ -198,6 +198,7 @@ test("validated screening scores travel in the report with status, inputs, and s
     riskPercent: 1,
     riskHorizonYears: 10,
     modifiers: [],
+    orientation: "findrisc-keep-habits",
   });
   expect(exported.scores.find((score) => score.instrument === "score2")).toMatchObject({
     status: "not-applicable",
@@ -248,6 +249,78 @@ test("adult raw opt-in keeps screening score inputs as identifiers only", async 
   expect(exported.scores.flatMap((score) => score.inputs).length).toBeGreaterThan(0);
   expect(exported.scores.flatMap((score) => score.inputs).some((input) => "value" in input)).toBe(false);
   expect(JSON.stringify(exported.scores)).not.toMatch(/female|\b75\b|\b170\b|\b60\b/);
+});
+
+/** Fifteen FINDRISC points at 50: high band, 33 in 100 over ten years. */
+const FINDRISC_FIFTEEN: AnswerMap = {
+  sex_assigned_at_birth: "male",
+  height_cm: 175,
+  weight_kg: 95,
+  waist_circumference_cm: 105,
+  daily_activity_30_min: false,
+  plant_food_frequency: 0,
+  bp_medication_ever: false,
+  glucose_high_ever: false,
+  family_diabetes: "other_relatives",
+  diagnosed_conditions_core: ["none"],
+};
+
+async function exportedScores(answers: AnswerMap, policy: ReleasePolicy = prototypePolicy) {
+  const pathologyRisk = evaluatePathologyRisk(answers, { age: 50, countryCode: "CH" }, [], policy);
+  const json = await readJson(createRedactedExport({ ...report, answers, pathologyRisk }));
+  return (json.pathologyRisk as { scores: Array<Record<string, unknown>> }).scores;
+}
+
+function scoreOf(scores: ReadonlyArray<Record<string, unknown>>, instrument: string) {
+  const score = scores.find((candidate) => candidate.instrument === instrument);
+  if (!score) throw new Error(`No exported ${instrument} score`);
+  return score;
+}
+
+test("ranges, habit gains and orientations travel as interpreted values, never as answers", async () => {
+  const complete = await exportedScores(FINDRISC_FIFTEEN);
+  expect(scoreOf(complete, "findrisc")).toMatchObject({
+    status: "complete",
+    category: "high",
+    points: 15,
+    riskPercent: 33,
+    gain: {
+      habits: ["daily-activity", "daily-fruit-vegetables"],
+      category: "moderate",
+      level: "moderate",
+      points: 12,
+      riskPercent: 17,
+    },
+    orientation: "findrisc-glucose-test",
+  });
+
+  const missingWaist = await exportedScores(
+    Object.fromEntries(Object.entries(FINDRISC_FIFTEEN).filter(([id]) => id !== "waist_circumference_cm")),
+  );
+  const range = scoreOf(missingWaist, "findrisc");
+  expect(range).toMatchObject({ status: "incomplete", missingInputs: ["waist_circumference_cm"] });
+  expect(range.range).toEqual({
+    low: { category: "slightly-elevated", level: "moderate", points: 11, riskPercent: 4 },
+    high: { category: "high", level: "high", points: 15, riskPercent: 33 },
+    maxPoints: 26,
+    riskHorizonYears: 10,
+  });
+  // The two bounds call for different next steps, so none is exported.
+  expect(range).not.toHaveProperty("orientation");
+
+  expect(scoreOf(await exportedScores({ alcohol_frequency: "four_plus_weekly" }), "audit-c")).toMatchObject({
+    status: "incomplete",
+    range: { low: { category: "positive", points: 4 }, high: { category: "positive", points: 12 }, maxPoints: 12 },
+    orientation: "audit-c-support",
+  });
+
+  const withheld = await exportedScores(FINDRISC_FIFTEEN, publicWellnessPolicy);
+  expect(scoreOf(withheld, "findrisc")).toMatchObject({
+    gain: { habits: ["daily-activity", "daily-fruit-vegetables"], category: "moderate", points: 12 },
+  });
+  expect(JSON.stringify(withheld)).not.toMatch(/riskPercent|riskHorizonYears/);
+
+  expect(JSON.stringify([complete, missingWaist])).not.toMatch(/"male"|\b95\b|\b175\b|\b105\b|31\.0|other_relatives/);
 });
 
 test("explicit raw opt-in includes only valid structured answers and still removes private metadata", async () => {
@@ -421,7 +494,7 @@ test("merged adult barriers retain every reason and distinct source in structure
   ]);
   expect(JSON.stringify(json.actions)).toMatch(/no current access to prescriber follow-up/i);
   expect((json.actions as Array<Record<string, unknown>>)[0]).not.toHaveProperty("source");
-  expect(json.schemaVersion).toBe("health-risk-explorer-report-v3");
+  expect(json.schemaVersion).toBe("health-risk-explorer-report-v4");
 });
 
 test("raw opt-in is ignored when the trusted age guard is missing", async () => {

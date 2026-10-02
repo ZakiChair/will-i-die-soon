@@ -294,6 +294,69 @@ test("a closed blood-pressure gate is offered again with help, then the reading,
   expect(updated.querySelector(".pathology-score__missing")).toHaveTextContent("Total cholesterol");
 });
 
+function captureDownloads(): Blob[] {
+  const blobs: Blob[] = [];
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: vi.fn((blob: Blob) => {
+      blobs.push(blob);
+      return `blob:report-${blobs.length}`;
+    }),
+  });
+  Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+  return blobs;
+}
+
+async function readBlob(blob: Blob) {
+  const text = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsText(blob);
+  });
+  return JSON.parse(text) as { schemaVersion: string; pathologyRisk?: { scores: Array<Record<string, unknown>> } };
+}
+
+test("the JSON download reflects an answer added after the results, without its value", async () => {
+  const user = userEvent.setup();
+  const blobs = captureDownloads();
+  renderResults(omit(FINDRISC_FIFTEEN, "waist_circumference_cm"), CH_50);
+  const findrisc = (json: Awaited<ReturnType<typeof readBlob>>) =>
+    json.pathologyRisk?.scores.find((score) => score.instrument === "findrisc");
+
+  await user.click(screen.getByRole("button", { name: /download json/i }));
+  expect(findrisc(await readBlob(blobs[0]))).toMatchObject({ status: "incomplete", range: { maxPoints: 26 } });
+
+  await user.click(within(scoreCard("Type 2 diabetes")).getByRole("button", { name: /Complete this estimate/ }));
+  const flow = screen.getByRole("region", { name: "Complete my estimates" });
+  await user.type(within(flow).getByRole("spinbutton"), "105");
+  await user.click(within(flow).getByRole("button", { name: "Continue" }));
+  await user.click(screen.getByRole("button", { name: /download json/i }));
+
+  const updated = await readBlob(blobs[1]);
+  expect(updated.schemaVersion).toBe("health-risk-explorer-report-v4");
+  expect(findrisc(updated)).toMatchObject({
+    status: "complete",
+    points: 15,
+    riskPercent: 33,
+    gain: { riskPercent: 17 },
+    orientation: "findrisc-glucose-test",
+  });
+  expect(JSON.stringify(updated)).not.toMatch(/\b105\b/);
+});
+
+test("adult Express downloads carry the conditions estimated from its answers", async () => {
+  const user = userEvent.setup();
+  const blobs = captureDownloads();
+  renderResults(EXPRESS_ANSWERS, CH_55, "express");
+
+  await user.click(screen.getByRole("button", { name: /download json/i }));
+  const json = await readBlob(blobs[0]);
+  expect(json.pathologyRisk?.scores.map((score) => score.instrument)).toContain("findrisc");
+  expect(JSON.stringify(json.pathologyRisk)).not.toMatch(/\b172\b|\b80\b/);
+});
+
 test("a new urgent signal closes the follow-up and moves focus to the urgent summary", async () => {
   const user = userEvent.setup();
   const urgent: RiskLeaf = {

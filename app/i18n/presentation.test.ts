@@ -1571,7 +1571,7 @@ describe("localized export equivalence", () => {
     );
     expect(localizedJson.rawAnswers).toEqual(canonicalJson.rawAnswers);
     expect(JSON.stringify(localizedJson)).not.toContain("SECRET FREE TEXT");
-    expect(localizedJson.schemaVersion).toBe("health-risk-explorer-report-v3");
+    expect(localizedJson.schemaVersion).toBe("health-risk-explorer-report-v4");
     expect(localizedJson.score).not.toEqual(canonicalJson.score);
     expect(localizedJson.riskLeaves).not.toEqual(canonicalJson.riskLeaves);
     expect(localizedJson.actions).not.toEqual(canonicalJson.actions);
