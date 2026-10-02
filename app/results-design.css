@@ -517,7 +517,11 @@
 }
 @media print {
   .results .pathology-scores, .results .pathology-labs__table-wrap { overflow: visible; background: transparent; border-color: #aaa; }
-  .results .pathology-score { break-inside: avoid; }
+  /* Une carte peut dépasser le reste de la page, et une grille coupée entre deux pages se chevauche : la carte s’imprime en blocs, coupée entre ses parties. */
+  .results .pathology-score { display: block; }
+  .results .pathology-score__identity { margin-bottom: 14px; break-after: avoid; }
+  .results .pathology-score__evidence { margin-top: 14px; }
+  .results :is(.pathology-score__identity, .pathology-score__reading > *, .pathology-score__evidence > *) { break-inside: avoid; }
   .results .pathology-score__inputs { display: none; }
   .results .pathology-score[data-status="complete"] .pathology-score__status, .results .pathology-labs thead th { color: #111; background: transparent; }
   .results :is(.pathology-follow-up, .pathology-follow-up-invite, .pathology-score__follow-up) { display: none; }
