@@ -1,11 +1,16 @@
+import type { PathologyOrientationId } from "../lib/pathology-orientation";
 import type {
   AnalysisDepth,
   ClassifiedLabMarker,
   DementiaFactorId,
+  PathologyHabitId,
   PathologyInstrumentId,
   PathologyNotApplicableReason,
   PathologyRiskLevel,
 } from "../lib/types";
+
+/** Instruments whose publication includes an absolute risk. */
+export type PercentInstrumentId = Extract<PathologyInstrumentId, "findrisc" | "score2" | "caide">;
 
 type InstrumentCopy = {
   readonly pathology: string;
@@ -262,6 +267,87 @@ const en = {
     detailed: "Detailed",
     deep: "Deep",
   } satisfies Readonly<Record<AnalysisDepth, string>>,
+  people: (count: number, denominator: number, instrument: PercentInstrumentId, horizon: number) => {
+    const event = EN_EVENTS[instrument];
+    const scale = denominator === 1000 ? "1,000" : "100";
+    if (count === 0) return `Fewer than 1 in ${scale} people with this result ${event.one} within ${horizon} years.`;
+    return `About ${count} in ${scale} people with this result ${count === 1 ? event.one : event.other} within ${horizon} years.`;
+  },
+  peopleRange: (low: number, high: number, denominator: number, instrument: PercentInstrumentId, horizon: number) =>
+    `Between ${low} and ${high} in ${denominator === 1000 ? "1,000" : "100"} people with this result ${EN_EVENTS[instrument].other} within ${horizon} years, depending on the missing answers.`,
+  pictogramToday: "Today",
+  pictogramWithHabits: "With these habits",
+  rangeHeading: (missing: number) => `Range with ${missing} missing answer${missing > 1 ? "s" : ""}`,
+  rangePoints: (low: number, high: number, max: number) => `between ${low} and ${high} / ${max} points`,
+  rangeCategories: (low: string, high: string) => `from “${low}” to “${high}”`,
+  rangeSettled: (category: string) => `“${category}” whatever the missing answers`,
+  rangeNote: "The range covers every answer the instrument scores; answering narrows it to one result.",
+  gainHeading: "Same profile, healthier habits",
+  gainReadout: (habits: string, result: string) => `With ${habits}, the score would correspond to ${result}.`,
+  gainPeople: (count: number, denominator: number) =>
+    count === 0 ? `fewer than 1 in ${denominator === 1000 ? "1,000" : "100"}` : `about ${count} in ${denominator === 1000 ? "1,000" : "100"}`,
+  gainBoundary: "Same age, sex and measurements: a comparison of scores, not a promise of the result.",
+  habits: {
+    "daily-activity": "30 minutes of activity a day",
+    "daily-fruit-vegetables": "vegetables or fruit every day",
+    "weekly-activity": "150 minutes of moderate activity a week (WHO)",
+    "no-smoking": "no smoking",
+  } satisfies Readonly<Record<PathologyHabitId, string>>,
+  orientationHeading: "What to do with this result",
+  orientations: {
+    "findrisc-keep-habits":
+      "Keep at least 30 minutes of activity a day and vegetables or fruit every day: they are the two items of this score you control.",
+    "findrisc-habits-and-clinician":
+      "Talk to a doctor or nurse about this score. Activity, diet and weight are the recommended levers at this level.",
+    "findrisc-glucose-test":
+      "Ask a doctor for a blood glucose or HbA1c test: at this level testing is recommended, because type 2 diabetes often has no symptoms at first.",
+    "score2-keep-habits":
+      "Keep active, eat a balanced diet, stay smoke-free, and have your blood pressure and cholesterol checked regularly.",
+    "score2-clinician":
+      "Book a cardiovascular check-up with a doctor: at this level, ESC guidance considers treating blood pressure and cholesterol. If you smoke, stopping is the most effective single step.",
+    "stop-bang-watch-symptoms":
+      "If loud snoring, breathing pauses or daytime sleepiness persist, talk to a doctor.",
+    "stop-bang-sleep-assessment":
+      "Talk to a doctor: a sleep test, at home or in a sleep clinic, confirms or rules out sleep apnoea. Sleepiness raises the risk of accidents, so avoid driving when drowsy.",
+    "copd-watch-symptoms": "If a cough, phlegm or breathlessness lasts, see a doctor.",
+    "copd-spirometry":
+      "Ask a doctor for spirometry, a breathing test that confirms or rules out COPD. If you smoke, stopping is the most useful step for your lungs.",
+    "caide-heart-and-activity":
+      "What protects the heart also protects the brain: have your blood pressure and cholesterol checked, stay active and avoid smoking.",
+    "audit-c-support":
+      "Talk to a doctor or an alcohol support service. If you drink heavily every day, do not stop suddenly without medical advice: withdrawal can be dangerous.",
+    "phq-2-clinician":
+      "Talk to a doctor or psychologist: a conversation and a fuller questionnaire (PHQ-9) confirm or rule out depression.",
+    "gad-2-clinician":
+      "Talk to a doctor: a conversation and a fuller questionnaire (GAD-7) confirm or rule out an anxiety disorder, and effective treatments exist.",
+  } satisfies Readonly<Record<PathologyOrientationId, string>>,
+  followUp: {
+    title: "Complete my estimates",
+    invite: (questions: number, estimates: number) =>
+      `${questions} question${questions > 1 ? "s" : ""} at most could complete ${estimates} estimate${estimates > 1 ? "s" : ""}. You answer only what is missing.`,
+    startAll: "Complete all",
+    startOne: (questions: number) => `Complete this estimate (${questions} question${questions > 1 ? "s" : ""} at most)`,
+    remaining: (questions: number) => `${questions} question${questions > 1 ? "s" : ""} left at most`,
+    unlocks: (estimates: string) => `Helps estimate: ${estimates}`,
+    labsStep: "A recent blood test can complete these estimates.",
+    stop: "Stop here",
+    doneTitle: "Estimates updated",
+    doneBody: "Your answers were added. The cards below and the rest of your results now take them into account.",
+    seeEstimate: "See the estimate",
+    close: "Close",
+  },
+};
+
+const EN_EVENTS: Readonly<Record<PercentInstrumentId, { one: string; other: string }>> = {
+  findrisc: { one: "develops type 2 diabetes", other: "develop type 2 diabetes" },
+  score2: { one: "has a heart attack or stroke, fatal or not,", other: "have a heart attack or stroke, fatal or not," },
+  caide: { one: "develops dementia", other: "develop dementia" },
+};
+
+const FR_EVENTS: Readonly<Record<PercentInstrumentId, { one: string; other: string }>> = {
+  findrisc: { one: "développe un diabète de type 2", other: "développent un diabète de type 2" },
+  score2: { one: "fait un infarctus ou un AVC, mortel ou non,", other: "font un infarctus ou un AVC, mortel ou non," },
+  caide: { one: "développe une démence", other: "développent une démence" },
 };
 
 const fr = {
@@ -512,6 +598,82 @@ const fr = {
     detailed: "détaillée",
     deep: "approfondie",
   } satisfies Readonly<Record<AnalysisDepth, string>>,
+  people: (count: number, denominator: number, instrument: PercentInstrumentId, horizon: number) => {
+    const event = FR_EVENTS[instrument];
+    const scale = denominator === 1000 ? "1\u00a0000" : "100";
+    if (count === 0) return `Moins d’une personne sur ${scale} ayant ce résultat ${event.one} dans les ${horizon} ans.`;
+    return count === 1
+      ? `Environ 1 personne sur ${scale} ayant ce résultat ${event.one} dans les ${horizon} ans.`
+      : `Environ ${count} personnes sur ${scale} ayant ce résultat ${event.other} dans les ${horizon} ans.`;
+  },
+  peopleRange: (low: number, high: number, denominator: number, instrument: PercentInstrumentId, horizon: number) =>
+    `Entre ${low} et ${high} personnes sur ${denominator === 1000 ? "1\u00a0000" : "100"} ayant ce résultat ${FR_EVENTS[instrument].other} dans les ${horizon} ans, selon les réponses manquantes.`,
+  pictogramToday: "Aujourd’hui",
+  pictogramWithHabits: "Avec ces habitudes",
+  rangeHeading: (missing: number) =>
+    `Fourchette avec ${missing} réponse${missing > 1 ? "s" : ""} manquante${missing > 1 ? "s" : ""}`,
+  rangePoints: (low: number, high: number, max: number) => `entre ${low} et ${high} / ${max} points`,
+  rangeCategories: (low: string, high: string) => `de «\u00a0${low}\u00a0» à «\u00a0${high}\u00a0»`,
+  rangeSettled: (category: string) => `«\u00a0${category}\u00a0» quelles que soient les réponses manquantes`,
+  rangeNote: "La fourchette couvre toutes les réponses que l’instrument note\u00a0; répondre la réduit à un seul résultat.",
+  gainHeading: "Même profil, habitudes plus saines",
+  gainReadout: (habits: string, result: string) => `Avec ${habits}, le score correspondrait à ${result}.`,
+  gainPeople: (count: number, denominator: number) =>
+    count === 0
+      ? `moins de 1 sur ${denominator === 1000 ? "1\u00a0000" : "100"}`
+      : `environ ${count} sur ${denominator === 1000 ? "1\u00a0000" : "100"}`,
+  gainBoundary: "Mêmes âge, sexe et mesures\u00a0: une comparaison de scores, pas une promesse de résultat.",
+  habits: {
+    "daily-activity": "30 minutes d’activité par jour",
+    "daily-fruit-vegetables": "des légumes ou des fruits chaque jour",
+    "weekly-activity": "150 minutes d’activité modérée par semaine (OMS)",
+    "no-smoking": "sans tabac",
+  } satisfies Readonly<Record<PathologyHabitId, string>>,
+  orientationHeading: "Que faire de ce résultat",
+  orientations: {
+    "findrisc-keep-habits":
+      "Gardez au moins 30 minutes d’activité par jour et des légumes ou des fruits chaque jour\u00a0: ce sont les deux items de ce score que vous contrôlez.",
+    "findrisc-habits-and-clinician":
+      "Parlez de ce score à un médecin ou à une infirmière. Activité physique, alimentation et poids sont les leviers recommandés à ce niveau.",
+    "findrisc-glucose-test":
+      "Demandez à un médecin une glycémie ou une HbA1c\u00a0: à ce niveau, un dépistage est recommandé, car le diabète de type 2 ne donne souvent aucun symptôme au début.",
+    "score2-keep-habits":
+      "Gardez une activité régulière, une alimentation équilibrée et une vie sans tabac, et faites contrôler régulièrement votre tension et votre cholestérol.",
+    "score2-clinician":
+      "Prévoyez un bilan cardiovasculaire avec un médecin\u00a0: à ce niveau, les recommandations ESC envisagent de traiter la tension et le cholestérol. Si vous fumez, arrêter est la mesure la plus efficace.",
+    "stop-bang-watch-symptoms":
+      "Si un ronflement fort, des pauses respiratoires ou une somnolence dans la journée persistent, parlez-en à un médecin.",
+    "stop-bang-sleep-assessment":
+      "Parlez-en à un médecin\u00a0: un test du sommeil, à domicile ou en centre, confirme ou écarte l’apnée. La somnolence augmente le risque d’accident\u00a0: évitez de conduire en cas de somnolence.",
+    "copd-watch-symptoms": "Si une toux, des crachats ou un essoufflement durent, consultez un médecin.",
+    "copd-spirometry":
+      "Demandez à un médecin une spirométrie, un test du souffle qui confirme ou écarte une BPCO. Si vous fumez, arrêter est la mesure la plus utile pour vos poumons.",
+    "caide-heart-and-activity":
+      "Ce qui protège le cœur protège aussi le cerveau\u00a0: faites contrôler tension et cholestérol, gardez une activité régulière et évitez le tabac.",
+    "audit-c-support":
+      "Parlez-en à un médecin ou à un service d’aide en alcoologie. Si vous buvez beaucoup chaque jour, n’arrêtez pas d’un coup sans avis médical\u00a0: le sevrage peut être dangereux.",
+    "phq-2-clinician":
+      "Parlez-en à un médecin ou à un psychologue\u00a0: un entretien et un questionnaire plus complet (PHQ-9) confirment ou écartent une dépression.",
+    "gad-2-clinician":
+      "Parlez-en à un médecin\u00a0: un entretien et un questionnaire plus complet (GAD-7) confirment ou écartent un trouble anxieux, et des traitements efficaces existent.",
+  } satisfies Readonly<Record<PathologyOrientationId, string>>,
+  followUp: {
+    title: "Compléter mes estimations",
+    invite: (questions: number, estimates: number) =>
+      `${questions} question${questions > 1 ? "s" : ""} au plus peu${questions > 1 ? "vent" : "t"} compléter ${estimates} estimation${estimates > 1 ? "s" : ""}. Vous ne répondez qu’à ce qui manque.`,
+    startAll: "Tout compléter",
+    startOne: (questions: number) =>
+      `Compléter cette estimation (${questions} question${questions > 1 ? "s" : ""} au plus)`,
+    remaining: (questions: number) =>
+      `${questions} question${questions > 1 ? "s" : ""} restante${questions > 1 ? "s" : ""} au plus`,
+    unlocks: (estimates: string) => `Utile pour\u00a0: ${estimates}`,
+    labsStep: "Un bilan sanguin récent peut compléter ces estimations.",
+    stop: "Arrêter ici",
+    doneTitle: "Estimations mises à jour",
+    doneBody: "Vos réponses ont été ajoutées. Les cartes ci-dessous et le reste de vos résultats en tiennent compte.",
+    seeEstimate: "Voir l’estimation",
+    close: "Fermer",
+  },
 } satisfies typeof en;
 
 export const pathologyCopy = { en, fr };
