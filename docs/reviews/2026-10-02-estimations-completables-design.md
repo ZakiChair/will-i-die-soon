@@ -107,6 +107,7 @@ Présentations de questions (titre + détail) pour :
 
 - `PATHOLOGY_RULESET_VERSION = "pathology-scores-v2"` ; `RESULT_REPORT_VERSION = "health-risk-explorer-report-v4"`.
 - Par score : `range` (incomplet), `gain` (complet, identifiants d'habitudes), `orientation` (identifiant). Seuls des identifiants et des valeurs interprétées franchissent la frontière d'export, jamais les réponses brutes.
+- Les rapports Express adultes portent désormais `pathologyRisk`, puisque la synthèse y est affichée.
 
 ## Sources ajoutées (`app/data/evidence.ts`, revue du 2 octobre 2026)
 
@@ -118,7 +119,9 @@ Présentations de questions (titre + détail) pour :
 | `nhsAlcoholSupport` | NHS, Alcohol support (revue 17 août 2026) | https://www.nhs.uk/live-well/alcohol-advice/alcohol-support/ |
 | `nhsGeneralisedAnxiety` | NHS, Generalised anxiety disorder (revue 22 oct. 2024) | https://www.nhs.uk/mental-health/conditions/generalised-anxiety-disorder-gad/ |
 
-Réutilisées : `nhsSleepApnoea`, `whoPhysicalActivity`, `whoHealthyDiet`, `whoTobacco`, `niceDepression`, `whoDepression`, `escPrevention2021`, `adaDiagnosisStandards2025`, `lancetDementia2024`, `findriscLindstrom2003`, `stopBangChung2008`.
+Réutilisées : `nhsSleepApnoea`, `whoPhysicalActivity`, `whoHealthyDiet`, `whoTobacco`, `niceDepression`, `whoDepression`, `escPrevention2021`, `adaDiagnosisStandards2025`, `lancetDementia2024`, `findriscLindstrom2003`.
+
+Les quatre pages NHS sont citées par les orientations. `whoStepsPhysicalMeasurements` fonde le texte d'aide au tour de taille, qui n'affiche pas de liste de sources : le registre de preuves le classe donc « inactif ».
 
 ## Tests
 
