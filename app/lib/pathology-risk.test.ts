@@ -385,10 +385,15 @@ describe("AUDIT-C", () => {
   });
 
   test("needs the detail answers once drinking is reported", () => {
-    expect(incomplete(score("audit-c", { alcohol_frequency: "monthly_or_less" })).missingInputs).toEqual([
-      "alcohol_detail_typical_amount",
-      "alcohol_detail_heavy_episode",
-    ]);
+    const reported = incomplete(score("audit-c", { alcohol_frequency: "monthly_or_less" }));
+    expect(reported.missingInputs).toEqual(["alcohol_detail_typical_amount", "alcohol_detail_heavy_episode"]);
+    expect(reported).not.toHaveProperty("conditionalInputs");
+  });
+
+  test("names the detail answers an unknown drinking frequency may still require", () => {
+    const unknown = incomplete(score("audit-c", {}));
+    expect(unknown.missingInputs).toEqual(["alcohol_frequency"]);
+    expect(unknown.conditionalInputs).toEqual(["alcohol_detail_typical_amount", "alcohol_detail_heavy_episode"]);
   });
 });
 

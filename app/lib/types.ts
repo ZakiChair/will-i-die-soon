@@ -294,7 +294,13 @@ export type PathologyScoreResult = PathologyScoreBase &
         modifiers: ReadonlyArray<string>;
         gain?: PathologyHabitGain;
       }
-    | { status: "incomplete"; missingInputs: ReadonlyArray<string>; range?: PathologyScoreRange }
+    | {
+        status: "incomplete";
+        missingInputs: ReadonlyArray<string>;
+        /** Inputs read only once a missing answer takes certain values, like the AUDIT-C drink details. */
+        conditionalInputs?: ReadonlyArray<string>;
+        range?: PathologyScoreRange;
+      }
     | { status: "not-applicable"; reason: PathologyNotApplicableReason }
   );
 

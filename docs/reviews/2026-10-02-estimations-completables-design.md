@@ -90,6 +90,7 @@ Module pur : `buildFollowUpPlan(synthesis, answers, profile, scope)` → étapes
   - question cachée par une condition simple (`questionId`) → d'abord la question-porte, puis la question elle-même dès qu'elle devient éligible (tension : `has_recent_blood_pressure` puis `blood_pressure_systolic`). Une porte déjà répondue « non » est reproposée une fois avec l'aide à la mesure ;
   - `lab:*` → une seule étape `labs` (import de bilan existant, titre en `h3`) placée en dernier.
 - Ordre : priorité du questionnaire, porte avant cible. Chaque étape indique les estimations qu'elle débloque.
+- Compteur « au plus » : une par étape (l'import de bilan compte pour une), plus les questions cachées qu'une porte peut ouvrir (`opens`). Tant que la fréquence de consommation d'alcool est inconnue, AUDIT-C déclare ses deux questions de détail dans `conditionalInputs` : elles sont comptées derrière `alcohol_frequency`, jamais posées directement. Les détails tabac, qu'aucun score ne lit, ne sont pas comptés. Propriété testée : chaque réponse fait baisser le compteur d'au moins un.
 - Une étape répondue ou passée n'est pas reproposée pendant la session (la réponse « je ne sais pas » reste un choix honnête). Retour possible à l'étape précédente.
 - Après chaque réponse : les réponses inéligibles sont élaguées comme dans le questionnaire, puis `evaluateRisks` est relancé ; un signal urgent ferme le parcours et place le focus sur le résumé urgent. Contrat testé : aucune question proposée par ce parcours ne déclenche une règle urgente chez un adulte.
 - Interface : invitation en tête de la section (« N questions pour compléter K estimations », bouton « Tout compléter ») et bouton « Compléter cette estimation (n questions) » sur chaque carte incomplète. Le parcours s'affiche dans la section, question par question (`QuestionPrompt` + `QuestionControl`), avec le focus sur la question. À la fin, focus sur un message « Estimations mises à jour » avec un lien vers la carte concernée.
@@ -127,7 +128,7 @@ Les quatre pages NHS sont citées par les orientations. `whoStepsPhysicalMeasure
 
 - Moteur : fourchette FINDRISC (tour de taille seul manquant) ; aucune fourchette au-delà de deux manques, pour la tension, les bilans ou si une combinaison est non applicable ; catégorie certaine AUDIT-C ; STOP-Bang ronflement inconnu ; pourcentages retirés sans autorisation ; gains FINDRISC, CAIDE et SCORE2, absence de gain pour un non-fumeur ou un profil déjà sain.
 - Orientation : table complète, dépistages négatifs sans orientation, sources résolues.
-- Parcours : ordre, porte avant cible, porte « non » reproposée, étape bilan, périmètre par instrument, contrat « pas de règle urgente adulte ».
+- Parcours : ordre, porte avant cible, porte « non » reproposée, étape bilan, périmètre par instrument, compteur majorant (détails d'alcool comptés, propriété « chaque réponse fait baisser le compteur »), contrat « pas de règle urgente adulte ».
 - Interface : « X sur 100 », gain, fourchette, orientation, parcours qui complète une carte, Express avec section et lien, aide à la mesure.
 - Export : versions, `range`, `gain`, `orientation`, aucune valeur brute.
 

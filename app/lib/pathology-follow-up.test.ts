@@ -5,7 +5,7 @@ import { buildFollowUpPlan, followUpQuestionCount, type FollowUpStep } from "./p
 import { evaluatePathologyRisk } from "./pathology-risk";
 import { prototypePolicy } from "./release-policy";
 import { evaluateRisks } from "./risk-engine";
-import type { AnswerMap, AnswerValue, ProfileContext } from "./types";
+import type { AnswerMap, AnswerValue, ProfileContext, Question } from "./types";
 
 const SWISS_55: ProfileContext = { age: 55, countryCode: "CH" };
 const EXPRESS_SHAPE: AnswerMap = { height_cm: 172, weight_kg: 80, plant_food_frequency: 2 };
@@ -17,6 +17,13 @@ function plan(answers: AnswerMap, profile: ProfileContext = SWISS_55, scope: Par
 
 function questionIds(steps: ReadonlyArray<FollowUpStep>): string[] {
   return steps.flatMap((step) => (step.kind === "question" ? [step.questionId] : ["labs"]));
+}
+
+function possibleValues(question: Question): AnswerValue[] {
+  if (question.answerType === "boolean") return [true, false];
+  if (question.answerType === "number" || question.answerType === "scale") return [0, 1, 10, 40, 100, 140, 180, 250];
+  if (question.answerType === "multi") return (question.options ?? []).map((option) => [option.value]);
+  return (question.options ?? []).map((option) => option.value);
 }
 
 describe("follow-up plan", () => {
@@ -50,7 +57,7 @@ describe("follow-up plan", () => {
     expect(gate).toEqual({
       kind: "question",
       questionId: "has_recent_blood_pressure",
-      opens: "blood_pressure_systolic",
+      opens: ["blood_pressure_systolic"],
       unlocks: ["caide"],
     });
     expect(questionIds(plan({ ...EXPRESS_SHAPE, has_recent_blood_pressure: false }, SWISS_55, "caide"))).toContain(
@@ -79,13 +86,60 @@ describe("follow-up plan", () => {
     expect(followUpQuestionCount(steps)).toBe(steps.length + 1);
   });
 
+  test("counts the alcohol details that the drinking frequency can open", () => {
+    const steps = plan({}, SWISS_55, "audit-c");
+    expect(steps).toEqual([
+      {
+        kind: "question",
+        questionId: "alcohol_frequency",
+        opens: ["alcohol_detail_typical_amount", "alcohol_detail_heavy_episode"],
+        unlocks: ["audit-c"],
+      },
+    ]);
+    expect(followUpQuestionCount(steps)).toBe(3);
+    // The optional smoking context opens questions that no score requires.
+    expect(plan({}, SWISS_55, "score2").find((step) => step.kind === "question" && step.questionId === "current_tobacco_nicotine"))
+      .not.toHaveProperty("opens");
+  });
+
+  test("every answer lowers the count by at least one, so it stays an upper bound", () => {
+    const questions = new Map(questionBank.map((question) => [question.id, question]));
+    const starts: ReadonlyArray<readonly [AnswerMap, ProfileContext]> = [
+      [{}, SWISS_55],
+      [EXPRESS_SHAPE, SWISS_55],
+      [{}, { age: 72, countryCode: "GB" }],
+      [{}, { age: 30, countryCode: "US" }],
+    ];
+    let checked = 0;
+    for (const [answers, profile] of starts) {
+      const steps = plan(answers, profile);
+      const before = followUpQuestionCount(steps);
+      for (const step of steps) {
+        if (step.kind !== "question") continue;
+        const question = questions.get(step.questionId);
+        if (!question) throw new Error(`Unknown follow-up question ${step.questionId}`);
+        for (const value of possibleValues(question)) {
+          // The flow never offers a handled question again, whatever was answered.
+          const after = plan({ ...answers, [step.questionId]: value }, profile).filter(
+            (candidate) => candidate.kind === "labs" || candidate.questionId !== step.questionId,
+          );
+          expect(followUpQuestionCount(after), `${step.questionId} = ${JSON.stringify(value)}`).toBeLessThanOrEqual(
+            before - 1,
+          );
+          checked += 1;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(100);
+  });
+
   test("never offers a question that can raise an urgent signal for an adult", () => {
     const offered = new Set<string>();
     for (const profile of [SWISS_55, { age: 70, countryCode: "GB" }, { age: 18, countryCode: "US" }] as const) {
       for (const step of plan({}, profile)) {
         if (step.kind !== "question") continue;
         offered.add(step.questionId);
-        if (step.opens) offered.add(step.opens);
+        for (const opened of step.opens ?? []) offered.add(opened);
       }
       for (const step of plan({ has_recent_blood_pressure: true, alcohol_frequency: "four_plus_weekly" }, profile)) {
         if (step.kind === "question") offered.add(step.questionId);
@@ -97,15 +151,7 @@ describe("follow-up plan", () => {
     for (const id of offered) {
       const question = questions.get(id);
       if (!question) throw new Error(`Unknown follow-up question ${id}`);
-      const values: AnswerValue[] =
-        question.answerType === "boolean"
-          ? [true, false]
-          : question.answerType === "number" || question.answerType === "scale"
-            ? [0, 1, 10, 40, 100, 140, 180, 250]
-            : question.answerType === "multi"
-              ? (question.options ?? []).map((option) => [option.value])
-              : (question.options ?? []).map((option) => option.value);
-      for (const value of values) {
+      for (const value of possibleValues(question)) {
         for (const profile of [SWISS_55, { age: 18, countryCode: "US" }] as const) {
           const answers: AnswerMap = { has_recent_blood_pressure: true, alcohol_frequency: "four_plus_weekly", [id]: value };
           const urgent = evaluateRisks(answers, profile, prototypePolicy).filter((leaf) => leaf.urgency === "urgent");

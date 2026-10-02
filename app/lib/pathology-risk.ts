@@ -323,6 +323,7 @@ function incomplete(
   instrument: PathologyInstrumentId,
   sourceIds: ReadonlyArray<PathologySourceId>,
   collector: InputCollector,
+  conditionalInputs: ReadonlyArray<string> = [],
 ): PathologyScoreResult {
   return {
     instrument,
@@ -330,6 +331,7 @@ function incomplete(
     status: "incomplete",
     inputs: collector.inputs,
     missingInputs: [...new Set(collector.missing)],
+    ...(conditionalInputs.length > 0 ? { conditionalInputs } : {}),
   };
 }
 
@@ -790,7 +792,12 @@ function auditTypicalAmountPoints(drinks: number): number {
 function evaluateAuditC(context: EvaluationContext): PathologyScoreResult {
   const collector = new InputCollector(context);
   const frequency = collector.single("alcohol_frequency");
-  if (frequency === undefined) return incomplete("audit-c", AUDIT_C_SOURCES, collector);
+  if (frequency === undefined) {
+    return incomplete("audit-c", AUDIT_C_SOURCES, collector, [
+      "alcohol_detail_typical_amount",
+      "alcohol_detail_heavy_episode",
+    ]);
+  }
 
   let points = AUDIT_FREQUENCY_POINTS[frequency] ?? 0;
   if (frequency !== "never") {

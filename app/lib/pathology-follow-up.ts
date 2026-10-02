@@ -8,8 +8,8 @@ export type FollowUpStep =
   | {
       kind: "question";
       questionId: string;
-      /** A hidden question this gate can open; it is asked once the gate allows it. */
-      opens?: string;
+      /** Hidden questions this gate can open; each is asked once the gate allows it. */
+      opens?: ReadonlyArray<string>;
       unlocks: ReadonlyArray<PathologyInstrumentId>;
     }
   | { kind: "labs"; markers: ReadonlyArray<string>; unlocks: ReadonlyArray<PathologyInstrumentId> };
@@ -22,8 +22,8 @@ function gateFor(questionId: string): string | undefined {
   return condition && "questionId" in condition ? condition.questionId : undefined;
 }
 
-function addUnlock(unlocks: PathologyInstrumentId[], instrument: PathologyInstrumentId): void {
-  if (!unlocks.includes(instrument)) unlocks.push(instrument);
+function addOnce<T>(list: T[], item: T): void {
+  if (!list.includes(item)) list.push(item);
 }
 
 /**
@@ -37,32 +37,39 @@ export function buildFollowUpPlan(
   scope: FollowUpScope,
 ): FollowUpStep[] {
   const eligible = new Set(getEligibleQuestions(questionBank, profile, answers).map((question) => question.id));
-  const questionSteps = new Map<string, { opens?: string; unlocks: PathologyInstrumentId[] }>();
+  const questionSteps = new Map<string, { opens: string[]; unlocks: PathologyInstrumentId[] }>();
   const markers: string[] = [];
   const labUnlocks: PathologyInstrumentId[] = [];
+
+  function addQuestion(inputId: string, instrument: PathologyInstrumentId): void {
+    if (!questionsById.has(inputId)) return;
+    let questionId = inputId;
+    let opens: string | undefined;
+    if (!eligible.has(inputId)) {
+      const gate = gateFor(inputId);
+      if (!gate || !eligible.has(gate)) return;
+      questionId = gate;
+      opens = inputId;
+    }
+    const step = questionSteps.get(questionId) ?? { opens: [], unlocks: [] };
+    if (opens) addOnce(step.opens, opens);
+    addOnce(step.unlocks, instrument);
+    questionSteps.set(questionId, step);
+  }
 
   for (const score of synthesis.scores) {
     if (score.status !== "incomplete" || (scope !== "all" && score.instrument !== scope)) continue;
     for (const inputId of score.missingInputs) {
       if (inputId.startsWith("lab:")) {
-        const marker = inputId.slice("lab:".length);
-        if (!markers.includes(marker)) markers.push(marker);
-        addUnlock(labUnlocks, score.instrument);
+        addOnce(markers, inputId.slice("lab:".length));
+        addOnce(labUnlocks, score.instrument);
         continue;
       }
-      if (!questionsById.has(inputId)) continue;
-      let questionId = inputId;
-      let opens: string | undefined;
-      if (!eligible.has(inputId)) {
-        const gate = gateFor(inputId);
-        if (!gate || !eligible.has(gate)) continue;
-        questionId = gate;
-        opens = inputId;
-      }
-      const step = questionSteps.get(questionId) ?? { unlocks: [] };
-      if (opens) step.opens = opens;
-      addUnlock(step.unlocks, score.instrument);
-      questionSteps.set(questionId, step);
+      addQuestion(inputId, score.instrument);
+    }
+    // An input the instrument may never read is not asked directly, only counted behind its gate.
+    for (const inputId of score.conditionalInputs ?? []) {
+      if (!eligible.has(inputId)) addQuestion(inputId, score.instrument);
     }
   }
 
@@ -75,14 +82,14 @@ export function buildFollowUpPlan(
     ...ordered.map(([questionId, step]): FollowUpStep => ({
       kind: "question",
       questionId,
-      ...(step.opens ? { opens: step.opens } : {}),
+      ...(step.opens.length > 0 ? { opens: step.opens } : {}),
       unlocks: step.unlocks,
     })),
     ...(markers.length > 0 ? [{ kind: "labs" as const, markers, unlocks: labUnlocks }] : []),
   ];
 }
 
-/** Upper bound on the questions a plan asks: a gate can open one more. */
+/** Upper bound on the questions a plan asks, counting what each gate can open. */
 export function followUpQuestionCount(steps: ReadonlyArray<FollowUpStep>): number {
-  return steps.reduce((count, step) => count + 1 + (step.kind === "question" && step.opens ? 1 : 0), 0);
+  return steps.reduce((count, step) => count + 1 + (step.kind === "question" ? (step.opens?.length ?? 0) : 0), 0);
 }
