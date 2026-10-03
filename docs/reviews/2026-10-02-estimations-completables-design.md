@@ -131,7 +131,8 @@ Les quatre pages NHS sont citées par les orientations. `whoStepsPhysicalMeasure
 - Moteur : fourchette FINDRISC (tour de taille seul manquant) ; aucune fourchette au-delà de deux manques, pour la tension, les bilans ou si une combinaison est non applicable ; catégorie certaine AUDIT-C ; STOP-Bang ronflement inconnu ; pourcentages retirés sans autorisation ; gains FINDRISC, CAIDE et SCORE2, absence de gain pour un non-fumeur ou un profil déjà sain.
 - Orientation : table complète, dépistages négatifs sans orientation, sources résolues.
 - Parcours : ordre, porte avant cible, porte « non » reproposée, étape bilan, périmètre par instrument, compteur majorant (détails d'alcool comptés, propriété « chaque réponse fait baisser le compteur »), contrat « pas de règle urgente adulte ».
-- Interface : « X sur 100 », gain, fourchette, orientation, parcours qui complète une carte, Express avec section et lien, aide à la mesure.
+- Interface : « X sur 100 », gain, fourchette, orientation, parcours qui complète une carte, Express avec section et lien, aide à la mesure ; accord au singulier d'une fourchette à une réponse manquante et de l'étape bilan qui complète une seule estimation ; conseil de catégorie faible juste pour une personne qui fume.
+- Impression : `app/results-design.test.ts` vérifie que les cartes s'impriment en blocs coupés entre leurs parties.
 - Export : versions, `range`, `gain`, `orientation`, aucune valeur brute.
 
 ## Protocole
