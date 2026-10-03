@@ -1,3 +1,5 @@
+import { normalizeCountryCode } from "../data/countries";
+import { emergencyContactsFor, type CrisisLine } from "../data/emergency-contacts";
 import { evidenceSources } from "../data/evidence";
 import { questionBank } from "../data/questions";
 import { riskRules } from "../data/rules";
@@ -124,10 +126,6 @@ function matchesCondition(condition: RiskCondition, answers: AnswerMap): boolean
     : answer >= condition.value;
 }
 
-function normalizedCountry(countryCode: string): string {
-  return countryCode.trim().toUpperCase();
-}
-
 function isApplicable(rule: RiskRule, profile: ProfileContext): boolean {
   const { applicability } = rule;
   if (applicability.minAge !== undefined && profile.age < applicability.minAge) {
@@ -138,9 +136,9 @@ function isApplicable(rule: RiskRule, profile: ProfileContext): boolean {
   }
   if (applicability.countries === "all") return true;
 
-  const country = normalizedCountry(profile.countryCode);
+  const country = normalizeCountryCode(profile.countryCode);
   return applicability.countries.some(
-    (candidate) => normalizedCountry(candidate) === country,
+    (candidate) => normalizeCountryCode(candidate) === country,
   );
 }
 
@@ -153,8 +151,8 @@ function validatePolicy(policy: ReleasePolicy, profile: ProfileContext): void {
     throw new Error("A regulated release policy requires an enabled model version.");
   }
   if (
-    normalizedCountry(policy.jurisdiction) !==
-    normalizedCountry(profile.countryCode)
+    normalizeCountryCode(policy.jurisdiction) !==
+    normalizeCountryCode(profile.countryCode)
   ) {
     throw new Error(
       "The regulated policy jurisdiction must match the confirmed profile country.",
@@ -178,29 +176,20 @@ function policyAllows(rule: RiskRule, policy: ReleasePolicy): boolean {
   return policy.allowQualitativeRules;
 }
 
-function emergencyNumber(countryCode: string): string | undefined {
-  switch (normalizedCountry(countryCode)) {
-    case "US":
-      return "911";
-    case "GB":
-      return "999";
-    case "CH":
-      return "144";
-    default:
-      return undefined;
-  }
-}
+const crisisLineLanguagesEn: Readonly<Record<NonNullable<CrisisLine["language"]>, string>> = {
+  fr: "French",
+  nl: "Dutch",
+};
 
-function supportsOperationalAction(
-  sources: ReadonlyArray<EvidenceSource>,
-  countryCode: string,
-): boolean {
-  const country = normalizedCountry(countryCode);
-  return sources.some((source) =>
-    source.operationalCountries?.some(
-      (candidate) => normalizedCountry(candidate) === country,
-    ),
-  );
+function crisisLinesCopy(lines: ReadonlyArray<CrisisLine>): string {
+  if (lines.length === 0) return "";
+  const verb = lines.every((line) => line.textMessages) ? "call or text" : "call";
+  const numbers = lines
+    .map((line) =>
+      line.language ? `${line.number} (in ${crisisLineLanguagesEn[line.language]})` : line.number,
+    )
+    .join(" or ");
+  return ` You can also ${verb} ${numbers} for crisis support.`;
 }
 
 function emergencyCopy(
@@ -208,20 +197,14 @@ function emergencyCopy(
   countryCode: string,
   sources: ReadonlyArray<EvidenceSource>,
 ): string {
-  const country = normalizedCountry(countryCode);
-  const number = supportsOperationalAction(sources, country)
-    ? emergencyNumber(country)
-    : undefined;
+  const contacts = emergencyContactsFor(countryCode, sources);
+  const number = contacts.emergency;
   const call = number
     ? `Call ${number} now for emergency care.`
     : "Contact your local emergency service now.";
 
   if (kind === "self-harm") {
-    const crisis =
-      country === "US"
-        ? " You can also call or text 988 for crisis support."
-        : "";
-    return `${call}${crisis} Stay with a trusted person if possible while help is arranged.`;
+    return `${call}${crisisLinesCopy(contacts.crisis)} Stay with a trusted person if possible while help is arranged.`;
   }
 
   if (kind === "pregnancy-safety") {
@@ -231,16 +214,11 @@ function emergencyCopy(
     return `Get urgent pregnancy or safeguarding help now from a qualified health professional or a trusted adult who can help you reach care. If there is a severe symptom, immediate physical danger, or you cannot stay safe, ${severeAction}.`;
   }
 
-  if (
-    kind === "overdose-poisoning" &&
-    country === "CH" &&
-    sources.some((source) => source.id === "foph-ufi-emergency")
-  ) {
-    return `${call} Poison information is available on 145. Keep the product or package nearby if it is safe to do so.`;
-  }
-
   if (kind === "overdose-poisoning") {
-    return `${call} Keep the product or package nearby if it is safe to do so.`;
+    const poison = contacts.poison
+      ? ` Poison information is available on ${contacts.poison}.`
+      : "";
+    return `${call}${poison} Keep the product or package nearby if it is safe to do so.`;
   }
 
   if (kind === "severe-bleeding") {
@@ -333,9 +311,9 @@ function sourceApplies(
     return false;
   }
   if (applicability.countries === "all") return true;
-  const country = normalizedCountry(profile.countryCode);
+  const country = normalizeCountryCode(profile.countryCode);
   return applicability.countries.some(
-    (candidate) => normalizedCountry(candidate) === country,
+    (candidate) => normalizeCountryCode(candidate) === country,
   );
 }
 

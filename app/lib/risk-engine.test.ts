@@ -26,7 +26,7 @@ import type {
 const adultUS: ProfileContext = { age: 35, countryCode: "US" };
 const adultGB: ProfileContext = { age: 35, countryCode: "GB" };
 const adultCH: ProfileContext = { age: 35, countryCode: "CH" };
-const testCountryCodes = ["US", "GB", "CH", "DE", "OTHER"] as const;
+const testCountryCodes = ["US", "GB", "CH", "DE", "FR", "BE", "CA", "MA", "OTHER"] as const;
 
 // Legacy/stale immediate-danger answers must still reach urgent help below the
 // questionnaire's current display age. No non-urgent route receives this exception.
@@ -878,9 +878,15 @@ describe("strict emergency routing", () => {
       .filter((rule) => rule.urgency === "urgent")
       .flatMap((rule) =>
         [
-          ["US", "911", "us-911-emergency-assistance"],
-          ["GB", "999", "nhs-when-to-call-999"],
-          ["CH", "144", "swiss-emergency-numbers"],
+          ["US", "Call 911 now", "us-911-emergency-assistance"],
+          ["GB", "Call 999 now", "nhs-when-to-call-999"],
+          ["CH", "Call 144 now", "swiss-emergency-numbers"],
+          ["FR", "Call 15 now", "service-public-emergency-numbers"],
+          ["CA", "Call 911 now", "crtc-911-services"],
+          ["BE", "Call 112 now", "eu-112"],
+          ["LU", "Call 112 now", "eu-112"],
+          ["DE", "Call 112 now", "eu-112"],
+          ["MA", "local emergency service", "who-basic-emergency-care"],
           ["OTHER", "local emergency service", "who-basic-emergency-care"],
         ].map(([countryCode, expectedCopy, expectedSourceId]) => [
           rule.id,
@@ -903,9 +909,69 @@ describe("strict emergency routing", () => {
       expect(leaf?.copy.toLowerCase()).toContain(expectedCopy.toLowerCase());
       expect(leaf?.copy).not.toMatch(/drive yourself/i);
       expect(leaf?.sources.map((source) => source.id)).toContain(expectedSourceId);
-      if (countryCode === "OTHER") {
-        expect(leaf?.copy).not.toMatch(/\b(?:911|999|144|145)\b/);
+      if (countryCode === "OTHER" || countryCode === "MA") {
+        expect(leaf?.copy).not.toMatch(/\d/);
       }
+    },
+  );
+
+  test.each([
+    ["US", "You can also call or text 988 for crisis support."],
+    ["CA", "You can also call or text 988 for crisis support."],
+    ["FR", "You can also call 3114 for crisis support."],
+    ["CH", "You can also call 143 for crisis support."],
+    ["BE", "You can also call 0800 32 123 (in French) or 1813 (in Dutch) for crisis support."],
+  ] as const)("names the sourced crisis line for self-harm in %s", (countryCode, sentence) => {
+    const profile = { age: 35, countryCode };
+    const selfHarm = leafById("urgent-self-harm", { urgent_self_harm_now: true }, profile);
+    const chest = leafById("urgent-chest", { urgent_chest_discomfort_now: true }, profile);
+
+    expect(selfHarm.copy).toContain(sentence);
+    expect(chest.copy).not.toMatch(/crisis support/);
+  });
+
+  test.each(["GB", "DE", "LU", "MA", "OTHER"] as const)(
+    "adds no crisis line where no national line is sourced in %s",
+    (countryCode) => {
+      const leaf = leafById(
+        "urgent-self-harm",
+        { urgent_self_harm_now: true },
+        { age: 35, countryCode },
+      );
+
+      expect(leaf.copy).not.toMatch(/crisis support/);
+      expect(leaf.copy).toMatch(/trusted person/);
+    },
+  );
+
+  test.each([
+    ["CH", "145"],
+    ["BE", "070 245 245"],
+    ["LU", "8002-5500"],
+  ] as const)("adds the sourced poison line only to the poisoning route in %s", (countryCode, poisonLine) => {
+    const profile = { age: 35, countryCode };
+    const poisoning = leafById(
+      "urgent-overdose-poisoning",
+      { urgent_overdose_poisoning_now: true },
+      profile,
+    );
+    const bleeding = leafById("urgent-severe-bleeding", { urgent_severe_bleeding_now: true }, profile);
+
+    expect(poisoning.copy).toContain(`Poison information is available on ${poisonLine}.`);
+    expect(bleeding.copy).not.toContain(poisonLine);
+  });
+
+  test.each(["US", "GB", "FR", "CA", "DE", "MA", "OTHER"] as const)(
+    "adds no poison line where none is sourced in %s",
+    (countryCode) => {
+      const leaf = leafById(
+        "urgent-overdose-poisoning",
+        { urgent_overdose_poisoning_now: true },
+        { age: 35, countryCode },
+      );
+
+      expect(leaf.copy).not.toMatch(/Poison information/);
+      expect(leaf.copy).toMatch(/product or package/);
     },
   );
 
@@ -996,14 +1062,18 @@ describe("strict emergency routing", () => {
     [adultUS, "911", "us-911-emergency-assistance"],
     [adultGB, "999", "nhs-chest-pain"],
     [adultCH, "144", "swiss-emergency-numbers"],
+    [{ age: 35, countryCode: "FR" }, "Call 15 now", "service-public-emergency-numbers"],
+    [{ age: 35, countryCode: "CA" }, "Call 911 now", "crtc-911-services"],
+    [{ age: 35, countryCode: "BE" }, "Call 112 now", "eu-112"],
+    [{ age: 35, countryCode: "MA" }, "local emergency service", "who-basic-emergency-care"],
     [{ age: 35, countryCode: "OTHER" }, "local emergency service", "who-basic-emergency-care"],
   ] as const)("keeps emergency copy and operational evidence coherent for %#", (profile, expected, expectedSource) => {
     const leaf = leafById("urgent-chest", { urgent_chest_discomfort_now: true }, profile);
     expect(leaf.copy.toLowerCase()).toContain(expected.toLowerCase());
     expect(leaf.sources.map((source) => source.id)).toContain(expectedSource);
     expect(leaf.copy).not.toMatch(/drive yourself/i);
-    if (profile.countryCode === "OTHER") {
-      expect(leaf.copy).not.toMatch(/\b(?:911|999|144|145)\b/);
+    if (profile.countryCode === "OTHER" || profile.countryCode === "MA") {
+      expect(leaf.copy).not.toMatch(/\d/);
     }
   });
 
@@ -2158,7 +2228,7 @@ describe("audited medication and substance class routes", () => {
     expect(leaf.copy).toMatch(/past year/i);
   });
 
-  test.each(["CH", "GB", "OTHER"] as const)(
+  test.each(["CH", "GB", "FR", "MA", "OTHER"] as const)(
     "routes a current adolescent severe substance signal urgently in %s",
     (countryCode) => {
       const leaf = leafById(
@@ -2176,9 +2246,10 @@ describe("audited medication and substance class routes", () => {
       );
       if (countryCode === "CH") expect(leaf.copy).toMatch(/144/);
       if (countryCode === "GB") expect(leaf.copy).toMatch(/999/);
-      if (countryCode === "OTHER") {
+      if (countryCode === "FR") expect(leaf.copy).toMatch(/Call 15 now/);
+      if (countryCode === "OTHER" || countryCode === "MA") {
         expect(leaf.copy).toMatch(/local emergency service/i);
-        expect(leaf.copy).not.toMatch(/\b(?:911|999|144)\b/);
+        expect(leaf.copy).not.toMatch(/\d/);
       }
     },
   );

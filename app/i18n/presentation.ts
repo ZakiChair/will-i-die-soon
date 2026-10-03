@@ -1,3 +1,4 @@
+import { emergencyContactsFor, type CrisisLine } from "../data/emergency-contacts";
 import { riskRules } from "../data/rules";
 import type {
   ActionItem,
@@ -69,33 +70,22 @@ function requiredTranslation(
   return requiredFrenchCopy(dictionary[key], `${corpus}: ${key}`);
 }
 
-function normalizedCountry(countryCode: string): string {
-  return countryCode.trim().toUpperCase();
-}
+const crisisLineLanguagesFr: Readonly<Record<NonNullable<CrisisLine["language"]>, string>> = {
+  fr: "en français",
+  nl: "en néerlandais",
+};
 
-function supportsOperationalAction(
-  sources: ReadonlyArray<EvidenceSource>,
-  countryCode: string,
-): boolean {
-  const country = normalizedCountry(countryCode);
-  return sources.some((source) =>
-    source.operationalCountries?.some(
-      (candidate) => normalizedCountry(candidate) === country,
-    ),
-  );
-}
-
-function emergencyNumber(countryCode: string): string | undefined {
-  switch (normalizedCountry(countryCode)) {
-    case "US":
-      return "911";
-    case "GB":
-      return "999";
-    case "CH":
-      return "144";
-    default:
-      return undefined;
-  }
+function frenchCrisisLinesCopy(lines: ReadonlyArray<CrisisLine>): string {
+  if (lines.length === 0) return "";
+  const numbers = lines
+    .map((line) =>
+      line.language ? `le ${line.number} (${crisisLineLanguagesFr[line.language]})` : `le ${line.number}`,
+    )
+    .join(" ou ");
+  const textMessages = lines.every((line) => line.textMessages)
+    ? ` ou envoyer un SMS à ${lines.length === 1 ? "ce numéro" : "ces numéros"}`
+    : "";
+  return ` Vous pouvez également appeler ${numbers}${textMessages} pour obtenir un soutien en situation de crise.`;
 }
 
 function frenchEmergencyCopy(
@@ -103,28 +93,14 @@ function frenchEmergencyCopy(
   countryCode: string,
   sources: ReadonlyArray<EvidenceSource>,
 ): string {
-  const country = normalizedCountry(countryCode);
-  const number = supportsOperationalAction(sources, country)
-    ? emergencyNumber(country)
-    : undefined;
+  const contacts = emergencyContactsFor(countryCode, sources);
+  const number = contacts.emergency;
   const call = number
     ? `Appelez maintenant le ${number} pour obtenir des soins d'urgence.`
     : "Contactez maintenant le service d'urgence local.";
 
   if (kind === "self-harm") {
-    const has988 =
-      country === "US" &&
-      sources.some(
-        (source) =>
-          source.id === "samhsa-988-faqs" &&
-          source.operationalCountries?.some(
-            (candidate) => normalizedCountry(candidate) === "US",
-          ),
-      );
-    const crisis = has988
-      ? " Vous pouvez également appeler le 988 ou envoyer un SMS à ce numéro pour obtenir un soutien en situation de crise."
-      : "";
-    return `${call}${crisis} Restez si possible avec une personne de confiance pendant l'organisation de l'aide.`;
+    return `${call}${frenchCrisisLinesCopy(contacts.crisis)} Restez si possible avec une personne de confiance pendant l'organisation de l'aide.`;
   }
 
   if (kind === "pregnancy-safety") {
@@ -134,16 +110,11 @@ function frenchEmergencyCopy(
     return `Obtenez maintenant une aide urgente liée à la grossesse ou à votre protection auprès d'un professionnel de santé qualifié ou d'un adulte de confiance pouvant vous aider à accéder aux soins. En cas de symptôme grave, de danger physique immédiat ou si vous ne pouvez pas rester en sécurité, ${severeAction}.`;
   }
 
-  if (
-    kind === "overdose-poisoning" &&
-    country === "CH" &&
-    sources.some((source) => source.id === "foph-ufi-emergency")
-  ) {
-    return `${call} Des informations sur les intoxications sont disponibles au 145. Gardez le produit ou l'emballage à proximité si vous pouvez le faire sans danger.`;
-  }
-
   if (kind === "overdose-poisoning") {
-    return `${call} Gardez le produit ou l'emballage à proximité si vous pouvez le faire sans danger.`;
+    const poison = contacts.poison
+      ? ` Des informations sur les intoxications sont disponibles au ${contacts.poison}.`
+      : "";
+    return `${call}${poison} Gardez le produit ou l'emballage à proximité si vous pouvez le faire sans danger.`;
   }
 
   if (kind === "severe-bleeding") {

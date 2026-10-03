@@ -52,7 +52,7 @@ const HEALTH_DOMAINS = [
 
 const expectedDynamicKeys = {
   depth: ["express", "quick", "detailed", "deep"],
-  country: ["CH", "GB", "US", "OTHER"],
+  country: ["OTHER"],
   domain: HEALTH_DOMAINS,
   labMarker: LAB_MARKERS,
   fasting: ["fasting", "not_fasting", "not_stated"],

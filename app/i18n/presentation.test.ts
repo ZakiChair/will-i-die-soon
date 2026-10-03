@@ -603,12 +603,54 @@ const emergencyCases: ReadonlyArray<{
   },
 ];
 
-const emergencyCountries = [
-  { countryCode: "US", age: 35, number: "911" },
-  { countryCode: "GB", age: 35, number: "999" },
-  { countryCode: "CH", age: 35, number: "144" },
-  { countryCode: "OTHER", age: 35, number: null },
-] as const;
+const emergencyCountries: ReadonlyArray<{
+  readonly countryCode: string;
+  readonly age: number;
+  readonly number: string | null;
+  readonly crisis: string | null;
+  readonly poison: string | null;
+}> = [
+  {
+    countryCode: "US",
+    age: 35,
+    number: "911",
+    crisis: "Vous pouvez également appeler le 988 ou envoyer un SMS à ce numéro pour obtenir un soutien en situation de crise.",
+    poison: null,
+  },
+  { countryCode: "GB", age: 35, number: "999", crisis: null, poison: null },
+  {
+    countryCode: "CH",
+    age: 35,
+    number: "144",
+    crisis: "Vous pouvez également appeler le 143 pour obtenir un soutien en situation de crise.",
+    poison: "145",
+  },
+  {
+    countryCode: "FR",
+    age: 35,
+    number: "15",
+    crisis: "Vous pouvez également appeler le 3114 pour obtenir un soutien en situation de crise.",
+    poison: null,
+  },
+  {
+    countryCode: "CA",
+    age: 35,
+    number: "911",
+    crisis: "Vous pouvez également appeler le 988 ou envoyer un SMS à ce numéro pour obtenir un soutien en situation de crise.",
+    poison: null,
+  },
+  {
+    countryCode: "BE",
+    age: 35,
+    number: "112",
+    crisis: "Vous pouvez également appeler le 0800 32 123 (en français) ou le 1813 (en néerlandais) pour obtenir un soutien en situation de crise.",
+    poison: "070 245 245",
+  },
+  { countryCode: "LU", age: 35, number: "112", crisis: null, poison: "8002-5500" },
+  { countryCode: "DE", age: 35, number: "112", crisis: null, poison: null },
+  { countryCode: "MA", age: 35, number: null, crisis: null, poison: null },
+  { countryCode: "OTHER", age: 35, number: null, crisis: null, poison: null },
+];
 
 function ageForEmergency(kind: EmergencyKind, fallback: number): number {
   return kind === "pregnancy-safety" || kind === "substance-safety" ? 15 : fallback;
@@ -1066,15 +1108,18 @@ describe("risk presentation", () => {
       expect(localized.sources).toBe(leaf.sources);
       expect(localized.copy).toMatch(/maintenant/i);
       if (country.number) {
-        expect(localized.copy).toContain(country.number);
+        expect(localized.copy).toMatch(new RegExp(`maintenant le ${country.number}\\b`));
       } else {
         expect(localized.copy).toMatch(/service d'urgence local/i);
-        expect(localized.copy).not.toMatch(/\b(?:911|988|999|144|145)\b/);
+        expect(localized.copy).not.toMatch(/\d/);
       }
       if (emergency.kind === "self-harm") {
         expect(localized.copy).toMatch(/personne de confiance/i);
-        if (country.countryCode === "US") expect(localized.copy).toContain("988");
-        else expect(localized.copy).not.toContain("988");
+      }
+      if (emergency.kind === "self-harm" && country.crisis) {
+        expect(localized.copy).toContain(country.crisis);
+      } else {
+        expect(localized.copy).not.toMatch(/soutien en situation de crise/);
       }
       if (emergency.kind === "pregnancy-safety") {
         expect(localized.copy).toMatch(/professionnel de santé qualifié/i);
@@ -1083,13 +1128,13 @@ describe("risk presentation", () => {
       }
       if (emergency.kind === "overdose-poisoning") {
         expect(localized.copy).toMatch(/produit|emballage/i);
-        if (country.countryCode === "CH") expect(localized.copy).toContain("145");
       }
-      if (
-        country.countryCode === "CH" &&
-        emergency.kind !== "overdose-poisoning"
-      ) {
-        expect(localized.copy).not.toContain("145");
+      if (emergency.kind === "overdose-poisoning" && country.poison) {
+        expect(localized.copy).toContain(
+          `Des informations sur les intoxications sont disponibles au ${country.poison}.`,
+        );
+      } else {
+        expect(localized.copy).not.toMatch(/intoxications/);
       }
       if (emergency.kind === "severe-bleeding") {
         expect(localized.copy).toMatch(/pression directe ferme/i);

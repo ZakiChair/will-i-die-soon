@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { OTHER_COUNTRY_CODE } from "../data/countries";
 import { questionBank } from "../data/questions";
 import { useI18n } from "../i18n/context";
+import { countryOptions } from "../i18n/country-names";
 import { uiCopyKeys } from "../i18n/ui-copy";
 import { getAvailableDepths } from "../lib/questionnaire";
 import type { AnalysisDepth, ProfileContext } from "../lib/types";
@@ -106,10 +108,10 @@ export function ConsentScreen({ depth, onAccept }: ConsentScreenProps) {
               onChange={(event) => setCountryCode(event.target.value)}
             >
               <option value="">{t("consent.country.choose")}</option>
-              <option value="CH">{t(uiCopyKeys.country.CH)}</option>
-              <option value="GB">{t(uiCopyKeys.country.GB)}</option>
-              <option value="US">{t(uiCopyKeys.country.US)}</option>
-              <option value="OTHER">{t(uiCopyKeys.country.OTHER)}</option>
+              {countryOptions(locale).map(({ code, label }) => (
+                <option key={code} value={code}>{label}</option>
+              ))}
+              <option value={OTHER_COUNTRY_CODE}>{t(uiCopyKeys.country.OTHER)}</option>
             </select>
           </div>
 

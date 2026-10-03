@@ -148,7 +148,12 @@ test("localizes every consent country and the child Deep fallback without changi
   expect(country).toContainHTML("Suisse");
   expect(country).toContainHTML("Royaume-Uni");
   expect(country).toContainHTML("États-Unis");
+  expect(country).toContainHTML("Maroc");
   expect(country).toContainHTML("Autre pays ou région");
+  const optionLabels = [...country.querySelectorAll("option")].map((option) => option.textContent);
+  expect(optionLabels[0]).toBe("Choisissez une option");
+  expect(optionLabels.at(-1)).toBe("Autre pays ou région");
+  expect(optionLabels.indexOf("Algérie")).toBeLessThan(optionLabels.indexOf("Belgique"));
   await user.type(screen.getByRole("spinbutton", { name: "Quel âge avez-vous ?" }), "12");
   await user.selectOptions(country, "CH");
   await user.click(

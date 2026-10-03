@@ -103,15 +103,18 @@ Une table par pays, lue par `risk-engine.ts` et `presentation.ts`. Un numéro n'
 | --- | --- | --- | --- | --- |
 | États-Unis | 911 | 988, appel ou SMS | | 911.gov ; SAMHSA |
 | Royaume-Uni | 999 | | | NHS |
-| Suisse | 144 | 143 (La Main Tendue) | 145 | ch.ch ; OFSP |
+| Suisse | 144 | 143 (La Main Tendue) | 145 | ch.ch ; 143.ch ; OFSP |
 | France | 15 | 3114 | | service-public.fr ; 3114.fr |
-| Canada | 911 | 988, appel ou SMS | 1-844-764-7669 | CRTC ; 988.ca ; Santé Canada |
+| Canada | 911 | 988, appel ou SMS | | CRTC ; 988.ca |
 | Belgique | 112 | 0800 32 123 (français), 1813 (néerlandais) | 070 245 245 | Commission européenne ; Centre de prévention du suicide ; Zelfmoordlijn ; Centre Antipoisons |
 | Luxembourg | 112 | | 8002-5500 | Commission européenne ; Centre Antipoisons |
 | Autres membres de l'UE | 112 | | | Commission européenne |
 | Autres pays, `OTHER` | service d'urgence local | | | OMS |
 
+- Un numéro n'apparaît que si la feuille a retenu la source qui le publie et que cette source couvre le pays ; une source d'un autre pays ne le remplace pas (le 112 de la Commission ne remplace pas le 15).
 - Le 988 anglais exige désormais la source SAMHSA, comme le français.
+- Suisse, 143 : ni ch.ch ni l'OFSP ne publient le numéro dans une page vérifiable ; la source est le site de l'opérateur (La Main Tendue), comme 3114.fr et 988.ca.
+- Canada, antipoison : le 1-844 POISON-X a été lancé avec quatre des cinq centres canadiens, le Québec garde son propre numéro (infopoison.ca) ; la couverture nationale ne peut pas être affirmée, le numéro n'est pas affiché.
 - Maroc, Algérie, Tunisie : aucune source nationale vérifiée (seulement l'ambassade de France), donc « service d'urgence local ».
 - Les sources d'urgence s'ajoutent à toutes les règles urgentes par une liste unique (`urgentRule`, règle de grossesse adolescente et règle des substances) ; les sources de crise à la règle d'auto-agression, les sources antipoison à la règle d'intoxication.
 
@@ -147,13 +150,13 @@ Une table par pays, lue par `risk-engine.ts` et `presentation.ts`. Un numéro n'
 | `whoCvdCharts2019` | Tables OMS 2019, Lancet Glob Health | https://doi.org/10.1016/S2214-109X(19)30318-3 |
 | `whoHeartsRiskBased` | OMS HEARTS, prise en charge fondée sur le risque | https://www.who.int/publications/i/item/9789240001367 |
 | `eu112` | Commission européenne, numéro 112 | https://digital-strategy.ec.europa.eu/en/policies/112 |
-| `servicePublicEmergencyNumbers` | Service-Public.fr, numéros d'urgence | https://www.service-public.gouv.fr/particuliers/vosdroits/F33954 |
+| `servicePublicEmergencyNumbers` | Service-Public.fr, numéros d'urgence | https://www.service-public.gouv.fr/particuliers/vosdroits/F33954?lang=en |
 | `france3114` | 3114, numéro national de prévention du suicide | https://3114.fr/ |
 | `crtc911` | CRTC, services 9-1-1 | https://crtc.gc.ca/eng/phone/911/ |
 | `canada988` | 9-8-8, ligne d'aide en cas de crise suicidaire | https://988.ca/ |
-| `healthCanadaPoisonCentres` | Santé Canada, 1-844 POISON-X | https://www.canada.ca/en/health-canada/news/2023/03/canada-launches-new-toll-free-1-844-poison-x-number-for-poison-centres.html |
+| `swiss143` | La Main Tendue, nous contacter | https://www.143.ch/en/a-conversation-often-helps/ |
 | `belgiumPoisonCentre` | Centre Antipoisons (Belgique, Luxembourg) | https://www.centreantipoisons.be/humains/ |
-| `belgiumSuicidePrevention` | Centre de prévention du suicide, 0800 32 123 | https://www.preventionsuicide.be/la-ligne-decoute |
+| `belgiumSuicidePrevention` | Centre de prévention du suicide, 0800 32 123 | https://www.preventionsuicide.be/la-ligne-decoute-0800-32-123 |
 | `belgiumZelfmoordlijn` | Zelfmoordlijn 1813 | https://www.zelfmoord1813.be/ik-heb-hulp-nodig/bellen-met-de-zelfmoordlijn |
 
 Les sources SCORE2, SCORE2-OP et ESC 2021 couvrent désormais tous les pays des régions ESC.

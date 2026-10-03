@@ -21,9 +21,6 @@ const en = {
   "depth.deep.description": "A paced, domain-by-domain exploration with more context.",
   "depth.choose": "Choose {depth}",
 
-  "country.CH": "Switzerland",
-  "country.GB": "United Kingdom",
-  "country.US": "United States",
   "country.OTHER": "Another country or region",
 
   "domain.demographics": "Demographics",
@@ -426,9 +423,6 @@ const fr = {
   "depth.deep.description": "Une exploration progressive, domaine par domaine, avec davantage de contexte.",
   "depth.choose": "Choisir l'analyse {depth}",
 
-  "country.CH": "Suisse",
-  "country.GB": "Royaume-Uni",
-  "country.US": "États-Unis",
   "country.OTHER": "Autre pays ou région",
 
   "domain.demographics": "Données démographiques",
@@ -823,9 +817,6 @@ export const uiCopyKeys = {
     deep: "depth.deep",
   },
   country: {
-    CH: "country.CH",
-    GB: "country.GB",
-    US: "country.US",
     OTHER: "country.OTHER",
   },
   domain: {

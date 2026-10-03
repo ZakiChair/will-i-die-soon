@@ -1,8 +1,10 @@
 import type { EvidenceSource } from "../lib/types";
+import { EU_MEMBER_STATES } from "./countries";
 
 const REVIEWED_AT = "2026-08-03";
 const REVIEWED_AT_PATHOLOGY = "2026-09-29";
 const REVIEWED_AT_FOLLOW_UP = "2026-10-02";
+const REVIEWED_AT_COUNTRIES = "2026-10-03";
 
 function source(
   id: string,
@@ -140,6 +142,114 @@ export const evidenceSources = {
       applicability: { countries: ["CH"] },
       operationalCountries: ["CH"],
     },
+  ),
+  eu112: source(
+    "eu-112",
+    "112 - the EU's emergency phone number",
+    "European Commission",
+    "https://digital-strategy.ec.europa.eu/en/policies/112",
+    EU_MEMBER_STATES,
+    {
+      applicability: { countries: EU_MEMBER_STATES },
+      operationalCountries: EU_MEMBER_STATES,
+    },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  servicePublicEmergencyNumbers: source(
+    "service-public-emergency-numbers",
+    "What are the emergency numbers (Samu, firefighters...) and listening numbers?",
+    "Service-Public.fr, French administration",
+    "https://www.service-public.gouv.fr/particuliers/vosdroits/F33954?lang=en",
+    ["FR"],
+    {
+      applicability: { countries: ["FR"] },
+      operationalCountries: ["FR"],
+    },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  crtc911: source(
+    "crtc-911-services",
+    "9-1-1 services",
+    "Canadian Radio-television and Telecommunications Commission",
+    "https://crtc.gc.ca/eng/phone/911/",
+    ["CA"],
+    {
+      applicability: { countries: ["CA"] },
+      operationalCountries: ["CA"],
+    },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  france3114: source(
+    "france-3114",
+    "Numéro national de prévention du suicide",
+    "3114",
+    "https://3114.fr/",
+    ["FR"],
+    {
+      applicability: { countries: ["FR"] },
+      operationalCountries: ["FR"],
+    },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  canada988: source(
+    "canada-988",
+    "Get Help, 9-8-8: Suicide Crisis Helpline",
+    "9-8-8: Suicide Crisis Helpline",
+    "https://988.ca/",
+    ["CA"],
+    {
+      applicability: { countries: ["CA"] },
+      operationalCountries: ["CA"],
+    },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  belgiumSuicidePrevention: source(
+    "belgium-suicide-prevention-0800-32-123",
+    "La ligne d'écoute 0800 32 123",
+    "Centre de prévention du suicide",
+    "https://www.preventionsuicide.be/la-ligne-decoute-0800-32-123",
+    ["BE"],
+    {
+      applicability: { countries: ["BE"] },
+      operationalCountries: ["BE"],
+    },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  belgiumZelfmoordlijn: source(
+    "belgium-zelfmoordlijn-1813",
+    "Bellen met de Zelfmoordlijn",
+    "Zelfmoordlijn 1813",
+    "https://www.zelfmoord1813.be/ik-heb-hulp-nodig/bellen-met-de-zelfmoordlijn",
+    ["BE"],
+    {
+      applicability: { countries: ["BE"] },
+      operationalCountries: ["BE"],
+    },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  swiss143: source(
+    "swiss-143-heart2heart",
+    "How to contact us",
+    "143.ch Heart2Heart (Die Dargebotene Hand / La Main Tendue)",
+    "https://www.143.ch/en/a-conversation-often-helps/",
+    ["CH"],
+    {
+      applicability: { countries: ["CH"] },
+      operationalCountries: ["CH"],
+    },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  belgiumPoisonCentre: source(
+    "belgium-poison-centre",
+    "Humains",
+    "Centre Antipoisons",
+    "https://www.centreantipoisons.be/humains/",
+    ["BE"],
+    {
+      applicability: { countries: ["BE", "LU"] },
+      operationalCountries: ["BE", "LU"],
+    },
+    REVIEWED_AT_COUNTRIES,
   ),
   niceSelfHarm: source(
     "nice-self-harm",

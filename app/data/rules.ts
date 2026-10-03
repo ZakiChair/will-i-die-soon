@@ -5,6 +5,11 @@ import type {
   RiskGroup,
   RiskRule,
 } from "../lib/types";
+import {
+  CRISIS_LINE_SOURCE_KEYS,
+  EMERGENCY_NUMBER_SOURCE_KEYS,
+  POISON_LINE_SOURCE_KEYS,
+} from "./emergency-contacts";
 
 const allCountries: RiskApplicability = { countries: "all" };
 const adults: RiskApplicability = { minAge: 18, countries: "all" };
@@ -67,15 +72,7 @@ function urgentRule(
     title,
     copy: "Seek emergency care now.",
     inputs: [questionId],
-    sourceIds: [
-      ...new Set([
-        ...sourceIds,
-        "whoBasicEmergencyCare",
-        "us911EmergencyAssistance",
-        "nhsWhenToCall999",
-        "swissEmergencyNumbers",
-      ]),
-    ],
+    sourceIds: [...new Set([...sourceIds, ...EMERGENCY_NUMBER_SOURCE_KEYS])],
     evidenceTier: "authoritative-safety",
     urgency: "urgent",
     signal: "urgent",
@@ -129,7 +126,7 @@ const immediateRedFlagRules: RiskRule[] = [
     "urgent_overdose_poisoning_now",
     "Immediate poisoning or overdose action",
     "overdose-poisoning",
-    ["nhsPoisoning", "fophUfiEmergency", "whoBasicEmergencyCare"],
+    ["nhsPoisoning", ...POISON_LINE_SOURCE_KEYS, "whoBasicEmergencyCare"],
     "Confirmed suspected overdose, poisoning, or unresponsiveness now",
     "poisoning-emergency",
   ),
@@ -147,7 +144,7 @@ const immediateRedFlagRules: RiskRule[] = [
     "urgent_self_harm_now",
     "Immediate personal-safety action",
     "self-harm",
-    ["niceSelfHarm", "samhsa988", "whoSuicide"],
+    ["niceSelfHarm", ...CRISIS_LINE_SOURCE_KEYS, "whoSuicide"],
     "Confirmed immediate danger of self-harm or inability to stay safe",
     "self-harm-emergency",
   ),
@@ -157,13 +154,7 @@ const immediateRedFlagRules: RiskRule[] = [
     title: "Immediate pregnancy or safeguarding action",
     copy: "Get urgent pregnancy or safeguarding help now.",
     inputs: ["pregnancy_relevant", "adolescent_pregnancy_urgent_safety"],
-    sourceIds: [
-      "whoPregnancyHealthServices",
-      "whoBasicEmergencyCare",
-      "us911EmergencyAssistance",
-      "nhsWhenToCall999",
-      "swissEmergencyNumbers",
-    ],
+    sourceIds: ["whoPregnancyHealthServices", ...EMERGENCY_NUMBER_SOURCE_KEYS],
     evidenceTier: "guideline-action",
     urgency: "urgent",
     signal: "urgent",
@@ -521,12 +512,7 @@ const adolescentImmediateRedFlagRules: RiskRule[] = [
       "uses_other_recreational_drugs",
       "adolescent_substance_severe_timing",
     ],
-    sourceIds: [
-      "whoBasicEmergencyCare",
-      "us911EmergencyAssistance",
-      "nhsWhenToCall999",
-      "swissEmergencyNumbers",
-    ],
+    sourceIds: [...EMERGENCY_NUMBER_SOURCE_KEYS],
     evidenceTier: "guideline-action",
     urgency: "urgent",
     signal: "urgent",
