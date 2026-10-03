@@ -315,7 +315,7 @@ test("adult results publish validated screening scores with category, points, pe
   expect(diabetes?.querySelector(".pathology-score__pictograms")).toHaveAttribute("aria-hidden", "true");
   const orientation = diabetes?.querySelector<HTMLElement>(".pathology-score__orientation");
   expect(orientation).toHaveTextContent("What to do with this result");
-  expect(orientation).toHaveTextContent("Keep at least 30 minutes of activity a day");
+  expect(orientation).toHaveTextContent("Aim for at least 30 minutes of activity a day and vegetables or fruit every day");
   for (const link of within(diabetes as HTMLElement).getAllByRole("link", { name: /Finnish Diabetes Risk Score|FINDRISC/i })) {
     expect(link).toHaveAttribute("target", "_blank");
   }

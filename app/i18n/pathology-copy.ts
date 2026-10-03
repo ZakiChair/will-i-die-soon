@@ -305,13 +305,13 @@ const en = {
   orientationHeading: "What to do with this result",
   orientations: {
     "findrisc-keep-habits":
-      "Keep at least 30 minutes of activity a day and vegetables or fruit every day: they are the two items of this score you control.",
+      "Aim for at least 30 minutes of activity a day and vegetables or fruit every day: they are the two items of this score you control.",
     "findrisc-habits-and-clinician":
       "Talk to a doctor or nurse about this score. Activity, diet and weight are the recommended levers at this level.",
     "findrisc-glucose-test":
       "Ask a doctor for a blood glucose or HbA1c test: at this level testing is recommended, because type 2 diabetes often has no symptoms at first.",
     "score2-keep-habits":
-      "Keep active, eat a balanced diet, stay smoke-free, and have your blood pressure and cholesterol checked regularly.",
+      "Be active, eat a balanced diet and have your blood pressure and cholesterol checked regularly. If you smoke, stopping is the most effective single step.",
     "score2-clinician":
       "Book a cardiovascular check-up with a doctor: at this level, ESC guidance considers treating blood pressure and cholesterol. If you smoke, stopping is the most effective single step.",
     "stop-bang-watch-symptoms":
@@ -654,13 +654,13 @@ const fr = {
   orientationHeading: "Que faire de ce résultat",
   orientations: {
     "findrisc-keep-habits":
-      "Gardez au moins 30 minutes d’activité par jour et des légumes ou des fruits chaque jour\u00a0: ce sont les deux items de ce score que vous contrôlez.",
+      "Visez au moins 30 minutes d’activité par jour et des légumes ou des fruits chaque jour\u00a0: ce sont les deux items de ce score que vous contrôlez.",
     "findrisc-habits-and-clinician":
       "Parlez de ce score à un médecin ou à une infirmière. Activité physique, alimentation et poids sont les leviers recommandés à ce niveau.",
     "findrisc-glucose-test":
       "Demandez à un médecin une glycémie ou une HbA1c\u00a0: à ce niveau, un dépistage est recommandé, car le diabète de type 2 ne donne souvent aucun symptôme au début.",
     "score2-keep-habits":
-      "Gardez une activité régulière, une alimentation équilibrée et une vie sans tabac, et faites contrôler régulièrement votre tension et votre cholestérol.",
+      "Bougez régulièrement, mangez équilibré et faites contrôler votre tension et votre cholestérol à intervalles réguliers. Si vous fumez, arrêter est la mesure la plus efficace.",
     "score2-clinician":
       "Prévoyez un bilan cardiovasculaire avec un médecin\u00a0: à ce niveau, les recommandations ESC envisagent de traiter la tension et le cholestérol. Si vous fumez, arrêter est la mesure la plus efficace.",
     "stop-bang-watch-symptoms":

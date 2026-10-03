@@ -54,7 +54,7 @@ export const ORIENTATION_SOURCE_IDS: Readonly<Record<PathologyOrientationId, Rea
   "findrisc-keep-habits": ["findriscLindstrom2003", "whoPhysicalActivity", "whoHealthyDiet"],
   "findrisc-habits-and-clinician": ["findriscLindstrom2003", "adaDiagnosisStandards2025"],
   "findrisc-glucose-test": ["adaDiagnosisStandards2025", "findriscLindstrom2003"],
-  "score2-keep-habits": ["escPrevention2021", "whoPhysicalActivity"],
+  "score2-keep-habits": ["escPrevention2021", "whoPhysicalActivity", "whoTobacco"],
   "score2-clinician": ["escPrevention2021", "whoTobacco"],
   "stop-bang-watch-symptoms": ["nhsSleepApnoea"],
   "stop-bang-sleep-assessment": ["nhsSleepApnoea"],

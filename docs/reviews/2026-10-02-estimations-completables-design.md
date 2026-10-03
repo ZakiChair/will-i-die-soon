@@ -65,10 +65,10 @@ Fonction pure `pathologyOrientation(score)` : identifiant d'orientation pour un 
 
 | Instrument | Catégories | Identifiant | Message (résumé) | Sources |
 | --- | --- | --- | --- | --- |
-| FINDRISC | faible, légèrement élevé | `findrisc-keep-habits` | 30 min d'activité par jour et légumes ou fruits chaque jour : les deux items du score que l'on contrôle | Lindström 2003 ; OMS activité ; OMS alimentation |
+| FINDRISC | faible, légèrement élevé | `findrisc-keep-habits` | viser 30 min d'activité par jour et légumes ou fruits chaque jour : les deux items du score que l'on contrôle | Lindström 2003 ; OMS activité ; OMS alimentation |
 | FINDRISC | modéré | `findrisc-habits-and-clinician` | activité, alimentation, poids ; en parler à un médecin ou une infirmière | Lindström 2003 ; ADA 2025 |
 | FINDRISC | élevé, très élevé | `findrisc-glucose-test` | faire mesurer la glycémie ou l'HbA1c par un professionnel | ADA 2025 ; Lindström 2003 |
-| SCORE2 | faible à modéré | `score2-keep-habits` | garder activité, alimentation, absence de tabac ; contrôler tension et cholestérol régulièrement | ESC 2021 ; OMS activité |
+| SCORE2 | faible à modéré | `score2-keep-habits` | bouger, manger équilibré, contrôler tension et cholestérol à intervalles réguliers ; si l'on fume, arrêter est la mesure la plus efficace | ESC 2021 ; OMS activité ; OMS tabac |
 | SCORE2 | élevé, très élevé | `score2-clinician` | bilan cardiovasculaire avec un médecin : à ce niveau, l'ESC envisage de traiter tension et cholestérol ; arrêter le tabac | ESC 2021 ; OMS tabac |
 | STOP-Bang | faible, intermédiaire | `stop-bang-watch-symptoms` | si ronflement, pauses respiratoires ou somnolence persistent, en parler à un médecin | NHS apnée du sommeil |
 | STOP-Bang | élevé | `stop-bang-sleep-assessment` | en parler à un médecin : un test du sommeil (domicile ou centre) confirme ou écarte l'apnée ; prudence au volant si somnolence | NHS apnée du sommeil |
@@ -78,6 +78,8 @@ Fonction pure `pathologyOrientation(score)` : identifiant d'orientation pour un 
 | AUDIT-C | positif | `audit-c-support` | en parler à un médecin ou à un service d'aide ; si la consommation est quotidienne et forte, ne pas arrêter d'un coup sans avis (risque de sevrage) | NHS aide alcool |
 | PHQ-2 | positif | `phq-2-clinician` | en parler à un médecin ou un psychologue : un entretien et un questionnaire complet (PHQ-9) confirment ou non | NICE dépression ; OMS dépression |
 | GAD-2 | positif | `gad-2-clinician` | en parler à un médecin : un entretien et le GAD-7 confirment ou non | NHS anxiété généralisée |
+
+L'orientation dépend de la catégorie seule, pas des habitudes déclarées : chaque message reste juste pour qui a déjà l'habitude comme pour qui ne l'a pas (« viser », « si l'on fume »), car une personne qui fume peut être en catégorie faible à modéré. Les identifiants (`*-keep-habits`) sont ceux de l'export et ne changent pas avec le texte.
 
 Pas d'orientation pour les dépistages négatifs AUDIT-C, PHQ-2 et GAD-2 (rien à ajouter au résultat). Les messages restent génériques (« un médecin ») : les ressources nationales viennent en phase 2. Le formulaire FINDRISC grand public (Association finlandaise du diabète) donne les mêmes conduites, mais aucune URL stable n'a pu être vérifiée ; ADA 2025 et Lindström 2003 servent de sources.
 

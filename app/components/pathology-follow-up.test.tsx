@@ -10,6 +10,7 @@ import { questionBank } from "../data/questions";
 import { I18nProvider } from "../i18n/context";
 import { getQuestionPromptPresentation } from "../i18n/question-prompt-presentation";
 import { localizeQuestion } from "../i18n/questions-fr";
+import { normalizeLabValue, type ConfirmedLabValue, type LabMarker } from "../lib/labs";
 import { buildFollowUpPlan } from "../lib/pathology-follow-up";
 import { evaluatePathologyRisk } from "../lib/pathology-risk";
 import { prototypePolicy, publicWellnessPolicy } from "../lib/release-policy";
@@ -203,6 +204,56 @@ test("without probability permission the habit gain compares categories and draw
   );
   expect(card.querySelectorAll(".people-grid")).toHaveLength(0);
   expect(screen.queryByRole("button", { name: /Complete/ })).not.toBeInTheDocument();
+});
+
+function cholesterol(marker: LabMarker, value: number): ConfirmedLabValue {
+  const normalized = normalizeLabValue({ marker, value, unit: "mmol/L" });
+  return {
+    source: null,
+    reviewed: {
+      marker,
+      valueText: String(value),
+      value,
+      unit: "mmol/L",
+      referenceRange: "",
+      collectionDate: "2026-07-30",
+      fastingStatus: "not_stated",
+    },
+    normalized: { value: normalized.normalizedValue, unit: normalized.normalizedUnit, displayValue: normalized.displayValue },
+  };
+}
+
+test("advice for a low category reads right for a smoker too", async () => {
+  const user = userEvent.setup();
+  const smoker: AnswerMap = {
+    sex_assigned_at_birth: "female",
+    diagnosed_conditions_core: ["none"],
+    cvd_event_history: false,
+    current_tobacco_nicotine: true,
+    tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
+    blood_pressure_systolic: 115,
+  };
+  const labs = [cholesterol("total_cholesterol", 4.5), cholesterol("hdl_cholesterol", 1.6)];
+  testingRender(
+    <I18nProvider>
+      <LanguageSwitcher />
+      <PathologySynthesisSection
+        synthesis={evaluatePathologyRisk(smoker, { age: 42, countryCode: "CH" }, labs, prototypePolicy)}
+        depth="quick"
+        answers={smoker}
+      />
+    </I18nProvider>,
+  );
+
+  const card = scoreCard("Cardiovascular disease (heart attack, stroke)");
+  expect(card).toHaveTextContent("Low to moderate risk");
+  expect(card.querySelector(".pathology-score__orientation")).toHaveTextContent(
+    "Be active, eat a balanced diet and have your blood pressure and cholesterol checked regularly. If you smoke, stopping is the most effective single step.",
+  );
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  expect(scoreCard("Maladie cardiovasculaire (infarctus, AVC)").querySelector(".pathology-score__orientation")).toHaveTextContent(
+    "Bougez régulièrement, mangez équilibré et faites contrôler votre tension et votre cholestérol à intervalles réguliers. Si vous fumez, arrêter est la mesure la plus efficace.",
+  );
 });
 
 test("completing one estimate asks only its missing answer, with measurement help, then updates the card", async () => {
