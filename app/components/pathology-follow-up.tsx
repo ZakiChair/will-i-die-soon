@@ -152,6 +152,7 @@ export function PathologyFollowUp({
             question={presentedQuestion}
             questionDescriptionId={presentation.detail?.trim() ? QUESTION_PROMPT_DETAIL_ID : undefined}
             answer={answers[question.id]}
+            subjectAgeYears={profile.age}
             onAnswer={(value) => record(question.id, value)}
             canGoBack={position > 0}
             onBack={() => setRevisit(position - 1)}

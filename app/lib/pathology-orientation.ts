@@ -7,6 +7,11 @@ export type PathologyOrientationId =
   | "findrisc-glucose-test"
   | "score2-keep-habits"
   | "score2-clinician"
+  | "score2-diabetes-keep-care"
+  | "score2-diabetes-clinician"
+  | "prevent-keep-habits"
+  | "prevent-clinician"
+  | "who-cvd-prevention"
   | "stop-bang-watch-symptoms"
   | "stop-bang-sleep-assessment"
   | "copd-watch-symptoms"
@@ -28,6 +33,19 @@ const ORIENTATIONS: Readonly<Record<PathologyInstrumentId, Readonly<Record<strin
     "low-to-moderate": "score2-keep-habits",
     high: "score2-clinician",
     "very-high": "score2-clinician",
+  },
+  prevent: {
+    low: "prevent-keep-habits",
+    borderline: "prevent-clinician",
+    intermediate: "prevent-clinician",
+    high: "prevent-clinician",
+  },
+  "who-cvd": {
+    "under-5": "who-cvd-prevention",
+    "5-to-9": "who-cvd-prevention",
+    "10-to-19": "who-cvd-prevention",
+    "20-to-29": "who-cvd-prevention",
+    "30-plus": "who-cvd-prevention",
   },
   "stop-bang": {
     low: "stop-bang-watch-symptoms",
@@ -56,6 +74,11 @@ export const ORIENTATION_SOURCE_IDS: Readonly<Record<PathologyOrientationId, Rea
   "findrisc-glucose-test": ["adaDiagnosisStandards2025", "findriscLindstrom2003"],
   "score2-keep-habits": ["escPrevention2021", "whoPhysicalActivity", "whoTobacco"],
   "score2-clinician": ["escPrevention2021", "whoTobacco"],
+  "score2-diabetes-keep-care": ["escDiabetes2023", "whoPhysicalActivity", "whoTobacco"],
+  "score2-diabetes-clinician": ["escDiabetes2023", "whoTobacco"],
+  "prevent-keep-habits": ["accAhaDyslipidemia2026", "whoPhysicalActivity", "whoTobacco"],
+  "prevent-clinician": ["accAhaDyslipidemia2026", "whoTobacco"],
+  "who-cvd-prevention": ["whoHeartsRiskBased", "whoPhysicalActivity", "whoTobacco"],
   "stop-bang-watch-symptoms": ["nhsSleepApnoea"],
   "stop-bang-sleep-assessment": ["nhsSleepApnoea"],
   "copd-watch-symptoms": ["nhsCopdDiagnosis"],
@@ -74,5 +97,11 @@ export function pathologyOrientation(score: PathologyScoreResult): PathologyOrie
       : score.status === "incomplete" && score.range && score.range.low.category === score.range.high.category
         ? score.range.low.category
         : undefined;
-  return category === undefined ? undefined : ORIENTATIONS[score.instrument][category];
+  if (category === undefined) return undefined;
+  if (score.variant === "score2-diabetes") {
+    return category === "low" || category === "moderate"
+      ? "score2-diabetes-keep-care"
+      : "score2-diabetes-clinician";
+  }
+  return ORIENTATIONS[score.instrument][category];
 }

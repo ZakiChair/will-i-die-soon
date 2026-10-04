@@ -455,7 +455,7 @@ test("adolescents never see screening scores and adult downloads carry them in s
   expect(screen.getByRole("region", { name: "Most probable conditions to discuss" })).toBeVisible();
   await user.click(screen.getByRole("button", { name: /download json/i }));
   const json = await readBlob(blobs[0]);
-  expect(json.schemaVersion).toBe("health-risk-explorer-report-v4");
+  expect(json.schemaVersion).toBe("health-risk-explorer-report-v5");
   const pathologyRisk = json.pathologyRisk as {
     scores: Array<{
       instrument: string;

@@ -1,5 +1,10 @@
 import { evidenceSources } from "../data/evidence";
+import {
+  escRiskRegionFor, normalizeCountryCode, usesPrevent, whoCvdRegionFor,
+  type EscRiskRegion, type WhoCvdRegion,
+} from "../data/countries";
 import { questionBank } from "../data/questions";
+import { WHO_LAB_CHARTS, WHO_NONLAB_CHARTS } from "../data/who-cvd-charts";
 import { canonicalUnit, type ConfirmedLabValue, type LabMarker } from "./labs";
 import { PATHOLOGY_RULESET_VERSION } from "./release-policy";
 import type {
@@ -31,9 +36,6 @@ export type PathologySourceId = keyof typeof evidenceSources;
 
 const questionsById = new Map(questionBank.map((question) => [question.id, question]));
 
-/** Countries the app offers that fall in the ESC "low risk" SCORE2 region. */
-const LOW_RISK_REGION_COUNTRIES = new Set(["CH", "GB"]);
-
 const PLAUSIBLE = {
   heightCm: { min: 100, max: 250 },
   weightKg: { min: 25, max: 400 },
@@ -46,6 +48,8 @@ const PLAUSIBLE = {
   totalCholesterolMmol: { min: 1, max: 20 },
   hdlMmol: { min: 0.1, max: 5 },
   ldlMmol: { min: 0.1, max: 15 },
+  hba1cMmol: { min: 10, max: 200 },
+  egfr: { min: 1, max: 200 },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -255,6 +259,7 @@ const UNSCORED_OPTIONS = {
   sleep_snoring: "unknown",
   sleep_witnessed_apnea: "unknown",
   family_diabetes: "unsure",
+  diabetes_type: "unknown",
 } as const satisfies Readonly<Record<string, string>>;
 
 class InputCollector {
@@ -496,12 +501,10 @@ type Score2Coefficients = {
   readonly baselineSurvival: number;
   /** Subtracted from the linear predictor (SCORE2-OP centres it on the mean). */
   readonly meanLinearPredictor: number;
-  readonly lowRiskRegion: { readonly scale1: number; readonly scale2: number };
 };
 
 // Coefficients as published in the SCORE2 and SCORE2-OP supplementary material
-// (Eur Heart J 2021). Diabetes terms are omitted: people with diabetes are
-// routed to `diagnosed-condition` because SCORE2-Diabetes is out of scope.
+// (Eur Heart J 2021). SCORE2-Diabetes for ages 40–69 is a separate model.
 const SCORE2: Readonly<Record<"male" | "female", Score2Coefficients>> = {
   male: {
     age: 0.3742,
@@ -515,7 +518,6 @@ const SCORE2: Readonly<Record<"male" | "female", Score2Coefficients>> = {
     ageHdl: 0.0426,
     baselineSurvival: 0.9605,
     meanLinearPredictor: 0,
-    lowRiskRegion: { scale1: -0.5699, scale2: 0.7476 },
   },
   female: {
     age: 0.4648,
@@ -529,7 +531,6 @@ const SCORE2: Readonly<Record<"male" | "female", Score2Coefficients>> = {
     ageHdl: 0.0613,
     baselineSurvival: 0.9776,
     meanLinearPredictor: 0,
-    lowRiskRegion: { scale1: -0.738, scale2: 0.7019 },
   },
 };
 
@@ -546,7 +547,6 @@ const SCORE2_OP: Readonly<Record<"male" | "female", Score2Coefficients>> = {
     ageHdl: 0.0091,
     baselineSurvival: 0.7576,
     meanLinearPredictor: 0.0929,
-    lowRiskRegion: { scale1: -0.34, scale2: 1.19 },
   },
   female: {
     age: 0.0789,
@@ -560,8 +560,24 @@ const SCORE2_OP: Readonly<Record<"male" | "female", Score2Coefficients>> = {
     ageHdl: 0.0154,
     baselineSurvival: 0.8082,
     meanLinearPredictor: 0.229,
-    lowRiskRegion: { scale1: -0.52, scale2: 1.01 },
   },
+};
+
+type Calibration = { readonly scale1: number; readonly scale2: number };
+
+/** ESC 2021 SCORE2 and SCORE2-OP regional recalibration scales. */
+const SCORE2_CALIBRATION: Readonly<Record<EscRiskRegion, Readonly<Record<"male" | "female", Calibration>>>> = {
+  low: { male: { scale1: -0.5699, scale2: 0.7476 }, female: { scale1: -0.738, scale2: 0.7019 } },
+  moderate: { male: { scale1: -0.1565, scale2: 0.8009 }, female: { scale1: -0.3143, scale2: 0.7701 } },
+  high: { male: { scale1: 0.3207, scale2: 0.9360 }, female: { scale1: 0.5710, scale2: 0.9369 } },
+  "very-high": { male: { scale1: 0.5836, scale2: 0.8294 }, female: { scale1: 0.9412, scale2: 0.8329 } },
+};
+
+const SCORE2_OP_CALIBRATION: Readonly<Record<EscRiskRegion, Readonly<Record<"male" | "female", Calibration>>>> = {
+  low: { male: { scale1: -0.34, scale2: 1.19 }, female: { scale1: -0.52, scale2: 1.01 } },
+  moderate: { male: { scale1: 0.01, scale2: 1.25 }, female: { scale1: -0.10, scale2: 1.10 } },
+  high: { male: { scale1: 0.08, scale2: 1.15 }, female: { scale1: 0.38, scale2: 1.09 } },
+  "very-high": { male: { scale1: 0.05, scale2: 0.70 }, female: { scale1: 0.38, scale2: 0.69 } },
 };
 
 type Score2Predictors = {
@@ -570,6 +586,7 @@ type Score2Predictors = {
   readonly systolic: number;
   readonly totalCholesterol: number;
   readonly hdl: number;
+  readonly diabetes?: boolean;
 };
 
 function recalibrate(risk: number, scale: { scale1: number; scale2: number }): number {
@@ -596,8 +613,12 @@ function linearPredictor(
   );
 }
 
-/** Ten-year risk (0–1) for the ESC low-risk region. */
-export function score2TenYearRisk(sex: "male" | "female", predictors: Score2Predictors): number {
+/** Ten-year risk (0–1) for one ESC region; older adults include the published diabetes terms. */
+export function score2TenYearRisk(
+  sex: "male" | "female",
+  predictors: Score2Predictors,
+  region: EscRiskRegion = "low",
+): number {
   const older = predictors.age >= 70;
   const model = older ? SCORE2_OP[sex] : SCORE2[sex];
   const centred = older
@@ -613,8 +634,13 @@ export function score2TenYearRisk(sex: "male" | "female", predictors: Score2Pred
         totalCholesterol: predictors.totalCholesterol - 6,
         hdl: (predictors.hdl - 1.3) / 0.5,
       };
-  const uncalibrated = 1 - model.baselineSurvival ** Math.exp(linearPredictor(model, centred, predictors.smoker));
-  return recalibrate(uncalibrated, model.lowRiskRegion);
+  const diabetesTerm = older && predictors.diabetes
+    ? sex === "male" ? 0.4245 - 0.0174 * centred.age : 0.601 - 0.0107 * centred.age
+    : 0;
+  const uncalibrated = 1 - model.baselineSurvival ** Math.exp(
+    linearPredictor(model, centred, predictors.smoker) + diabetesTerm,
+  );
+  return recalibrate(uncalibrated, (older ? SCORE2_OP_CALIBRATION : SCORE2_CALIBRATION)[region][sex]);
 }
 
 function score2Category(age: number, riskPercent: number): { category: string; level: PathologyRiskLevel } {
@@ -624,19 +650,77 @@ function score2Category(age: number, riskPercent: number): { category: string; l
   return { category: "very-high", level: "very-high" };
 }
 
+type Score2DiabetesPredictors = Score2Predictors & {
+  readonly diabetesAge: number;
+  readonly hba1c: number;
+  readonly egfr: number;
+};
+
+// SCORE2-Diabetes supplementary methods (Eur Heart J 2023), with all
+// covariates centred in the published units. Diabetes is 1 in this model.
+const SCORE2_DIABETES = {
+  male: {
+    age: 0.5368, smoker: 0.4774, systolic: 0.1322, diabetes: 0.6457,
+    cholesterol: 0.1102, hdl: -0.1087, ageSmoker: -0.0672,
+    ageSystolic: -0.0268, ageDiabetes: -0.0983, ageCholesterol: -0.0181,
+    ageHdl: 0.0095, diagnosisAge: -0.0998, hba1c: 0.0955,
+    egfr: -0.0591, egfrSquared: 0.0058, ageHba1c: -0.0134,
+    ageEgfr: 0.0115, survival: 0.9605,
+  },
+  female: {
+    age: 0.6624, smoker: 0.6139, systolic: 0.1421, diabetes: 0.8096,
+    cholesterol: 0.1127, hdl: -0.1568, ageSmoker: -0.1122,
+    ageSystolic: -0.0167, ageDiabetes: -0.1272, ageCholesterol: -0.0200,
+    ageHdl: 0.0186, diagnosisAge: -0.1180, hba1c: 0.1173,
+    egfr: -0.0640, egfrSquared: 0.0062, ageHba1c: -0.0196,
+    ageEgfr: 0.0169, survival: 0.9776,
+  },
+} as const;
+
+function score2DiabetesTenYearRisk(
+  sex: "male" | "female",
+  predictors: Score2DiabetesPredictors,
+  region: EscRiskRegion,
+): number {
+  const c = SCORE2_DIABETES[sex];
+  const age = (predictors.age - 60) / 5;
+  const smoker = Number(predictors.smoker);
+  const systolic = (predictors.systolic - 120) / 20;
+  const cholesterol = predictors.totalCholesterol - 6;
+  const hdl = (predictors.hdl - 1.3) / 0.5;
+  const diagnosisAge = (predictors.diabetesAge - 50) / 5;
+  const hba1c = (predictors.hba1c - 31) / 9.34;
+  const egfr = (Math.log(predictors.egfr) - 4.5) / 0.15;
+  const predictor =
+    c.age * age + c.smoker * smoker + c.systolic * systolic + c.diabetes +
+    c.cholesterol * cholesterol + c.hdl * hdl + c.ageSmoker * age * smoker +
+    c.ageSystolic * age * systolic + c.ageDiabetes * age +
+    c.ageCholesterol * age * cholesterol + c.ageHdl * age * hdl +
+    c.diagnosisAge * diagnosisAge + c.hba1c * hba1c + c.egfr * egfr +
+    c.egfrSquared * egfr ** 2 + c.ageHba1c * age * hba1c + c.ageEgfr * age * egfr;
+  return recalibrate(1 - c.survival ** Math.exp(predictor), SCORE2_CALIBRATION[region][sex]);
+}
+
+function score2DiabetesCategory(riskPercent: number): { category: string; level: PathologyRiskLevel } {
+  if (riskPercent < 5) return { category: "low", level: "low" };
+  if (riskPercent < 10) return { category: "moderate", level: "moderate" };
+  if (riskPercent < 20) return { category: "high", level: "high" };
+  return { category: "very-high", level: "very-high" };
+}
+
 function evaluateScore2(context: EvaluationContext): PathologyScoreResult {
   const age = context.profile.age;
+  const diabetes = context.diagnosedConditions?.includes("diabetes") ?? false;
+  const diabetesModel = diabetes && age < 70;
   const sources: ReadonlyArray<PathologySourceId> =
-    age >= 70 ? ["score2OpEsc2021", "escPrevention2021"] : ["score2Esc2021", "escPrevention2021"];
+    diabetesModel
+      ? ["score2DiabetesEsc2023", "escDiabetes2023", "escHeartScoreRegions"]
+      : age >= 70
+      ? ["score2OpEsc2021", "escPrevention2021", "escHeartScoreRegions"]
+      : ["score2Esc2021", "escPrevention2021", "escHeartScoreRegions"];
   const ageInput: PathologyScoreInput = { id: "profile:age", value: age };
   if (age < 40 || age > 89) {
     return notApplicable("score2", sources, "age-out-of-range", [ageInput]);
-  }
-  if (context.diagnosedConditions?.includes("diabetes")) {
-    return notApplicable("score2", sources, "diagnosed-condition", [
-      ageInput,
-      { id: "diagnosed_conditions_core", value: "diabetes" },
-    ]);
   }
   const establishedCvd = readBoolean(context.answers, "cvd_event_history");
   if (establishedCvd === true) {
@@ -651,11 +735,11 @@ function evaluateScore2(context: EvaluationContext): PathologyScoreResult {
       { id: "sex_assigned_at_birth", value: "intersex" },
     ]);
   }
-  const country = context.profile.countryCode.trim().toUpperCase();
-  if (!LOW_RISK_REGION_COUNTRIES.has(country)) {
+  const region = escRiskRegionFor(context.profile.countryCode);
+  if (!region) {
     return notApplicable("score2", sources, "region-not-calibrated", [
       ageInput,
-      { id: "profile:country", value: country },
+      { id: "profile:country", value: normalizeCountryCode(context.profile.countryCode) },
     ]);
   }
 
@@ -666,10 +750,19 @@ function evaluateScore2(context: EvaluationContext): PathologyScoreResult {
   if (context.diagnosedConditions === undefined) collector.missing.push("diagnosed_conditions_core");
   else collector.inputs.push({ id: "diagnosed_conditions_core", value: context.diagnosedConditions.join(", ") });
   collector.boolean("cvd_event_history");
+  const diabetesType = diabetesModel ? collector.knownSingle("diabetes_type") : undefined;
+  if (diabetesModel && (diabetesType === "type_1" || diabetesType === "other")) {
+    return notApplicable("score2", sources, "diabetes-type-not-covered", collector.inputs);
+  }
+  const diabetesAge = diabetesModel
+    ? collector.number("diabetes_age_at_diagnosis", { min: 0, max: age })
+    : undefined;
   const smoker = collector.derived(context.currentSmoker);
   const systolic = collector.number("blood_pressure_systolic", PLAUSIBLE.systolic);
   const totalCholesterol = collector.lab("total_cholesterol", "mmol/L", PLAUSIBLE.totalCholesterolMmol);
   const hdl = collector.lab("hdl_cholesterol", "mmol/L", PLAUSIBLE.hdlMmol);
+  const hba1c = diabetesModel ? collector.lab("hba1c", "mmol/mol", PLAUSIBLE.hba1cMmol) : undefined;
+  const egfr = diabetesModel ? collector.lab("egfr", "mL/min/1.73m²", PLAUSIBLE.egfr) : undefined;
 
   if (
     collector.missing.length > 0 ||
@@ -679,10 +772,21 @@ function evaluateScore2(context: EvaluationContext): PathologyScoreResult {
     totalCholesterol === undefined ||
     hdl === undefined
   ) {
-    return incomplete("score2", sources, collector);
+    return incomplete(
+      "score2",
+      sources,
+      collector,
+      !diabetesModel && age < 70 && context.diagnosedConditions === undefined
+        ? ["diabetes_type", "diabetes_age_at_diagnosis", "lab:hba1c", "lab:egfr"]
+        : [],
+    );
   }
 
-  const risk = score2TenYearRisk(sex, { age, smoker, systolic, totalCholesterol, hdl });
+  const risk = diabetesModel && diabetesAge !== undefined && hba1c !== undefined && egfr !== undefined
+    ? score2DiabetesTenYearRisk(sex, {
+        age, smoker, systolic, totalCholesterol, hdl, diabetesAge, hba1c, egfr,
+      }, region)
+    : score2TenYearRisk(sex, { age, smoker, systolic, totalCholesterol, hdl, diabetes }, region);
   const riskPercent = Math.round(risk * 1000) / 10;
   const reportedModifiers = (["family_early_cvd", "inflammatory_condition", "statin_current"] as const).filter(
     (id) => readBoolean(context.answers, id) === true,
@@ -692,6 +796,8 @@ function evaluateScore2(context: EvaluationContext): PathologyScoreResult {
   // very-high risk outright, but the diagnosed-conditions options are too broad to
   // exclude the estimate, so declared conditions are surfaced as reading modifiers.
   const modifiers: string[] = [...reportedModifiers];
+  if (diabetesModel && egfr !== undefined && egfr < 45) modifiers.push("egfr-below-45");
+  if (diabetes && !diabetesModel) modifiers.push("diabetes-esc-classification");
   if (context.diagnosedConditions?.includes("heart_vascular")) modifiers.push("declared_heart_vascular");
   if (context.diagnosedConditions?.includes("kidney")) modifiers.push("declared_kidney");
 
@@ -699,9 +805,253 @@ function evaluateScore2(context: EvaluationContext): PathologyScoreResult {
     "score2",
     sources,
     collector,
-    { ...score2Category(age, riskPercent), riskPercent, riskHorizonYears: 10, modifiers },
+    {
+      ...(diabetesModel ? score2DiabetesCategory(riskPercent) : score2Category(age, riskPercent)),
+      riskPercent, riskHorizonYears: 10, modifiers,
+    },
     context.policy,
   );
+}
+
+// ---------------------------------------------------------------------------
+// PREVENT-ASCVD (US, 10-year base equation)
+// ---------------------------------------------------------------------------
+
+// Khan et al. 2024, base 10-year ASCVD coefficients. The BMI and optional
+// HbA1c/UACR/social-index terms are zero for this particular outcome/model.
+const PREVENT_ASCVD = {
+  female: {
+    intercept: -3.819975, age: 0.7198830, nonHdl: 0.1176967, hdl: -0.1511850,
+    sbpBelow110: -0.0835358, sbpAbove110: 0.3592852, diabetes: 0.8348585,
+    smoker: 0.4831078, egfrBelow60: 0.4864619, egfrAbove60: 0.0397779,
+    bpTreatment: 0.2265309, statin: -0.0592374, bpTreatmentSbp: -0.0395762,
+    statinNonHdl: 0.0844423, ageNonHdl: -0.0567839, ageHdl: 0.0325692,
+    ageSbp: -0.1035985, ageDiabetes: -0.2417542, ageSmoker: -0.0791142,
+    ageEgfrBelow60: -0.1671492,
+  },
+  male: {
+    intercept: -3.500655, age: 0.7099847, nonHdl: 0.1658663, hdl: -0.1144285,
+    sbpBelow110: -0.2837212, sbpAbove110: 0.3239977, diabetes: 0.7189597,
+    smoker: 0.3956973, egfrBelow60: 0.3690075, egfrAbove60: 0.0203619,
+    bpTreatment: 0.2036522, statin: -0.0865581, bpTreatmentSbp: -0.0322916,
+    statinNonHdl: 0.1145630, ageNonHdl: -0.0300005, ageHdl: 0.0232747,
+    ageSbp: -0.0927024, ageDiabetes: -0.2018525, ageSmoker: -0.0970527,
+    ageEgfrBelow60: -0.1217081,
+  },
+} as const;
+
+type PreventPredictors = {
+  age: number;
+  totalCholesterol: number;
+  hdl: number;
+  systolic: number;
+  egfr: number;
+  diabetes: boolean;
+  smoker: boolean;
+  bpTreatment: boolean;
+  statin: boolean;
+};
+
+function preventTenYearRisk(sex: "male" | "female", predictors: PreventPredictors): number {
+  const c = PREVENT_ASCVD[sex];
+  const age = (predictors.age - 55) / 10;
+  const nonHdl = predictors.totalCholesterol - predictors.hdl - 3.5;
+  const hdl = (predictors.hdl - 1.3) / 0.3;
+  const sbpBelow110 = (Math.min(predictors.systolic, 110) - 110) / 20;
+  const sbpAbove110 = (Math.max(predictors.systolic, 110) - 130) / 20;
+  const egfrBelow60 = (Math.min(predictors.egfr, 60) - 60) / -15;
+  const egfrAbove60 = (Math.max(predictors.egfr, 60) - 90) / -15;
+  const diabetes = Number(predictors.diabetes);
+  const smoker = Number(predictors.smoker);
+  const bpTreatment = Number(predictors.bpTreatment);
+  const statin = Number(predictors.statin);
+  const logOdds =
+    c.intercept + c.age * age + c.nonHdl * nonHdl + c.hdl * hdl +
+    c.sbpBelow110 * sbpBelow110 + c.sbpAbove110 * sbpAbove110 +
+    c.diabetes * diabetes + c.smoker * smoker +
+    c.egfrBelow60 * egfrBelow60 + c.egfrAbove60 * egfrAbove60 +
+    c.bpTreatment * bpTreatment + c.statin * statin +
+    c.bpTreatmentSbp * bpTreatment * sbpAbove110 +
+    c.statinNonHdl * statin * nonHdl + c.ageNonHdl * age * nonHdl +
+    c.ageHdl * age * hdl + c.ageSbp * age * sbpAbove110 +
+    c.ageDiabetes * age * diabetes + c.ageSmoker * age * smoker +
+    c.ageEgfrBelow60 * age * egfrBelow60;
+  return 1 / (1 + Math.exp(-logOdds));
+}
+
+function preventCategory(riskPercent: number): { category: string; level: PathologyRiskLevel } {
+  if (riskPercent < 3) return { category: "low", level: "low" };
+  if (riskPercent < 5) return { category: "borderline", level: "moderate" };
+  if (riskPercent < 10) return { category: "intermediate", level: "moderate" };
+  return { category: "high", level: "high" };
+}
+
+const PREVENT_SOURCES: ReadonlyArray<PathologySourceId> = ["preventKhan2024", "accAhaDyslipidemia2026"];
+
+// PREVENT prints its lipid ranges in mg/dL (total 130–320, HDL 20–100) and, rounded, in mmol/L
+// (3.36–8.28, 0.52–2.59). These bounds accept a value inside either printing; 0.5172 mmol/L is
+// 20 mg/dL through the laboratory converter's 0.02586 factor.
+const PREVENT_TOTAL_CHOLESTEROL_MMOL = { min: 3.36, max: 8.28 } as const;
+const PREVENT_HDL_MMOL = { min: 0.5172, max: 2.59 } as const;
+
+function evaluatePrevent(context: EvaluationContext): PathologyScoreResult {
+  const age = context.profile.age;
+  const ageInput: PathologyScoreInput = { id: "profile:age", value: age };
+  if (age < 30 || age > 79) return notApplicable("prevent", PREVENT_SOURCES, "age-out-of-range", [ageInput]);
+  if (readBoolean(context.answers, "cvd_event_history") === true) {
+    return notApplicable("prevent", PREVENT_SOURCES, "established-cvd", [ageInput, { id: "cvd_event_history", value: true }]);
+  }
+  if (context.sex === "intersex") {
+    return notApplicable("prevent", PREVENT_SOURCES, "sex-not-supported", [ageInput, { id: "sex_assigned_at_birth", value: "intersex" }]);
+  }
+  const collector = new InputCollector(context);
+  collector.age();
+  const recordedSex = collector.sex();
+  const sex = recordedSex === "male" || recordedSex === "female" ? recordedSex : undefined;
+  const cvdEvent = collector.boolean("cvd_event_history");
+  const diabetes = context.diagnosedConditions?.includes("diabetes");
+  if (diabetes === undefined) collector.missing.push("diagnosed_conditions_core");
+  else collector.inputs.push({ id: "diagnosed_conditions_core", value: context.diagnosedConditions!.join(", ") });
+  const smoker = collector.derived(context.currentSmoker);
+  const systolic = collector.number("blood_pressure_systolic", PLAUSIBLE.systolic);
+  const totalCholesterol = collector.lab("total_cholesterol", "mmol/L", PLAUSIBLE.totalCholesterolMmol);
+  const hdl = collector.lab("hdl_cholesterol", "mmol/L", PLAUSIBLE.hdlMmol);
+  const egfr = collector.lab("egfr", "mL/min/1.73m²", PLAUSIBLE.egfr);
+  const statin = collector.boolean("statin_current");
+  const currentTreatment = readBoolean(context.answers, "bp_medication_current");
+  const everTreatment = readBoolean(context.answers, "bp_medication_ever");
+  const negativeDiagnosis = readBoolean(context.answers, "diagnosed_high_blood_pressure") === false;
+  const bpTreatment = currentTreatment ?? (everTreatment === false || (everTreatment === undefined && negativeDiagnosis) ? false : undefined);
+  if (bpTreatment === undefined) collector.missing.push("bp_medication_current");
+  else collector.inputs.push({ id: "bp_medication_current", value: bpTreatment, ...(currentTreatment === undefined ? { derived: true as const } : {}) });
+
+  const within = (value: number | undefined, range: { readonly min: number; readonly max: number }) =>
+    value === undefined || (value >= range.min && value <= range.max);
+  if (
+    !within(systolic, { min: 90, max: 200 }) ||
+    !within(totalCholesterol, PREVENT_TOTAL_CHOLESTEROL_MMOL) ||
+    !within(hdl, PREVENT_HDL_MMOL) ||
+    !within(egfr, { min: 15, max: 140 })
+  ) return notApplicable("prevent", PREVENT_SOURCES, "outside-validated-range", collector.inputs);
+  if (
+    collector.missing.length > 0 || sex === undefined || cvdEvent === undefined ||
+    diabetes === undefined || smoker === undefined || systolic === undefined ||
+    totalCholesterol === undefined || hdl === undefined || egfr === undefined ||
+    statin === undefined || bpTreatment === undefined
+  ) {
+    return incomplete("prevent", PREVENT_SOURCES, collector);
+  }
+  const riskPercent = Math.round(preventTenYearRisk(sex, {
+    age, totalCholesterol, hdl, systolic, egfr, diabetes, smoker, bpTreatment, statin,
+  }) * 1000) / 10;
+  const modifiers = (["family_early_cvd", "inflammatory_condition"] as const)
+    .filter((id) => readBoolean(context.answers, id) === true);
+  for (const id of modifiers) collector.inputs.push({ id, value: true });
+  return complete("prevent", PREVENT_SOURCES, collector, {
+    ...preventCategory(riskPercent), riskPercent, riskHorizonYears: 10, modifiers,
+  }, context.policy);
+}
+
+// ---------------------------------------------------------------------------
+// WHO 2019 printed cardiovascular risk charts (21 regions)
+// ---------------------------------------------------------------------------
+
+const WHO_CVD_SOURCES: ReadonlyArray<PathologySourceId> = ["whoCvdCharts2019"];
+
+/** Lower bounds of the seven age, five pressure and five cholesterol/BMI bands. */
+const WHO_AGE_BANDS = [40, 45, 50, 55, 60, 65, 70] as const;
+const WHO_PRESSURE_BANDS = [0, 120, 140, 160, 180] as const;
+const WHO_CHOLESTEROL_BANDS = [0, 4, 5, 6, 7] as const;
+const WHO_BMI_BANDS = [0, 20, 25, 30, 35] as const;
+
+function whoBand(value: number, lowerBounds: ReadonlyArray<number>): number {
+  for (let index = lowerBounds.length - 1; index > 0; index -= 1) {
+    if (value >= lowerBounds[index]) return index;
+  }
+  return 0;
+}
+
+function whoChartCell(
+  region: WhoCvdRegion,
+  sex: "male" | "female",
+  diabetes: boolean,
+  smoker: boolean,
+  age: number,
+  systolic: number,
+  lastBandValue: number,
+  laboratory: boolean,
+): number {
+  const sexIndex = sex === "male" ? 0 : 1;
+  const smokingIndex = Number(smoker);
+  const chart = laboratory
+    ? WHO_LAB_CHARTS[region][sexIndex * 4 + Number(diabetes) * 2 + smokingIndex]
+    : WHO_NONLAB_CHARTS[region][sexIndex * 2 + smokingIndex];
+  const ageIndex = whoBand(age, WHO_AGE_BANDS);
+  const pressureIndex = whoBand(systolic, WHO_PRESSURE_BANDS);
+  const lastIndex = whoBand(lastBandValue, laboratory ? WHO_CHOLESTEROL_BANDS : WHO_BMI_BANDS);
+  const offset = (ageIndex * 25 + pressureIndex * 5 + lastIndex) * 2;
+  return Number(chart.slice(offset, offset + 2));
+}
+
+function whoCategory(riskPercent: number): { category: string; level: PathologyRiskLevel } {
+  if (riskPercent < 5) return { category: "under-5", level: "low" };
+  if (riskPercent < 10) return { category: "5-to-9", level: "moderate" };
+  if (riskPercent < 20) return { category: "10-to-19", level: "high" };
+  if (riskPercent < 30) return { category: "20-to-29", level: "very-high" };
+  return { category: "30-plus", level: "very-high" };
+}
+
+function evaluateWhoCvd(context: EvaluationContext): PathologyScoreResult {
+  const age = context.profile.age;
+  const ageInput: PathologyScoreInput = { id: "profile:age", value: age };
+  if (age < 40 || age > 74) {
+    return notApplicable("who-cvd", WHO_CVD_SOURCES, "age-out-of-range", [ageInput]);
+  }
+  if (readBoolean(context.answers, "cvd_event_history") === true) {
+    return notApplicable("who-cvd", WHO_CVD_SOURCES, "established-cvd", [ageInput, { id: "cvd_event_history", value: true }]);
+  }
+  if (context.sex === "intersex") {
+    return notApplicable("who-cvd", WHO_CVD_SOURCES, "sex-not-supported", [ageInput, { id: "sex_assigned_at_birth", value: "intersex" }]);
+  }
+  const region = whoCvdRegionFor(context.profile.countryCode);
+  if (!region) {
+    return notApplicable("who-cvd", WHO_CVD_SOURCES, "region-not-calibrated", [
+      ageInput, { id: "profile:country", value: normalizeCountryCode(context.profile.countryCode) },
+    ]);
+  }
+
+  const collector = new InputCollector(context);
+  collector.age();
+  const recordedSex = collector.sex();
+  const sex = recordedSex === "male" || recordedSex === "female" ? recordedSex : undefined;
+  collector.boolean("cvd_event_history");
+  const diabetes = context.diagnosedConditions?.includes("diabetes");
+  if (diabetes === undefined) collector.missing.push("diagnosed_conditions_core");
+  else collector.inputs.push({ id: "diagnosed_conditions_core", value: context.diagnosedConditions!.join(", ") });
+  const smoker = collector.derived(context.currentSmoker);
+  const systolic = collector.number("blood_pressure_systolic", PLAUSIBLE.systolic);
+  const laboratory = latestLab(context.labs, "total_cholesterol") !== undefined || diabetes === true;
+  const bandValue = laboratory
+    ? collector.lab("total_cholesterol", "mmol/L", PLAUSIBLE.totalCholesterolMmol)
+    : collector.derived(context.bodyMassIndex);
+  if (collector.missing.length > 0 || sex === undefined || diabetes === undefined ||
+      smoker === undefined || systolic === undefined || bandValue === undefined) {
+    return {
+      ...incomplete("who-cvd", WHO_CVD_SOURCES, collector),
+      variant: laboratory ? "laboratory" : "non-laboratory",
+      region,
+      ...(!laboratory && diabetes === undefined ? { conditionalInputs: ["lab:total_cholesterol"] } : {}),
+    };
+  }
+
+  const riskPercent = whoChartCell(region, sex, diabetes, smoker, age, systolic, bandValue, laboratory);
+  return {
+    ...complete("who-cvd", WHO_CVD_SOURCES, collector, {
+      ...whoCategory(riskPercent), riskPercent, riskHorizonYears: 10,
+    }, context.policy),
+    variant: laboratory ? "laboratory" : "non-laboratory",
+    region,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1326,6 +1676,20 @@ const HABIT_RULES: Partial<Record<PathologyInstrumentId, ReadonlyArray<HabitRule
       replacements: { current_tobacco_nicotine: false },
     },
   ],
+  prevent: [
+    {
+      id: "no-smoking",
+      applies: (score) => usedValue(score, "derived:current_smoker") === true,
+      replacements: { current_tobacco_nicotine: false },
+    },
+  ],
+  "who-cvd": [
+    {
+      id: "no-smoking",
+      applies: (score) => usedValue(score, "derived:current_smoker") === true,
+      replacements: { current_tobacco_nicotine: false },
+    },
+  ],
 };
 
 function gainFor(score: CompleteScore, reevaluate: Reevaluate): PathologyHabitGain | undefined {
@@ -1361,7 +1725,18 @@ function withEstimates(score: PathologyScoreResult, reevaluate: Reevaluate): Pat
 // ---------------------------------------------------------------------------
 
 const EVALUATORS: ReadonlyArray<Evaluator> = [
-  evaluateScore2,
+  (context) => {
+    if (usesPrevent(context.profile.countryCode)) return evaluatePrevent(context);
+    const region = escRiskRegionFor(context.profile.countryCode);
+    if (!region) return evaluateWhoCvd(context);
+    return {
+      ...evaluateScore2(context),
+      variant: context.profile.age >= 70
+        ? "score2-op"
+        : context.diagnosedConditions?.includes("diabetes") ? "score2-diabetes" : "score2",
+      region,
+    };
+  },
   evaluateFindrisc,
   evaluateStopBang,
   evaluateCopdPs,

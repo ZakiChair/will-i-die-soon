@@ -55,7 +55,7 @@ type PathologySynthesisProps = Readonly<{
 const questionsById = new Map(questionBank.map((question) => [question.id, question]));
 
 /** Instruments whose publication includes an absolute risk the policy may withhold. */
-const PERCENT_INSTRUMENTS: ReadonlySet<PathologyInstrumentId> = new Set(["findrisc", "score2", "caide"]);
+const PERCENT_INSTRUMENTS: ReadonlySet<PathologyInstrumentId> = new Set(["findrisc", "score2", "prevent", "who-cvd", "caide"]);
 
 function isPercentInstrument(instrument: PathologyInstrumentId): instrument is PercentInstrumentId {
   return PERCENT_INSTRUMENTS.has(instrument);
@@ -71,7 +71,7 @@ type PeopleScale = 100 | 1000;
 
 /** Below 1 % "N in 100" would round to zero, so the same risk is read per 1,000. */
 function peopleScale(...percents: ReadonlyArray<number>): PeopleScale {
-  return percents.some((percent) => percent < 1) ? 1000 : 100;
+  return percents.some((percent) => percent > 0 && percent < 1) ? 1000 : 100;
 }
 
 function peopleCount(percent: number, scale: PeopleScale): number {
@@ -301,7 +301,7 @@ function CompleteReading({ score }: { readonly score: Extract<PathologyScoreResu
     <>
       <p className="pathology-score__category">
         <strong>{pathologyCategoryLabel(locale, score.instrument, score.category)}</strong>
-        <span>{copy.levels[score.level]}</span>
+        {score.instrument === "prevent" || score.instrument === "who-cvd" ? null : <span>{copy.levels[score.level]}</span>}
       </p>
       {score.points !== undefined && score.maxPoints !== undefined ? (
         <p className="pathology-score__points">{copy.pointsReadout(score.points, score.maxPoints)}</p>
@@ -309,7 +309,10 @@ function CompleteReading({ score }: { readonly score: Extract<PathologyScoreResu
       {score.riskPercent !== undefined && score.riskHorizonYears !== undefined ? (
         <>
           <p className="pathology-score__percent">
-            {copy.percentReadout(percent.format(score.riskPercent / 100), score.riskHorizonYears)}
+            {/* Zero is a rounded value (a printed WHO cell, or under 0.05 % elsewhere), never no risk. */}
+            {score.riskPercent === 0
+              ? copy.percentReadoutUnder(percent.format(0.01), score.riskHorizonYears)
+              : copy.percentReadout(percent.format(score.riskPercent / 100), score.riskHorizonYears)}
           </p>
           {percentInstrument ? (
             <div className="pathology-score__people">
@@ -327,7 +330,9 @@ function CompleteReading({ score }: { readonly score: Extract<PathologyScoreResu
       ) : percentInstrument ? (
         <p className="pathology-score__percent pathology-score__percent--withheld">{copy.percentWithheld}</p>
       ) : null}
-      <p className="pathology-score__boundary">{instrument.boundary}</p>
+      <p className="pathology-score__boundary">
+        {score.variant === "score2-diabetes" ? copy.score2DiabetesBoundary : instrument.boundary}
+      </p>
       {score.modifiers.length > 0 ? (
         <div className="pathology-score__modifiers">
           <h4>{copy.modifiersHeading}</h4>
@@ -374,7 +379,19 @@ function ScoreCard({
     >
       <div className="pathology-score__identity">
         <h3>{instrument.pathology}</h3>
-        <p className="pathology-score__instrument">{instrument.instrument}</p>
+        <p className="pathology-score__instrument">
+          {score.instrument === "score2" && score.variant && score.variant in copy.score2Variant
+            ? copy.score2Variant[score.variant as keyof typeof copy.score2Variant]
+            : score.instrument === "who-cvd" && score.variant && score.variant in copy.whoVariant
+              ? copy.whoVariant[score.variant as keyof typeof copy.whoVariant]
+              : instrument.instrument}
+          {score.instrument === "score2" && score.region && score.region in copy.escRegion
+            ? ` · ${copy.escRegion[score.region as keyof typeof copy.escRegion]}`
+            : null}
+          {score.instrument === "who-cvd" && score.region && score.region in copy.whoRegion
+            ? ` · ${copy.whoRegionLabel(copy.whoRegion[score.region as keyof typeof copy.whoRegion])}`
+            : null}
+        </p>
         <p className="pathology-score__status">
           {score.status === "complete"
             ? copy.statusComplete
@@ -390,7 +407,9 @@ function ScoreCard({
         ) : score.status === "incomplete" ? (
           <>
             {score.range ? <RangeReading score={score} range={score.range} /> : null}
-            <p className="pathology-score__boundary">{instrument.boundary}</p>
+            <p className="pathology-score__boundary">
+              {score.variant === "score2-diabetes" ? copy.score2DiabetesBoundary : instrument.boundary}
+            </p>
             <div className="pathology-score__missing">
               <h4>{copy.missingHeading}</h4>
               <ul>

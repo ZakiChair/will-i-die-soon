@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 
 import { questionBank } from "../data/questions";
-import { buildFollowUpPlan, followUpQuestionCount, type FollowUpStep } from "./pathology-follow-up";
+import { normalizeLabValue, type ConfirmedLabValue, type LabMarker } from "./labs";
+import { buildFollowUpPlan, followUpQuestionCount, type FollowUpScope, type FollowUpStep } from "./pathology-follow-up";
 import { evaluatePathologyRisk } from "./pathology-risk";
 import { prototypePolicy } from "./release-policy";
 import { evaluateRisks } from "./risk-engine";
@@ -10,8 +11,27 @@ import type { AnswerMap, AnswerValue, ProfileContext, Question } from "./types";
 const SWISS_55: ProfileContext = { age: 55, countryCode: "CH" };
 const EXPRESS_SHAPE: AnswerMap = { height_cm: 172, weight_kg: 80, plant_food_frequency: 2 };
 
-function plan(answers: AnswerMap, profile: ProfileContext = SWISS_55, scope: Parameters<typeof buildFollowUpPlan>[3] = "all") {
-  const synthesis = evaluatePathologyRisk(answers, profile, [], prototypePolicy);
+function cholesterol(marker: LabMarker, value: number): ConfirmedLabValue {
+  const normalized = normalizeLabValue({ marker, value, unit: "mmol/L" });
+  return {
+    source: null,
+    reviewed: {
+      marker, valueText: String(value), value, unit: "mmol/L", referenceRange: "",
+      collectionDate: "2026-07-30", fastingStatus: "not_stated",
+    },
+    normalized: { value: normalized.normalizedValue, unit: normalized.normalizedUnit, displayValue: normalized.displayValue },
+  };
+}
+
+const CONFIRMED_CHOLESTEROL = [cholesterol("total_cholesterol", 5.5), cholesterol("hdl_cholesterol", 1.3)];
+
+function plan(
+  answers: AnswerMap,
+  profile: ProfileContext = SWISS_55,
+  scope: Parameters<typeof buildFollowUpPlan>[3] = "all",
+  labs: ReadonlyArray<ConfirmedLabValue> = [],
+) {
+  const synthesis = evaluatePathologyRisk(answers, profile, labs, prototypePolicy);
   return buildFollowUpPlan(synthesis, answers, profile, scope);
 }
 
@@ -102,31 +122,90 @@ describe("follow-up plan", () => {
       .not.toHaveProperty("opens");
   });
 
+  test("counts diabetes details behind the diagnosis and current treatment behind prior use", () => {
+    const diabetic = plan({}, { age: 55, countryCode: "FR" }, "score2").find(
+      (step) => step.kind === "question" && step.questionId === "diagnosed_conditions_core",
+    );
+    expect(diabetic).toMatchObject({ opens: ["diabetes_type", "diabetes_age_at_diagnosis"] });
+    const treatment = plan({}, { age: 55, countryCode: "US" }, "prevent").find(
+      (step) => step.kind === "question" && step.questionId === "bp_medication_ever",
+    );
+    expect(treatment).toMatchObject({ opens: ["bp_medication_current"] });
+  });
+
+  test("reserves a conditional lab step when a WHO diagnosis can switch charts", () => {
+    const profile = { age: 55, countryCode: "CA" };
+    const answers = { height_cm: 170, weight_kg: 70 };
+    const before = plan(answers, profile, "who-cvd");
+    expect(before.find((step) => step.kind === "question" && step.questionId === "diagnosed_conditions_core"))
+      .toMatchObject({ opensLab: true });
+    const after = plan({ ...answers, diagnosed_conditions_core: ["diabetes"] }, profile, "who-cvd");
+    expect(after.at(-1)).toMatchObject({ kind: "labs", markers: ["total_cholesterol"] });
+    expect(followUpQuestionCount(after)).toBeLessThan(followUpQuestionCount(before));
+  });
+
+  test("reserves the SCORE2-Diabetes lab step behind the diagnosis once cholesterol is confirmed", () => {
+    const profile = { age: 55, countryCode: "FR" };
+    const answers: AnswerMap = { sex_assigned_at_birth: "male" };
+    const before = plan(answers, profile, "score2", CONFIRMED_CHOLESTEROL);
+    expect(before.some((step) => step.kind === "labs")).toBe(false);
+    expect(before.find((step) => step.kind === "question" && step.questionId === "diagnosed_conditions_core"))
+      .toMatchObject({ opens: ["diabetes_type", "diabetes_age_at_diagnosis"], opensLab: true });
+    const after = plan({ ...answers, diagnosed_conditions_core: ["diabetes"] }, profile, "score2", CONFIRMED_CHOLESTEROL);
+    expect(after.at(-1)).toMatchObject({ kind: "labs", markers: ["hba1c", "egfr"] });
+    expect(followUpQuestionCount(after)).toBeLessThan(followUpQuestionCount(before));
+  });
+
+  test("does not reserve a second lab step when the lab import is already planned", () => {
+    const steps = plan({ height_cm: 170, weight_kg: 70 }, { age: 55, countryCode: "CA" });
+    expect(steps.at(-1)).toMatchObject({ kind: "labs", markers: expect.arrayContaining(["total_cholesterol"]) });
+    expect(steps.find((step) => step.kind === "question" && step.questionId === "diagnosed_conditions_core"))
+      .not.toHaveProperty("opensLab");
+  });
+
   test("every answer lowers the count by at least one, so it stays an upper bound", () => {
     const questions = new Map(questionBank.map((question) => [question.id, question]));
-    const starts: ReadonlyArray<readonly [AnswerMap, ProfileContext]> = [
+    const starts: ReadonlyArray<readonly [AnswerMap, ProfileContext, ReadonlyArray<ConfirmedLabValue>?]> = [
       [{}, SWISS_55],
       [EXPRESS_SHAPE, SWISS_55],
       [{}, { age: 72, countryCode: "GB" }],
       [{}, { age: 30, countryCode: "US" }],
+      [{}, { age: 55, countryCode: "FR" }],
+      [{}, { age: 55, countryCode: "FR" }, CONFIRMED_CHOLESTEROL],
+      [{}, { age: 55, countryCode: "DE" }],
+      [{}, { age: 55, countryCode: "CA" }],
+      [{}, { age: 55, countryCode: "CA" }, CONFIRMED_CHOLESTEROL],
+      [{}, { age: 55, countryCode: "MA" }],
+      [{ diagnosed_conditions_core: ["diabetes"] }, { age: 55, countryCode: "FR" }],
+      [{ bp_medication_ever: true }, { age: 55, countryCode: "US" }],
     ];
     let checked = 0;
-    for (const [answers, profile] of starts) {
-      const steps = plan(answers, profile);
-      const before = followUpQuestionCount(steps);
-      for (const step of steps) {
-        if (step.kind !== "question") continue;
-        const question = questions.get(step.questionId);
-        if (!question) throw new Error(`Unknown follow-up question ${step.questionId}`);
-        for (const value of possibleValues(question)) {
-          // The flow never offers a handled question again, whatever was answered.
-          const after = plan({ ...answers, [step.questionId]: value }, profile).filter(
-            (candidate) => candidate.kind === "labs" || candidate.questionId !== step.questionId,
-          );
-          expect(followUpQuestionCount(after), `${step.questionId} = ${JSON.stringify(value)}`).toBeLessThanOrEqual(
-            before - 1,
-          );
-          checked += 1;
+    for (const [answers, profile, labs = []] of starts) {
+      // Each card shows its own count, so the bound must hold per instrument as well as overall.
+      const scopes: FollowUpScope[] = [
+        "all",
+        ...evaluatePathologyRisk(answers, profile, labs, prototypePolicy).scores
+          .filter((score) => score.status === "incomplete")
+          .map((score) => score.instrument),
+      ];
+      for (const scope of scopes) {
+        const steps = plan(answers, profile, scope, labs);
+        const before = followUpQuestionCount(steps);
+        for (const step of steps) {
+          if (step.kind !== "question") continue;
+          const question = questions.get(step.questionId);
+          if (!question) throw new Error(`Unknown follow-up question ${step.questionId}`);
+          for (const value of possibleValues(question)) {
+            // The flow never offers a handled question again, whatever was answered.
+            const after = plan({ ...answers, [step.questionId]: value }, profile, scope, labs).filter(
+              (candidate) => candidate.kind === "labs" || candidate.questionId !== step.questionId,
+            );
+            expect(
+              followUpQuestionCount(after),
+              `${profile.countryCode} ${scope}: ${step.questionId} = ${JSON.stringify(value)}`,
+            ).toBeLessThanOrEqual(before - 1);
+            checked += 1;
+          }
         }
       }
     }

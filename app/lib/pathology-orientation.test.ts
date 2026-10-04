@@ -18,6 +18,12 @@ describe("pathology orientation", () => {
     ["score2", "low-to-moderate", "score2-keep-habits"],
     ["score2", "high", "score2-clinician"],
     ["score2", "very-high", "score2-clinician"],
+    ["prevent", "low", "prevent-keep-habits"],
+    ["prevent", "borderline", "prevent-clinician"],
+    ["prevent", "intermediate", "prevent-clinician"],
+    ["prevent", "high", "prevent-clinician"],
+    ["who-cvd", "under-5", "who-cvd-prevention"],
+    ["who-cvd", "30-plus", "who-cvd-prevention"],
     ["stop-bang", "low", "stop-bang-watch-symptoms"],
     ["stop-bang", "intermediate", "stop-bang-watch-symptoms"],
     ["stop-bang", "high", "stop-bang-sleep-assessment"],
@@ -35,6 +41,17 @@ describe("pathology orientation", () => {
   test("adds nothing to a negative alcohol, depression or anxiety screen", () => {
     for (const instrument of ["audit-c", "phq-2", "gad-2"] as const) {
       expect(pathologyOrientation(completeScore(instrument, "negative"))).toBeUndefined();
+    }
+  });
+
+  test("gives diabetes-specific follow-up at every SCORE2-Diabetes level", () => {
+    for (const category of ["low", "moderate"]) {
+      expect(pathologyOrientation({ ...completeScore("score2", category), variant: "score2-diabetes" }))
+        .toBe("score2-diabetes-keep-care");
+    }
+    for (const category of ["high", "very-high"]) {
+      expect(pathologyOrientation({ ...completeScore("score2", category), variant: "score2-diabetes" }))
+        .toBe("score2-diabetes-clinician");
     }
   });
 

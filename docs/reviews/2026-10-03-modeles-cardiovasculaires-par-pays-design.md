@@ -76,23 +76,23 @@ Hors périmètre : PREVENT à 30 ans et modèles étendus (HbA1c, UACR, indice s
 - Bilan : HbA1c en mmol/mol (la conversion depuis le pourcentage existe), DFGe en mL/min/1,73 m².
 - Catégories ESC 2023 : < 5 % faible, 5–< 10 % modéré, 10–< 20 % élevé, ≥ 20 % très élevé.
 - Modulateur `egfr-below-45` : un DFGe inférieur à 45 place le risque à élevé ou très élevé quelle que soit l'estimation.
-- Tant que le diabète n'est pas renseigné, les deux questions sont comptées derrière `diagnosed_conditions_core` (`conditionalInputs`), comme les détails d'alcool d'AUDIT-C.
+- Tant que le diabète n'est pas renseigné, les deux questions sont comptées derrière `diagnosed_conditions_core` (`conditionalInputs`), comme les détails d'alcool d'AUDIT-C. L'HbA1c et le DFGe y sont aussi comptés comme une étape de bilan possible, sauf si un import de bilan est déjà prévu : le plan n'en compte qu'un.
 
 ## PREVENT (États-Unis)
 
 - Équations de base à 10 ans (Khan et al., Circulation 2024), transcrites du code R officiel de l'AHA. Affiché : PREVENT-ASCVD (infarctus et AVC, mortels ou non), régression logistique.
 - Entrées : sexe, âge 30–79, cholestérol total et HDL, pression systolique, diabète déclaré, tabac, DFGe, traitement antihypertenseur actuel, statine actuelle. Le calcul se fait en mmol/L avec le facteur 0,02586 du code officiel, identique à celui de l'import de bilan.
-- Bornes du modèle : cholestérol total 130–320 mg/dL (3,36–8,28 mmol/L), HDL 20–100 mg/dL (0,52–2,59), pression systolique 90–200 mmHg, DFGe 15–140 ; hors bornes → non applicable `outside-validated-range`.
+- Bornes du modèle : cholestérol total 130–320 mg/dL (3,36–8,28 mmol/L), HDL 20–100 mg/dL (0,52–2,59), pression systolique 90–200 mmHg, DFGe 15–140 ; hors bornes → non applicable `outside-validated-range`. Une valeur comprise dans l'une ou l'autre unité imprimée est acceptée : 3,36 mmol/L passe comme 130 mg/dL, 321 mg/dL est refusé.
 - Question nouvelle `bp_medication_current` (condition `bp_medication_ever` = oui, profondeurs détaillée et approfondie) ; « non » dérivé si `bp_medication_ever` = non ou si l'hypertension n'a pas été diagnostiquée, comme pour FINDRISC.
 - Catégories ACC/AHA 2026 (dyslipidémies) : < 3 % faible, 3–< 5 % limite, 5–< 10 % intermédiaire, ≥ 10 % élevé.
 - Modulateurs : `family_early_cvd`, `inflammatory_condition`. La statine est un prédicteur, pas un modulateur.
 
 ## Tables OMS 2019
 
-- Données : annexe 2 de Lancet Glob Health 2019;7:e1332-45 (version d'août 2019), vérifiée case par case contre les 21 tables régionales de l'OMS (concordance totale) : 29 400 cases avec laboratoire (région × sexe × diabète × tabac × 7 âges × 5 pressions × 5 cholestérols) et 14 700 sans laboratoire (indice de masse corporelle à la place du cholestérol, sans diabète). Encodage : deux chiffres par case, une chaîne par région, sexe, diabète et tabac (`app/data/who-cvd-charts.ts`).
+- Données : les 21 tables régionales imprimées de l'OMS (2019) pour l'article Lancet Glob Health 2019;7:e1332-45, soit 20 PDF régionaux de deux pages publiés sur le site de l'OMS et, pour l'Asie de l'Est, l'annexe 2 de l'article hébergée par l'OMS (deux pages, même mise en page). `scripts/generate-who-cvd-charts.py` transcrit chaque case imprimée avec `pdftotext` : 29 400 cases avec laboratoire (région × sexe × diabète × tabac × 7 âges × 5 pressions × 5 cholestérols) et 14 700 sans laboratoire (indice de masse corporelle à la place du cholestérol, sans diabète). Contrôles : en-tête de région de chaque page, 20 valeurs par ligne, aucune case qui baisse quand l'âge, la pression, le cholestérol ou l'IMC, le tabac ou le diabète augmentent (`app/data/who-cvd-charts.test.ts`), lignes relues contre les PDF pour trois régions, et les deux vecteurs du texte principal ci-dessous. Encodage : deux chiffres par case, une chaîne par région, sexe, diabète et tabac (`app/data/who-cvd-charts.ts`).
 - Bandes, bornes inférieures incluses : âge 40–44 … 70–74 ; pression < 120, 120–139, 140–159, 160–179, ≥ 180 mmHg ; cholestérol total < 4, 4–4,9, 5–5,9, 6–6,9, ≥ 7 mmol/L ; IMC < 20, 20–24, 25–29, 30–35, ≥ 35.
 - Choix de la table : avec laboratoire dès qu'un cholestérol total est confirmé ; sinon sans laboratoire, sauf diabète déclaré : la table sans laboratoire n'en tient pas compte, le cholestérol est alors demandé. Choix de conception de l'application, pas une règle de l'OMS.
-- Résultat : `riskPercent` = valeur imprimée dans la case ; 0 se lit « moins de 1 sur 100 ». Catégorie = bande de couleur de l'OMS (< 5, 5–< 10, 10–< 20, 20–< 30, ≥ 30 %). L'OMS ne nomme pas ces bandes : aucune étiquette de niveau n'est affichée ; le niveau interne ne sert qu'au tri et à la couleur.
+- Résultat : `riskPercent` = valeur imprimée dans la case ; 0 se lit « moins de 1 % » et « moins de 1 sur 100 ». Catégorie = bande de couleur de l'OMS (< 5, 5–< 10, 10–< 20, 20–< 30, ≥ 30 %). L'OMS ne nomme pas ces bandes : aucune étiquette de niveau n'est affichée ; le niveau interne ne sert qu'au tri et à la couleur.
 - Vecteur publié : homme de 60 ans, fumeur, sans diabète, pression 140, cholestérol 5 : 11 % en Amérique latine andine, 30 % en Asie centrale (texte principal de l'article) ; la lecture de case donne 11 et 30.
 
 ## Urgences et ressources nationales (`app/data/emergency-contacts.ts`)
@@ -120,7 +120,7 @@ Une table par pays, lue par `risk-engine.ts` et `presentation.ts`. Un numéro n'
 
 ## Copie, synthèse et orientation
 
-- Ligne d'instrument selon la `variant` : « SCORE2 (ESC 2021) », « SCORE2-OP (ESC 2021) », « SCORE2-Diabetes (ESC 2023) », « PREVENT (AHA 2023) », « Tables OMS 2019, avec laboratoire » ou « sans laboratoire » ; ligne de calibration : « Région ESC à risque modéré », « Région OMS : Afrique du Nord et Moyen-Orient ».
+- Ligne d'instrument selon la `variant` : « SCORE2 (ESC 2021) », « SCORE2-OP (ESC 2021) », « SCORE2-Diabetes (ESC 2023) », « PREVENT-ASCVD (AHA 2023) », « Tables OMS 2019, avec laboratoire » ou « sans laboratoire » ; ligne de calibration : « Région ESC à risque modéré », « Région OMS : Afrique du Nord et Moyen-Orient ».
 - Catégories : SCORE2 garde les siennes, SCORE2-Diabetes ajoute « faible » et « modéré » ; PREVENT : faible, limite, intermédiaire, élevé ; OMS : bandes en pourcentage. Pas d'étiquette de niveau pour PREVENT ni pour l'OMS (leurs catégories sont déjà nommées).
 - « X sur 100 » et gain « arrêt du tabac » pour les trois instruments ; l'événement nommé reste « infarctus ou AVC, mortel ou non, dans les 10 ans ».
 - Raisons nouvelles : `diabetes-type-not-covered`, `outside-validated-range` ; `region-not-calibrated` devient « choisissez votre pays au début pour obtenir une estimation ».

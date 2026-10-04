@@ -16,6 +16,7 @@ export type QuestionControlProps = {
   canGoBack: boolean;
   questionDescriptionId?: string;
   skipLabelKey?: UiCopyKey;
+  subjectAgeYears?: number;
 };
 
 function initialValue(question: Question, answer: AnswerValue | undefined) {
@@ -40,6 +41,7 @@ export function QuestionControl({
   canGoBack,
   questionDescriptionId,
   skipLabelKey,
+  subjectAgeYears,
 }: QuestionControlProps) {
   const { locale, t } = useI18n();
   const formRef = useRef<HTMLFormElement>(null);
@@ -68,7 +70,7 @@ export function QuestionControl({
   function commitAnswer() {
     const value = committedValue();
     setAttempted(true);
-    if (validateQuestionAnswer(question, value)) {
+    if (validateQuestionAnswer(question, value, subjectAgeYears)) {
       formRef.current?.querySelector<HTMLInputElement>("input")?.focus();
       return;
     }
@@ -90,7 +92,7 @@ export function QuestionControl({
 
   const unitKey = numericUnitKey(question.id);
   const guidance = getQuestionGuidance(question.id, locale);
-  const error = attempted ? validateQuestionAnswer(question, committedValue()) : null;
+  const error = attempted ? validateQuestionAnswer(question, committedValue(), subjectAgeYears) : null;
   const errorId = `${question.id}-error`;
   const guidanceId = `${question.id}-guidance`;
   const scaleId = `${question.id}-scale-anchors`;

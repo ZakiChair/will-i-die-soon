@@ -98,6 +98,40 @@ describe("SCORE2 and SCORE2-OP", () => {
     expect(Math.round(risk * 1000) / 10).toBe(6.3);
   });
 
+  test.each([
+    ["male", "BE", "low", 6.3],
+    ["male", "DE", "moderate", 8.1],
+    ["male", "PL", "high", 8.8],
+    ["male", "MA", "very-high", 15.1],
+    ["female", "FR", "low", 4.3],
+    ["female", "IT", "moderate", 5.2],
+    ["female", "CZ", "high", 7.1],
+    ["female", "DZ", "very-high", 14.1],
+  ] as const)("recalibrates SCORE2 for %s in %s (%s)", (sex, countryCode, region, expected) => {
+    const predictors = { age: 50, smoker: true, systolic: 140, totalCholesterol: 6.3, hdl: 1.4 };
+    expect(Math.round(score2TenYearRisk(sex, predictors, region) * 1000) / 10).toBe(expected);
+    expect(complete(score("score2", { ...SCORE2_MALE_50, sex_assigned_at_birth: sex }, { age: 50, countryCode }, SCORE2_MALE_50_LABS)).riskPercent).toBe(expected);
+  });
+
+  test.each([
+    ["male", "CH", "low", 19.5, 29.2],
+    ["male", "DE", "moderate", 25.2, 37.6],
+    ["male", "PL", "high", 29.1, 41.6],
+    ["male", "MA", "very-high", 40.7, 49.7],
+    ["female", "GB", "low", 15.4, 26.0],
+    ["female", "IT", "moderate", 20.4, 35.0],
+    ["female", "CZ", "high", 31.1, 50.4],
+    ["female", "TN", "very-high", 46.0, 60.1],
+  ] as const)("recalibrates SCORE2-OP and includes diabetes for %s in %s (%s)", (sex, countryCode, region, expected, diabetic) => {
+    const predictors = { age: 75, smoker: true, systolic: 140, totalCholesterol: 6.3, hdl: 1.4 };
+    expect(Math.round(score2TenYearRisk(sex, predictors, region) * 1000) / 10).toBe(expected);
+    expect(Math.round(score2TenYearRisk(sex, { ...predictors, diabetes: true }, region) * 1000) / 10).toBe(diabetic);
+    const profile = { age: 75, countryCode };
+    const answers = { ...SCORE2_MALE_50, sex_assigned_at_birth: sex };
+    expect(complete(score("score2", answers, profile, SCORE2_MALE_50_LABS)).riskPercent).toBe(expected);
+    expect(complete(score("score2", { ...answers, diagnosed_conditions_core: ["diabetes"] }, profile, SCORE2_MALE_50_LABS)).riskPercent).toBe(diabetic);
+  });
+
   test("is monotonic in smoking, age, and pressure for both sexes", () => {
     for (const sex of ["male", "female"] as const) {
       const base = { age: 55, smoker: false, systolic: 130, totalCholesterol: 5.5, hdl: 1.3 };
@@ -117,7 +151,8 @@ describe("SCORE2 and SCORE2-OP", () => {
     expect(result.category).toBe("high");
     expect(result.level).toBe("high");
     expect(result.modifiers).toEqual([]);
-    expect(result.sourceIds).toEqual(["score2Esc2021", "escPrevention2021"]);
+    expect(result.sourceIds).toEqual(["score2Esc2021", "escPrevention2021", "escHeartScoreRegions"]);
+    expect(result).toMatchObject({ variant: "score2", region: "low" });
     expect(result.inputs).toEqual(
       expect.arrayContaining([
         { id: "profile:age", value: 50 },
@@ -161,8 +196,16 @@ describe("SCORE2 and SCORE2-OP", () => {
 
   test("routes people aged 70 to 89 to SCORE2-OP", () => {
     const result = complete(score("score2", { ...SCORE2_MALE_50, current_tobacco_nicotine: false }, { age: 75, countryCode: "CH" }, SCORE2_MALE_50_LABS));
-    expect(result.sourceIds).toEqual(["score2OpEsc2021", "escPrevention2021"]);
+    expect(result.sourceIds).toEqual(["score2OpEsc2021", "escPrevention2021", "escHeartScoreRegions"]);
+    expect(result).toMatchObject({ variant: "score2-op", region: "low" });
     expect(result.riskPercent).toBeGreaterThan(0);
+  });
+
+  test("does not treat a country outside the ESC regions as European", () => {
+    for (const countryCode of ["US", "CA", "OTHER"]) {
+      const scores = evaluatePathologyRisk(SCORE2_MALE_50, { age: 50, countryCode }, SCORE2_MALE_50_LABS, prototypePolicy).scores;
+      expect(scores.find((item) => item.instrument === "score2")).toBeUndefined();
+    }
   });
 
   test("names every missing answer and lab when incomplete", () => {
@@ -204,13 +247,21 @@ describe("SCORE2 and SCORE2-OP", () => {
   test.each([
     ["age-out-of-range", SCORE2_MALE_50, { age: 39, countryCode: "CH" }],
     ["age-out-of-range", SCORE2_MALE_50, { age: 90, countryCode: "CH" }],
-    ["diagnosed-condition", { ...SCORE2_MALE_50, diagnosed_conditions_core: ["diabetes"] }, CH],
     ["established-cvd", { ...SCORE2_MALE_50, cvd_event_history: true }, CH],
     ["sex-not-supported", { ...SCORE2_MALE_50, sex_assigned_at_birth: "intersex" }, CH],
-    ["region-not-calibrated", SCORE2_MALE_50, { age: 50, countryCode: "US" }],
-    ["region-not-calibrated", SCORE2_MALE_50, { age: 50, countryCode: "OTHER" }],
   ] as const)("is not applicable for %s", (reason, answers, profile) => {
     expect(notApplicable(score("score2", answers, profile, SCORE2_MALE_50_LABS)).reason).toBe(reason);
+  });
+
+  test("requests diabetes-specific inputs instead of excluding a diagnosis at age 50", () => {
+    const result = incomplete(score(
+      "score2",
+      { ...SCORE2_MALE_50, diagnosed_conditions_core: ["diabetes"] },
+      CH,
+      SCORE2_MALE_50_LABS,
+    ));
+    expect(result.variant).toBe("score2-diabetes");
+    expect(result.missingInputs).toContain("diabetes_type");
   });
 
   test("does not count prescribed nicotine replacement or vaping alone as smoking", () => {
@@ -219,6 +270,239 @@ describe("SCORE2 and SCORE2-OP", () => {
     const vape = complete(score("score2", { ...SCORE2_MALE_50, tobacco_detail_products: ["vape"] }, CH, SCORE2_MALE_50_LABS));
     expect(vape.inputs).toContainEqual({ id: "derived:current_smoker", value: false, derived: true });
     expect(vape.riskPercent).toBeLessThan(6.3);
+  });
+});
+
+describe("SCORE2-Diabetes", () => {
+  const profile = { age: 60, countryCode: "CH" };
+  const answers: AnswerMap = {
+    sex_assigned_at_birth: "male",
+    diagnosed_conditions_core: ["diabetes"],
+    diabetes_type: "type_2",
+    diabetes_age_at_diagnosis: 60,
+    cvd_event_history: false,
+    current_tobacco_nicotine: false,
+    blood_pressure_systolic: 140,
+  };
+  const labs = [
+    lab("total_cholesterol", 5.5, "mmol/L"),
+    lab("hdl_cholesterol", 1.3, "mmol/L"),
+    lab("hba1c", 50, "mmol/mol"),
+    lab("egfr", 90, "mL/min/1.73m²"),
+  ];
+
+  test.each([
+    ["CH", "low", 8.4, "moderate"],
+    ["DE", "moderate", 11.0, "high"],
+    ["PL", "high", 12.5, "high"],
+    ["MA", "very-high", 20.3, "very-high"],
+  ] as const)("reproduces the published example in %s (%s)", (countryCode, region, riskPercent, category) => {
+    const result = complete(score("score2", answers, { ...profile, countryCode }, labs));
+    expect(result).toMatchObject({
+      variant: "score2-diabetes",
+      region,
+      riskPercent,
+      category,
+      riskHorizonYears: 10,
+    });
+    expect(result.sourceIds).toContain("score2DiabetesEsc2023");
+  });
+
+  test.each([
+    ["CH", 6.1, "moderate"],
+    ["DE", 7.6, "moderate"],
+    ["PL", 11.1, "high"],
+    ["MA", 20.6, "very-high"],
+  ] as const)("uses the published female coefficients in %s", (countryCode, riskPercent, category) => {
+    expect(complete(score("score2", { ...answers, sex_assigned_at_birth: "female" }, { ...profile, countryCode }, labs)))
+      .toMatchObject({ variant: "score2-diabetes", riskPercent, category });
+  });
+
+  test("requires diabetes type, age at diagnosis, and confirmed HbA1c and eGFR", () => {
+    const result = incomplete(score("score2", omit(answers, "diabetes_type", "diabetes_age_at_diagnosis"), profile));
+    expect(result.missingInputs).toEqual(expect.arrayContaining([
+      "diabetes_type", "diabetes_age_at_diagnosis", "lab:hba1c", "lab:egfr",
+    ]));
+    expect(result.variant).toBe("score2-diabetes");
+  });
+
+  test("keeps type 1 outside the model and an unknown type incomplete", () => {
+    expect(notApplicable(score("score2", { ...answers, diabetes_type: "type_1" }, profile, labs)).reason)
+      .toBe("diabetes-type-not-covered");
+    expect(incomplete(score("score2", { ...answers, diabetes_type: "unknown" }, profile, labs)).missingInputs)
+      .toContain("diabetes_type");
+  });
+
+  test("does not calculate from a diagnosis age greater than the current age", () => {
+    expect(incomplete(score("score2", { ...answers, diabetes_age_at_diagnosis: 65 }, profile, labs)).missingInputs)
+      .toContain("diabetes_age_at_diagnosis");
+  });
+
+  test("flags eGFR under 45 independently of the calculated estimate", () => {
+    const result = complete(score("score2", answers, profile, [...labs.slice(0, 3), lab("egfr", 40, "mL/min/1.73m²")]));
+    expect(result.modifiers).toContain("egfr-below-45");
+  });
+});
+
+describe("PREVENT-ASCVD", () => {
+  const profile = { age: 50, countryCode: "US" };
+  const answers: AnswerMap = {
+    sex_assigned_at_birth: "female",
+    diagnosed_conditions_core: ["diabetes"],
+    cvd_event_history: false,
+    current_tobacco_nicotine: false,
+    blood_pressure_systolic: 160,
+    bp_medication_ever: true,
+    bp_medication_current: true,
+    statin_current: false,
+  };
+  const labs = [
+    lab("total_cholesterol", 200, "mg/dL"),
+    lab("hdl_cholesterol", 45, "mg/dL"),
+    lab("egfr", 90, "mL/min/1.73m²"),
+  ];
+
+  test.each([
+    ["female", 9.2, "intermediate"],
+    ["male", 10.2, "high"],
+  ] as const)("matches the PREVENT base-model fixture for %s", (sex, riskPercent, category) => {
+    const result = complete(score("prevent", { ...answers, sex_assigned_at_birth: sex }, profile, labs));
+    expect(result).toMatchObject({ riskPercent, category, riskHorizonYears: 10 });
+    expect(result.sourceIds).toContain("preventKhan2024");
+    expect(result.inputs).toContainEqual({ id: "bp_medication_current", value: true });
+  });
+
+  test("uses only one cardiovascular card for the United States", () => {
+    const synthesis = evaluatePathologyRisk(answers, profile, labs, prototypePolicy);
+    expect(synthesis.scores.filter((item) => item.instrument === "prevent" || item.instrument === "score2"))
+      .toHaveLength(1);
+  });
+
+  test("derives no current blood-pressure treatment only when history supports it", () => {
+    const without = omit(answers, "bp_medication_current");
+    expect(complete(score("prevent", { ...without, bp_medication_ever: false }, profile, labs)).inputs)
+      .toContainEqual({ id: "bp_medication_current", value: false, derived: true });
+    expect(incomplete(score("prevent", without, profile, labs)).missingInputs).toContain("bp_medication_current");
+  });
+
+  test("names missing eGFR and statin use rather than imputing", () => {
+    const missing = incomplete(score("prevent", omit(answers, "statin_current"), profile, labs.slice(0, 2)));
+    expect(missing.missingInputs).toEqual(expect.arrayContaining(["lab:egfr", "statin_current"]));
+  });
+
+  test("accepts the published cholesterol bounds in mmol/L and in mg/dL", () => {
+    const withLipids = (total: ConfirmedLabValue, hdl: ConfirmedLabValue) =>
+      score("prevent", answers, profile, [total, hdl, labs[2]]);
+    for (const [total, hdl] of [
+      [lab("total_cholesterol", 3.36, "mmol/L"), lab("hdl_cholesterol", 1.2, "mmol/L")],
+      [lab("total_cholesterol", 8.28, "mmol/L"), lab("hdl_cholesterol", 2.59, "mmol/L")],
+      [lab("total_cholesterol", 5, "mmol/L"), lab("hdl_cholesterol", 0.52, "mmol/L")],
+      [lab("total_cholesterol", 130, "mg/dL"), lab("hdl_cholesterol", 20, "mg/dL")],
+      [lab("total_cholesterol", 320, "mg/dL"), lab("hdl_cholesterol", 100, "mg/dL")],
+    ]) {
+      expect(withLipids(total, hdl).status, `${total.reviewed.valueText} / ${hdl.reviewed.valueText}`).toBe("complete");
+    }
+    for (const [total, hdl] of [
+      [lab("total_cholesterol", 3.35, "mmol/L"), lab("hdl_cholesterol", 1.2, "mmol/L")],
+      [lab("total_cholesterol", 8.29, "mmol/L"), lab("hdl_cholesterol", 1.2, "mmol/L")],
+      [lab("total_cholesterol", 5, "mmol/L"), lab("hdl_cholesterol", 0.51, "mmol/L")],
+      [lab("total_cholesterol", 5, "mmol/L"), lab("hdl_cholesterol", 2.6, "mmol/L")],
+      [lab("total_cholesterol", 321, "mg/dL"), lab("hdl_cholesterol", 45, "mg/dL")],
+    ]) {
+      expect(notApplicable(withLipids(total, hdl)).reason).toBe("outside-validated-range");
+    }
+  });
+
+  test("does not extrapolate beyond the published age, lab or pressure bounds", () => {
+    expect(notApplicable(score("prevent", answers, { age: 80, countryCode: "US" }, labs)).reason).toBe("age-out-of-range");
+    expect(notApplicable(score("prevent", { ...answers, blood_pressure_systolic: 210 }, profile, labs)).reason)
+      .toBe("outside-validated-range");
+    expect(notApplicable(score("prevent", answers, profile, [lab("total_cholesterol", 350, "mg/dL"), ...labs.slice(1)])).reason)
+      .toBe("outside-validated-range");
+  });
+});
+
+describe("WHO 2019 printed cardiovascular charts", () => {
+  const answers: AnswerMap = {
+    sex_assigned_at_birth: "male",
+    diagnosed_conditions_core: ["none"],
+    cvd_event_history: false,
+    current_tobacco_nicotine: true,
+    tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
+    blood_pressure_systolic: 140,
+    height_cm: 170,
+    weight_kg: 80,
+  };
+  const cholesterol = [lab("total_cholesterol", 5, "mmol/L")];
+
+  test.each([
+    ["PE", "andean-latin-america", 11, "high"],
+    ["TJ", "central-asia", 30, "very-high"],
+  ] as const)("matches the published 60-year-old vector in %s", (countryCode, region, riskPercent, level) => {
+    const result = complete(score("who-cvd", answers, { age: 60, countryCode }, cholesterol));
+    expect(result).toMatchObject({ variant: "laboratory", region, riskPercent, level, riskHorizonYears: 10 });
+    expect(result.sourceIds).toContain("whoCvdCharts2019");
+  });
+
+  test("uses the Canadian region and selects the non-laboratory chart without cholesterol", () => {
+    const profile = { age: 60, countryCode: "CA" };
+    const result = complete(score("who-cvd", { ...answers, sex_assigned_at_birth: "female", current_tobacco_nicotine: false }, profile));
+    expect(result).toMatchObject({ variant: "non-laboratory", region: "high-income-north-america" });
+    expect(result.inputs).toContainEqual(expect.objectContaining({ id: "derived:body_mass_index" }));
+    expect(result.inputs.some((input) => input.id.startsWith("lab:"))).toBe(false);
+    const withLab = complete(score("who-cvd", answers, profile, cholesterol));
+    expect(withLab.variant).toBe("laboratory");
+  });
+
+  test("needs cholesterol for someone with diabetes rather than ignoring it", () => {
+    const result = incomplete(score("who-cvd", { ...answers, diagnosed_conditions_core: ["diabetes"] }, { age: 60, countryCode: "CA" }));
+    expect(result).toMatchObject({ variant: "laboratory", missingInputs: ["lab:total_cholesterol"] });
+  });
+
+  test("prints a zero cell as zero and retains the low percentage band", () => {
+    const result = complete(score("who-cvd", {
+      ...answers,
+      sex_assigned_at_birth: "female",
+      current_tobacco_nicotine: false,
+      blood_pressure_systolic: 110,
+    }, { age: 40, countryCode: "AU" }, [lab("total_cholesterol", 3.5, "mmol/L")]));
+    expect(result).toMatchObject({ riskPercent: 0, category: "under-5", level: "low" });
+  });
+
+  test("uses inclusive lower boundaries for age, pressure and cholesterol", () => {
+    const profile = { age: 60, countryCode: "TJ" };
+    const base = { ...answers };
+    const risk = (age: number, pressure: number, cholesterolValue: number) =>
+      complete(score("who-cvd", { ...base, blood_pressure_systolic: pressure }, { ...profile, age }, [
+        lab("total_cholesterol", cholesterolValue, "mmol/L"),
+      ])).riskPercent;
+    expect(risk(60, 140, 5)).toBe(30);
+    expect(risk(59, 140, 5)).toBe(22);
+    expect(risk(60, 139, 5)).toBe(22);
+    expect(risk(60, 140, 4.99)).toBe(24);
+  });
+
+  test("uses BMI bands for the non-laboratory table", () => {
+    const profile = { age: 60, countryCode: "TJ" };
+    const withWeight = (weight: number) =>
+      complete(score("who-cvd", { ...answers, height_cm: 170, weight_kg: weight }, profile)).riskPercent;
+    expect(withWeight(86.4)).toBe(30);
+    expect(withWeight(86.7)).toBe(35);
+  });
+
+  test("compares smoking cessation against the same WHO chart cell", () => {
+    const result = complete(score("who-cvd", answers, { age: 60, countryCode: "PE" }, cholesterol));
+    expect(result.gain).toMatchObject({
+      habits: ["no-smoking"],
+      category: "5-to-9",
+      riskPercent: 8,
+    });
+    expect(result.riskPercent).toBe(11);
+  });
+
+  test("does not invent a region for OTHER and preserves the 40–74 age range", () => {
+    expect(notApplicable(score("who-cvd", answers, { age: 60, countryCode: "OTHER" })).reason).toBe("region-not-calibrated");
+    expect(notApplicable(score("who-cvd", answers, { age: 75, countryCode: "CA" })).reason).toBe("age-out-of-range");
   });
 });
 

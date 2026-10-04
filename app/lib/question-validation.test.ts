@@ -13,6 +13,13 @@ test("does not invent an age limit without the person's age", () => {
   expect(validateQuestionAnswer({ id: "smoking_total_years", answerType: "number" }, 80)).toBeNull();
 });
 
+test("limits age at diabetes diagnosis to the current age when it is known", () => {
+  const question = { id: "diabetes_age_at_diagnosis", answerType: "number" } as const;
+  expect(validateQuestionAnswer(question, 60, 60)).toBeNull();
+  expect(validateQuestionAnswer(question, 61, 60)).toEqual({ kind: "range", maximum: 60 });
+  expect(validateQuestionAnswer(question, -1, 60)).toEqual({ kind: "range", maximum: 60 });
+});
+
 test.each([
   ["sedentary_total_hours", 24, 25],
   ["movement_walking_days", 7, 8],

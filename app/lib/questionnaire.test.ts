@@ -202,8 +202,8 @@ const expectedDomains: ReadonlyArray<HealthDomain> = [
 ];
 
 describe("question bank invariants", () => {
-  test("contains 137 curated questions with stable unique IDs and prompts", () => {
-    expect(questionBank).toHaveLength(137);
+  test("contains 140 curated questions with stable unique IDs and prompts", () => {
+    expect(questionBank).toHaveLength(140);
     expect(new Set(questionBank.map((question) => question.id)).size).toBe(
       questionBank.length,
     );

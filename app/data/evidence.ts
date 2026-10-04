@@ -1,10 +1,11 @@
 import type { EvidenceSource } from "../lib/types";
-import { EU_MEMBER_STATES } from "./countries";
+import { ESC_RISK_REGIONS, EU_MEMBER_STATES } from "./countries";
 
 const REVIEWED_AT = "2026-08-03";
 const REVIEWED_AT_PATHOLOGY = "2026-09-29";
 const REVIEWED_AT_FOLLOW_UP = "2026-10-02";
 const REVIEWED_AT_COUNTRIES = "2026-10-03";
+const ESC_COUNTRIES = Object.values(ESC_RISK_REGIONS).flat();
 
 function source(
   id: string,
@@ -743,8 +744,17 @@ export const evidenceSources = {
     "European Heart Journal, European Society of Cardiology",
     "https://doi.org/10.1093/eurheartj/ehab309",
     "all",
-    { applicability: { minAge: 40, maxAge: 69, countries: ["CH", "GB"] } },
+    { applicability: { minAge: 40, maxAge: 69, countries: ESC_COUNTRIES } },
     REVIEWED_AT_PATHOLOGY,
+  ),
+  escHeartScoreRegions: source(
+    "esc-heartscore-regions",
+    "HeartScore European risk regions",
+    "European Society of Cardiology",
+    "https://www.heartscore.org/en_GB/heartscore-europe-risk-regions",
+    "all",
+    { applicability: { minAge: 40, maxAge: 89, countries: ESC_COUNTRIES } },
+    REVIEWED_AT_COUNTRIES,
   ),
   score2OpEsc2021: source(
     "score2-op-esc-2021",
@@ -752,8 +762,26 @@ export const evidenceSources = {
     "European Heart Journal, European Society of Cardiology",
     "https://doi.org/10.1093/eurheartj/ehab312",
     "all",
-    { applicability: { minAge: 70, maxAge: 89, countries: ["CH", "GB"] } },
+    { applicability: { minAge: 70, maxAge: 89, countries: ESC_COUNTRIES } },
     REVIEWED_AT_PATHOLOGY,
+  ),
+  score2DiabetesEsc2023: source(
+    "score2-diabetes-esc-2023",
+    "SCORE2-Diabetes: 10-year cardiovascular risk estimation in type 2 diabetes in Europe",
+    "European Heart Journal, European Society of Cardiology",
+    "https://doi.org/10.1093/eurheartj/ehad260",
+    "all",
+    { applicability: { minAge: 40, maxAge: 69, countries: ESC_COUNTRIES } },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  escDiabetes2023: source(
+    "esc-diabetes-2023",
+    "2023 ESC Guidelines for the management of cardiovascular disease in patients with diabetes",
+    "European Heart Journal, European Society of Cardiology",
+    "https://doi.org/10.1093/eurheartj/ehad192",
+    "all",
+    { applicability: { minAge: 18, countries: ESC_COUNTRIES } },
+    REVIEWED_AT_COUNTRIES,
   ),
   escPrevention2021: source(
     "esc-prevention-guidelines-2021",
@@ -761,8 +789,44 @@ export const evidenceSources = {
     "European Heart Journal, European Society of Cardiology",
     "https://doi.org/10.1093/eurheartj/ehab484",
     "all",
-    { applicability: { minAge: 40, maxAge: 89, countries: ["CH", "GB"] } },
+    { applicability: { minAge: 40, maxAge: 89, countries: ESC_COUNTRIES } },
     REVIEWED_AT_PATHOLOGY,
+  ),
+  preventKhan2024: source(
+    "prevent-khan-2024",
+    "Development and Validation of the American Heart Association’s PREVENT Equations",
+    "Circulation, American Heart Association",
+    "https://doi.org/10.1161/CIRCULATIONAHA.123.067626",
+    "all",
+    { applicability: { minAge: 30, maxAge: 79, countries: ["US"] } },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  accAhaDyslipidemia2026: source(
+    "acc-aha-dyslipidemia-2026",
+    "2026 ACC/AHA Guideline on the Management of Dyslipidemia",
+    "Circulation, American Heart Association",
+    "https://doi.org/10.1161/CIR.0000000000001423",
+    ["US"],
+    { applicability: { minAge: 30, maxAge: 79, countries: ["US"] } },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  whoCvdCharts2019: source(
+    "who-cvd-charts-2019",
+    "World Health Organization cardiovascular disease risk charts: revised models to estimate risk in 21 global regions",
+    "The Lancet Global Health, World Health Organization",
+    "https://doi.org/10.1016/S2214-109X(19)30318-3",
+    "all",
+    { applicability: { minAge: 40, maxAge: 74, countries: "all" } },
+    REVIEWED_AT_COUNTRIES,
+  ),
+  whoHeartsRiskBased: source(
+    "who-hearts-risk-based",
+    "HEARTS: Risk-based CVD management",
+    "World Health Organization",
+    "https://www.who.int/publications/i/item/9789240001367",
+    "all",
+    { applicability: { minAge: 18, countries: "all" } },
+    REVIEWED_AT_COUNTRIES,
   ),
   stopBangChung2008: source(
     "stop-bang-chung-2008",

@@ -27,6 +27,7 @@ const POSITIVE_MEASUREMENTS: ReadonlySet<string> = new Set([
 export function validateQuestionAnswer(
   question: Pick<Question, "id" | "answerType">,
   value: AnswerValue,
+  subjectAgeYears?: number,
 ): QuestionValidationError | null {
   if (value === null || value === "" || (Array.isArray(value) && value.length === 0)) {
     return { kind: "required" };
@@ -34,7 +35,10 @@ export function validateQuestionAnswer(
   if (question.answerType !== "number" && question.answerType !== "scale") return null;
   if (typeof value !== "number" || !Number.isFinite(value)) return { kind: "number" };
 
-  const maximum = question.answerType === "scale" ? 10 : MAXIMUM_BY_QUESTION[question.id];
+  const maximum =
+    question.id === "diabetes_age_at_diagnosis" && Number.isInteger(subjectAgeYears)
+      ? subjectAgeYears
+      : question.answerType === "scale" ? 10 : MAXIMUM_BY_QUESTION[question.id];
   if (maximum !== undefined && (value < 0 || value > maximum)) {
     return { kind: "range", maximum };
   }

@@ -128,7 +128,7 @@ test("default JSON contains interpreted output and confirmed reviewed lab contex
 
   expect(blob.type).toBe("application/json");
   expect(json).toMatchObject({
-    schemaVersion: "health-risk-explorer-report-v4",
+    schemaVersion: "health-risk-explorer-report-v5",
     assessmentDepth: "deep",
     score: {
       kind: "insufficient-coverage",
@@ -183,7 +183,7 @@ test("validated screening scores travel in the report with status, inputs, and s
     dementiaFactors: Array<Record<string, unknown>>;
   };
 
-  expect(exported.rulesetVersion).toBe("pathology-scores-v2");
+  expect(exported.rulesetVersion).toBe("pathology-scores-v3");
   expect(exported.interpretation).toBe("published-screening-instruments-not-a-diagnosis");
   expect(exported.scores).toHaveLength(8);
   expect(exported.scores.find((score) => score.instrument === "findrisc")).toEqual({
@@ -224,6 +224,56 @@ test("validated screening scores travel in the report with status, inputs, and s
     createRedactedExport({ ...report, pathologyRisk: { ...pathologyRisk, scores: [] } }),
   );
   expect(withoutScores).not.toHaveProperty("pathologyRisk");
+});
+
+test("cardiovascular exports identify the ESC variant and region without raw answers", async () => {
+  const pathologyRisk = evaluatePathologyRisk(
+    {
+      sex_assigned_at_birth: "female",
+      diagnosed_conditions_core: ["none"],
+      cvd_event_history: false,
+      current_tobacco_nicotine: false,
+      blood_pressure_systolic: 130,
+    },
+    { age: 75, countryCode: "DE" },
+    [],
+    prototypePolicy,
+  );
+  const json = await readJson(createRedactedExport({ ...report, pathologyRisk }));
+  const score = (json.pathologyRisk as { scores: Array<Record<string, unknown>> }).scores.find(
+    (candidate) => candidate.instrument === "score2",
+  );
+  expect(score).toMatchObject({ variant: "score2-op", region: "moderate", status: "incomplete" });
+  expect(score?.inputs).not.toContainEqual(expect.objectContaining({ value: expect.anything() }));
+});
+
+test("WHO exports identify the printed chart without exposing blood pressure or BMI", async () => {
+  const pathologyRisk = evaluatePathologyRisk(
+    {
+      sex_assigned_at_birth: "female",
+      diagnosed_conditions_core: ["none"],
+      cvd_event_history: false,
+      current_tobacco_nicotine: false,
+      blood_pressure_systolic: 130,
+      height_cm: 160,
+      weight_kg: 64,
+    },
+    { age: 60, countryCode: "CA" },
+    [],
+    prototypePolicy,
+  );
+  const json = await readJson(createRedactedExport({ ...report, pathologyRisk }));
+  const score = (json.pathologyRisk as { scores: Array<Record<string, unknown>> }).scores.find(
+    (candidate) => candidate.instrument === "who-cvd",
+  );
+  expect(score).toMatchObject({
+    variant: "non-laboratory",
+    region: "high-income-north-america",
+    status: "complete",
+    sourceIds: ["whoCvdCharts2019"],
+  });
+  expect(score?.inputs).not.toContainEqual(expect.objectContaining({ value: expect.anything() }));
+  expect(JSON.stringify(score)).not.toMatch(/"CA"|female|"130"|"160"|"64"/);
 });
 
 test("adult raw opt-in keeps screening score inputs as identifiers only", async () => {
@@ -494,7 +544,7 @@ test("merged adult barriers retain every reason and distinct source in structure
   ]);
   expect(JSON.stringify(json.actions)).toMatch(/no current access to prescriber follow-up/i);
   expect((json.actions as Array<Record<string, unknown>>)[0]).not.toHaveProperty("source");
-  expect(json.schemaVersion).toBe("health-risk-explorer-report-v4");
+  expect(json.schemaVersion).toBe("health-risk-explorer-report-v5");
 });
 
 test("raw opt-in is ignored when the trusted age guard is missing", async () => {

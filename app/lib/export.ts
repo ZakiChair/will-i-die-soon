@@ -15,7 +15,7 @@ import type {
   RiskLeaf,
 } from "./types";
 
-export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v4" as const;
+export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v5" as const;
 
 export type ResultReport = {
   readonly subjectAgeYears: number | null;
@@ -117,6 +117,8 @@ function interpretedBound(bound: PathologyRangeBound) {
 function interpretedScore(score: PathologyScoreResult) {
   const base = {
     instrument: score.instrument,
+    ...(score.variant ? { variant: score.variant } : {}),
+    ...(score.region ? { region: score.region } : {}),
     status: score.status,
     // Input values are raw answers: only their identifiers cross the export boundary.
     inputs: score.inputs.map(({ id, derived }) => (derived ? { id, derived } : { id })),

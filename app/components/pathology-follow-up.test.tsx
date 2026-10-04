@@ -256,6 +256,48 @@ test("advice for a low category reads right for a smoker too", async () => {
   );
 });
 
+test("WHO zero and regional variant read correctly in English and French", async () => {
+  const user = userEvent.setup();
+  const answers: AnswerMap = {
+    sex_assigned_at_birth: "female",
+    diagnosed_conditions_core: ["none"],
+    cvd_event_history: false,
+    current_tobacco_nicotine: false,
+    blood_pressure_systolic: 110,
+  };
+  testingRender(
+    <I18nProvider>
+      <LanguageSwitcher />
+      <PathologySynthesisSection
+        synthesis={evaluatePathologyRisk(answers, { age: 40, countryCode: "AU" }, [
+          cholesterol("total_cholesterol", 3.5),
+        ], prototypePolicy)}
+        depth="quick"
+        answers={answers}
+      />
+    </I18nProvider>,
+  );
+  const card = scoreCard("Cardiovascular disease (heart attack, stroke)");
+  // The chart variant names the instrument, as the SCORE2 variants do, so the line does not repeat it.
+  expect(card.querySelector(".pathology-score__instrument")?.textContent).toBe(
+    "WHO 2019 charts, laboratory · WHO region: Australasia",
+  );
+  expect(card).toHaveTextContent("Under 5%");
+  // A printed zero cell is a rounded value, so the percentage reads like the people line.
+  expect(card).toHaveTextContent("under 1% estimated risk over 10 years");
+  expect(card).not.toHaveTextContent(/\b0\s?%/);
+  expect(card).toHaveTextContent("Fewer than 1 in 100");
+  expect(card).not.toHaveTextContent("Low risk");
+  await user.click(screen.getByRole("button", { name: "Français" }));
+  const french = scoreCard("Maladie cardiovasculaire (infarctus, AVC)");
+  expect(french.querySelector(".pathology-score__instrument")?.textContent).toBe(
+    "Tables OMS 2019, avec laboratoire · Région OMS\u00a0: Australasie",
+  );
+  expect(french).toHaveTextContent(/moins de 1\s% de risque estimé sur 10 ans/);
+  expect(french).not.toHaveTextContent(/\b0\s?%/);
+  expect(french).toHaveTextContent("Moins d’une personne sur 100");
+});
+
 test("completing one estimate asks only its missing answer, with measurement help, then updates the card", async () => {
   const user = userEvent.setup();
   renderResults(omit(FINDRISC_FIFTEEN, "waist_circumference_cm"), CH_50);
@@ -478,7 +520,7 @@ test("the JSON download reflects an answer added after the results, without its 
   await user.click(screen.getByRole("button", { name: /download json/i }));
 
   const updated = await readBlob(blobs[1]);
-  expect(updated.schemaVersion).toBe("health-risk-explorer-report-v4");
+  expect(updated.schemaVersion).toBe("health-risk-explorer-report-v5");
   expect(findrisc(updated)).toMatchObject({
     status: "complete",
     points: 15,

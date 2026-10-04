@@ -1,3 +1,4 @@
+import type { WhoCvdRegion } from "../data/countries";
 import type { PathologyOrientationId } from "../lib/pathology-orientation";
 import type {
   AnalysisDepth,
@@ -10,7 +11,7 @@ import type {
 } from "../lib/types";
 
 /** Instruments whose publication includes an absolute risk. */
-export type PercentInstrumentId = Extract<PathologyInstrumentId, "findrisc" | "score2" | "caide">;
+export type PercentInstrumentId = Extract<PathologyInstrumentId, "findrisc" | "score2" | "prevent" | "who-cvd" | "caide">;
 
 type InstrumentCopy = {
   readonly pathology: string;
@@ -34,6 +35,8 @@ const en = {
   pointsReadout: (points: number, max: number) => `${points} / ${max} points`,
   percentReadout: (percent: string, horizon: number) =>
     `about ${percent} estimated risk over ${horizon} years`,
+  percentReadoutUnder: (percent: string, horizon: number) =>
+    `under ${percent} estimated risk over ${horizon} years`,
   percentWithheld:
     "The published percentage is withheld in this release; the category still follows the instrument’s published thresholds.",
   inputsHeading: "Answers used",
@@ -52,6 +55,8 @@ const en = {
     statin_current: "Cholesterol-lowering treatment was in place; the score was built from untreated values, so read the estimate cautiously.",
     declared_heart_vascular: "A clinician-diagnosed heart or blood-vessel condition was reported. ESC guidance places established atherosclerotic disease at high or very high risk regardless of this estimate, which assumes no such disease.",
     declared_kidney: "A kidney condition was reported. ESC guidance places moderate or severe chronic kidney disease at high or very high risk regardless of this estimate, which assumes normal kidney function.",
+    "diabetes-esc-classification": "Diabetes was reported. ESC guidance also classifies risk by its duration, organ damage and established atherosclerosis; the estimate alone does not settle that assessment.",
+    "egfr-below-45": "An eGFR below 45 places clinical cardiovascular risk at high or very high regardless of the calculated SCORE2-Diabetes estimate. Discuss this with your diabetes care team.",
   } as Readonly<Record<string, string>>,
   sourcesHeading: "Sources",
   levels: {
@@ -60,12 +65,51 @@ const en = {
     high: "High",
     "very-high": "Very high",
   } satisfies Readonly<Record<PathologyRiskLevel, string>>,
+  score2Variant: {
+    score2: "SCORE2 (ESC 2021)",
+    "score2-op": "SCORE2-OP (ESC 2021)",
+    "score2-diabetes": "SCORE2-Diabetes (ESC 2023)",
+  },
+  score2DiabetesBoundary: "Ten-year probability of a first fatal or non-fatal cardiovascular event in type 2 diabetes, calibrated for the named ESC region.",
+  escRegion: {
+    low: "ESC low-risk region",
+    moderate: "ESC moderate-risk region",
+    high: "ESC high-risk region",
+    "very-high": "ESC very-high-risk region",
+  },
+  whoRegion: {
+    "andean-latin-america": "Andean Latin America",
+    australasia: "Australasia",
+    caribbean: "Caribbean",
+    "central-asia": "Central Asia",
+    "central-europe": "Central Europe",
+    "central-latin-america": "Central Latin America",
+    "central-sub-saharan-africa": "Central Sub-Saharan Africa",
+    "east-asia": "East Asia",
+    "eastern-europe": "Eastern Europe",
+    "eastern-sub-saharan-africa": "Eastern Sub-Saharan Africa",
+    "high-income-asia-pacific": "High-income Asia Pacific",
+    "high-income-north-america": "High-income North America",
+    "north-africa-and-middle-east": "North Africa and Middle East",
+    oceania: "Oceania",
+    "south-asia": "South Asia",
+    "southeast-asia": "Southeast Asia",
+    "southern-latin-america": "Southern Latin America",
+    "southern-sub-saharan-africa": "Southern Sub-Saharan Africa",
+    "tropical-latin-america": "Tropical Latin America",
+    "western-europe": "Western Europe",
+    "western-sub-saharan-africa": "Western Sub-Saharan Africa",
+  } satisfies Readonly<Record<WhoCvdRegion, string>>,
+  whoRegionLabel: (region: string) => `WHO region: ${region}`,
+  whoVariant: { laboratory: "WHO 2019 charts, laboratory", "non-laboratory": "WHO 2019 charts, non-laboratory" },
   notApplicable: {
     "age-out-of-range": "This instrument was validated for a different age range.",
     "diagnosed-condition": "You reported that a clinician has already diagnosed this condition, so a screening score does not apply.",
+    "diabetes-type-not-covered": "SCORE2-Diabetes was validated for type 2 diabetes, not the diabetes type you reported.",
     "established-cvd": "You reported an established cardiovascular event; first-event risk scores do not apply after that.",
     "sex-not-supported": "The instrument publishes tables only for female and male sex at birth.",
-    "region-not-calibrated": "SCORE2 is calibrated by region; your country is not mapped to a published risk region here.",
+    "region-not-calibrated": "Choose your country at the start to obtain an estimate calibrated for its published risk region.",
+    "outside-validated-range": "A measurement lies outside the range used to validate this model; ask a clinician to interpret it instead.",
   } satisfies Readonly<Record<PathologyNotApplicableReason, string>>,
   instruments: {
     findrisc: {
@@ -83,11 +127,36 @@ const en = {
     score2: {
       pathology: "Cardiovascular disease (heart attack, stroke)",
       instrument: "SCORE2 / SCORE2-OP (ESC 2021)",
-      boundary: "Ten-year probability of a first fatal or non-fatal cardiovascular event, low-risk region calibration.",
+      boundary: "Ten-year probability of a first fatal or non-fatal cardiovascular event, calibrated for the named ESC region.",
       categories: {
+        low: "Low risk",
+        moderate: "Moderate risk",
         "low-to-moderate": "Low to moderate risk",
         high: "High risk",
         "very-high": "Very high risk",
+      },
+    },
+    prevent: {
+      pathology: "Cardiovascular disease (heart attack, stroke)",
+      instrument: "PREVENT-ASCVD (AHA 2023)",
+      boundary: "Ten-year risk of a first heart attack or stroke, fatal or not, from the US PREVENT base equation.",
+      categories: {
+        low: "Low risk",
+        borderline: "Borderline risk",
+        intermediate: "Intermediate risk",
+        high: "High risk",
+      },
+    },
+    "who-cvd": {
+      pathology: "Cardiovascular disease (heart attack, stroke)",
+      instrument: "WHO 2019 cardiovascular risk charts",
+      boundary: "Printed 10-year risk band for a first fatal or non-fatal heart attack or stroke. WHO does not name these bands.",
+      categories: {
+        "under-5": "Under 5%",
+        "5-to-9": "5% to under 10%",
+        "10-to-19": "10% to under 20%",
+        "20-to-29": "20% to under 30%",
+        "30-plus": "30% or more",
       },
     },
     "stop-bang": {
@@ -228,9 +297,12 @@ const en = {
     waist_circumference_cm: "Waist circumference",
     neck_circumference_cm: "Neck circumference",
     diagnosed_conditions_core: "Diagnosed conditions",
+    diabetes_type: "Diabetes type",
+    diabetes_age_at_diagnosis: "Age at diabetes diagnosis",
     cvd_event_history: "Previous cardiovascular event",
     diagnosed_high_blood_pressure: "Diagnosed high blood pressure",
     bp_medication_ever: "Blood-pressure medicine",
+    bp_medication_current: "Current blood-pressure medicine",
     blood_pressure_systolic: "Systolic blood pressure",
     glucose_high_ever: "Previous high glucose",
     family_diabetes: "Family history of diabetes",
@@ -314,6 +386,16 @@ const en = {
       "Be active, eat a balanced diet and have your blood pressure and cholesterol checked regularly. If you smoke, stopping is the most effective single step.",
     "score2-clinician":
       "Book a cardiovascular check-up with a doctor: at this level, ESC guidance considers treating blood pressure and cholesterol. If you smoke, stopping is the most effective single step.",
+    "prevent-keep-habits":
+      "Be active, eat a balanced diet and have your blood pressure and cholesterol checked. If you smoke, ask for help to stop.",
+    "prevent-clinician":
+      "Discuss this result with a clinician: at this level, ACC/AHA guidance considers cholesterol-lowering treatment. If you smoke, stopping remains important.",
+    "who-cvd-prevention":
+      "Keep working on blood pressure, diet, activity and tobacco at every risk band. Show this result to a doctor or nurse: WHO charts support prevention in primary care.",
+    "score2-diabetes-keep-care":
+      "Keep up your diabetes follow-up for blood pressure, cholesterol, HbA1c and kidney function. Be active, and if you smoke, ask for help to stop.",
+    "score2-diabetes-clinician":
+      "Discuss this estimate with your doctor or diabetes team: ESC guidance considers stricter cholesterol targets and diabetes medicines that also protect the heart.",
     "stop-bang-watch-symptoms":
       "If loud snoring, breathing pauses or daytime sleepiness persist, talk to a doctor.",
     "stop-bang-sleep-assessment":
@@ -353,12 +435,16 @@ const en = {
 const EN_EVENTS: Readonly<Record<PercentInstrumentId, { one: string; other: string }>> = {
   findrisc: { one: "develops type 2 diabetes", other: "develop type 2 diabetes" },
   score2: { one: "has a heart attack or stroke, fatal or not,", other: "have a heart attack or stroke, fatal or not," },
+  prevent: { one: "has a heart attack or stroke, fatal or not,", other: "have a heart attack or stroke, fatal or not," },
+  "who-cvd": { one: "has a heart attack or stroke, fatal or not,", other: "have a heart attack or stroke, fatal or not," },
   caide: { one: "develops dementia", other: "develop dementia" },
 };
 
 const FR_EVENTS: Readonly<Record<PercentInstrumentId, { one: string; other: string }>> = {
   findrisc: { one: "développe un diabète de type 2", other: "développent un diabète de type 2" },
   score2: { one: "fait un infarctus ou un AVC, mortel ou non,", other: "font un infarctus ou un AVC, mortel ou non," },
+  prevent: { one: "fait un infarctus ou un AVC, mortel ou non,", other: "font un infarctus ou un AVC, mortel ou non," },
+  "who-cvd": { one: "fait un infarctus ou un AVC, mortel ou non,", other: "font un infarctus ou un AVC, mortel ou non," },
   caide: { one: "développe une démence", other: "développent une démence" },
 };
 
@@ -377,6 +463,8 @@ const fr = {
   pointsReadout: (points: number, max: number) => `${points} / ${max} points`,
   percentReadout: (percent: string, horizon: number) =>
     `environ ${percent} de risque estimé sur ${horizon} ans`,
+  percentReadoutUnder: (percent: string, horizon: number) =>
+    `moins de ${percent} de risque estimé sur ${horizon} ans`,
   percentWithheld:
     "Le pourcentage publié n’est pas affiché dans cette version\u00a0; la catégorie suit tout de même les seuils publiés de l’instrument.",
   inputsHeading: "Réponses utilisées",
@@ -395,6 +483,8 @@ const fr = {
     statin_current: "Un traitement hypocholestérolémiant était en cours\u00a0; le score a été construit sur des valeurs non traitées, lisez donc l’estimation avec prudence.",
     declared_heart_vascular: "Une maladie cardiaque ou vasculaire diagnostiquée a été déclarée. Les recommandations ESC classent la maladie athéroscléreuse établie en risque élevé ou très élevé indépendamment de cette estimation, qui suppose l’absence d’une telle maladie.",
     declared_kidney: "Une maladie rénale a été déclarée. Les recommandations ESC classent l’insuffisance rénale chronique modérée ou sévère en risque élevé ou très élevé indépendamment de cette estimation, qui suppose une fonction rénale normale.",
+    "diabetes-esc-classification": "Un diabète a été déclaré. Les recommandations ESC tiennent aussi compte de sa durée, de l’atteinte des organes et de l’athérosclérose établie\u00a0; l’estimation seule ne tranche pas cette évaluation.",
+    "egfr-below-45": "Un DFG estimé inférieur à 45 place le risque cardiovasculaire clinique à un niveau élevé ou très élevé indépendamment du calcul SCORE2-Diabetes. Parlez-en à l’équipe qui suit votre diabète.",
   } as Readonly<Record<string, string>>,
   sourcesHeading: "Sources",
   levels: {
@@ -403,12 +493,51 @@ const fr = {
     high: "Élevé",
     "very-high": "Très élevé",
   } satisfies Readonly<Record<PathologyRiskLevel, string>>,
+  score2Variant: {
+    score2: "SCORE2 (ESC 2021)",
+    "score2-op": "SCORE2-OP (ESC 2021)",
+    "score2-diabetes": "SCORE2-Diabetes (ESC 2023)",
+  },
+  score2DiabetesBoundary: "Probabilité à dix ans d’un premier événement cardiovasculaire fatal ou non fatal en cas de diabète de type 2, calibrée pour la région ESC indiquée.",
+  escRegion: {
+    low: "Région ESC à bas risque",
+    moderate: "Région ESC à risque modéré",
+    high: "Région ESC à haut risque",
+    "very-high": "Région ESC à très haut risque",
+  },
+  whoRegion: {
+    "andean-latin-america": "Amérique latine andine",
+    australasia: "Australasie",
+    caribbean: "Caraïbes",
+    "central-asia": "Asie centrale",
+    "central-europe": "Europe centrale",
+    "central-latin-america": "Amérique latine centrale",
+    "central-sub-saharan-africa": "Afrique subsaharienne centrale",
+    "east-asia": "Asie de l’Est",
+    "eastern-europe": "Europe de l’Est",
+    "eastern-sub-saharan-africa": "Afrique subsaharienne orientale",
+    "high-income-asia-pacific": "Asie-Pacifique à revenu élevé",
+    "high-income-north-america": "Amérique du Nord à revenu élevé",
+    "north-africa-and-middle-east": "Afrique du Nord et Moyen-Orient",
+    oceania: "Océanie",
+    "south-asia": "Asie du Sud",
+    "southeast-asia": "Asie du Sud-Est",
+    "southern-latin-america": "Amérique latine méridionale",
+    "southern-sub-saharan-africa": "Afrique subsaharienne australe",
+    "tropical-latin-america": "Amérique latine tropicale",
+    "western-europe": "Europe occidentale",
+    "western-sub-saharan-africa": "Afrique subsaharienne occidentale",
+  } satisfies Readonly<Record<WhoCvdRegion, string>>,
+  whoRegionLabel: (region: string) => `Région OMS\u00a0: ${region}`,
+  whoVariant: { laboratory: "Tables OMS 2019, avec laboratoire", "non-laboratory": "Tables OMS 2019, sans laboratoire" },
   notApplicable: {
     "age-out-of-range": "Cet instrument a été validé pour une autre tranche d’âge.",
     "diagnosed-condition": "Vous avez indiqué qu’un professionnel de santé a déjà diagnostiqué cette pathologie\u00a0; un score de dépistage ne s’applique donc pas.",
+    "diabetes-type-not-covered": "SCORE2-Diabetes a été validé pour le diabète de type 2, pas pour le type que vous avez déclaré.",
     "established-cvd": "Vous avez indiqué un événement cardiovasculaire établi\u00a0; les scores de premier événement ne s’appliquent plus ensuite.",
     "sex-not-supported": "L’instrument ne publie des tables que pour le sexe féminin et masculin à la naissance.",
-    "region-not-calibrated": "SCORE2 est calibré par région\u00a0; votre pays n’est pas rattaché ici à une région de risque publiée.",
+    "region-not-calibrated": "Choisissez votre pays au début pour obtenir une estimation calibrée pour sa région de risque publiée.",
+    "outside-validated-range": "Une mesure dépasse la plage de validation de ce modèle\u00a0; demandez plutôt son interprétation à un professionnel de santé.",
   } satisfies Readonly<Record<PathologyNotApplicableReason, string>>,
   instruments: {
     findrisc: {
@@ -426,11 +555,36 @@ const fr = {
     score2: {
       pathology: "Maladie cardiovasculaire (infarctus, AVC)",
       instrument: "SCORE2 / SCORE2-OP (ESC 2021)",
-      boundary: "Probabilité à dix ans d’un premier événement cardiovasculaire fatal ou non fatal, calibration région à bas risque.",
+      boundary: "Probabilité à dix ans d’un premier événement cardiovasculaire fatal ou non fatal, calibrée pour la région ESC indiquée.",
       categories: {
+        low: "Risque faible",
+        moderate: "Risque modéré",
         "low-to-moderate": "Risque faible à modéré",
         high: "Risque élevé",
         "very-high": "Risque très élevé",
+      },
+    },
+    prevent: {
+      pathology: "Maladie cardiovasculaire (infarctus, AVC)",
+      instrument: "PREVENT-ASCVD (AHA 2023)",
+      boundary: "Risque à dix ans d’un premier infarctus ou AVC, mortel ou non, selon l’équation de base américaine PREVENT.",
+      categories: {
+        low: "Risque faible",
+        borderline: "Risque limite",
+        intermediate: "Risque intermédiaire",
+        high: "Risque élevé",
+      },
+    },
+    "who-cvd": {
+      pathology: "Maladie cardiovasculaire (infarctus, AVC)",
+      instrument: "Tables OMS 2019 de risque cardiovasculaire",
+      boundary: "Bande imprimée de risque à dix ans d’un premier infarctus ou AVC, mortel ou non. L’OMS ne nomme pas ces bandes.",
+      categories: {
+        "under-5": "Moins de 5\u202f%",
+        "5-to-9": "De 5 à moins de 10\u202f%",
+        "10-to-19": "De 10 à moins de 20\u202f%",
+        "20-to-29": "De 20 à moins de 30\u202f%",
+        "30-plus": "30\u202f% ou plus",
       },
     },
     "stop-bang": {
@@ -571,9 +725,12 @@ const fr = {
     waist_circumference_cm: "Tour de taille",
     neck_circumference_cm: "Tour de cou",
     diagnosed_conditions_core: "Affections diagnostiquées",
+    diabetes_type: "Type de diabète",
+    diabetes_age_at_diagnosis: "Âge au diagnostic du diabète",
     cvd_event_history: "Événement cardiovasculaire antérieur",
     diagnosed_high_blood_pressure: "Hypertension diagnostiquée",
     bp_medication_ever: "Médicament contre l’hypertension",
+    bp_medication_current: "Traitement actuel de la tension",
     blood_pressure_systolic: "Tension artérielle systolique",
     glucose_high_ever: "Glycémie élevée antérieure",
     family_diabetes: "Antécédents familiaux de diabète",
@@ -663,6 +820,16 @@ const fr = {
       "Bougez régulièrement, mangez équilibré et faites contrôler votre tension et votre cholestérol à intervalles réguliers. Si vous fumez, arrêter est la mesure la plus efficace.",
     "score2-clinician":
       "Prévoyez un bilan cardiovasculaire avec un médecin\u00a0: à ce niveau, les recommandations ESC envisagent de traiter la tension et le cholestérol. Si vous fumez, arrêter est la mesure la plus efficace.",
+    "prevent-keep-habits":
+      "Bougez régulièrement, mangez équilibré et faites contrôler votre tension et votre cholestérol. Si vous fumez, demandez de l’aide pour arrêter.",
+    "prevent-clinician":
+      "Parlez de ce résultat à un professionnel de santé\u00a0: à ce niveau, les recommandations ACC/AHA envisagent un traitement hypocholestérolémiant. Si vous fumez, arrêter reste important.",
+    "who-cvd-prevention":
+      "Agissez sur la tension, l’alimentation, l’activité physique et le tabac quelle que soit la bande de risque. Montrez ce résultat à un médecin ou une infirmière\u00a0: les tables OMS soutiennent la prévention en soins primaires.",
+    "score2-diabetes-keep-care":
+      "Poursuivez votre suivi du diabète pour la tension, le cholestérol, l’HbA1c et la fonction rénale. Bougez régulièrement et, si vous fumez, demandez de l’aide pour arrêter.",
+    "score2-diabetes-clinician":
+      "Parlez de cette estimation à votre médecin ou à l’équipe de diabétologie\u00a0: les recommandations ESC envisagent des objectifs de cholestérol plus stricts et des traitements du diabète qui protègent aussi le cœur.",
     "stop-bang-watch-symptoms":
       "Si un ronflement fort, des pauses respiratoires ou une somnolence dans la journée persistent, parlez-en à un médecin.",
     "stop-bang-sleep-assessment":

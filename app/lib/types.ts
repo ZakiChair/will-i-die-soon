@@ -1,3 +1,5 @@
+import type { EscRiskRegion, WhoCvdRegion } from "../data/countries";
+
 export type AnalysisDepth = "express" | "quick" | "detailed" | "deep";
 
 export type HealthDomain =
@@ -225,6 +227,8 @@ export type ReleasePolicy = {
 export type PathologyInstrumentId =
   | "findrisc"
   | "score2"
+  | "prevent"
+  | "who-cvd"
   | "stop-bang"
   | "audit-c"
   | "phq-2"
@@ -237,6 +241,8 @@ export type PathologyRiskLevel = "low" | "moderate" | "high" | "very-high";
 export type PathologyNotApplicableReason =
   | "age-out-of-range"
   | "diagnosed-condition"
+  | "diabetes-type-not-covered"
+  | "outside-validated-range"
   | "established-cvd"
   | "sex-not-supported"
   | "region-not-calibrated";
@@ -250,6 +256,8 @@ export type PathologyScoreInput = {
 
 type PathologyScoreBase = {
   instrument: PathologyInstrumentId;
+  variant?: "score2" | "score2-op" | "score2-diabetes" | "laboratory" | "non-laboratory";
+  region?: EscRiskRegion | WhoCvdRegion;
   inputs: ReadonlyArray<PathologyScoreInput>;
   sourceIds: ReadonlyArray<string>;
 };
