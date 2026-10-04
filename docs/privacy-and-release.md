@@ -318,3 +318,40 @@ Public access, a public wellness edition, and regulated medical modules remain s
 **Test-harness notes.** The browser of the agent-browser session sometimes restarted between two commands, which empties its logs, so every log check was made in the same browser as the journey it covers. After one restart, a storage check evaluated on the blank page left an "Uncaught (in promise)" entry in the page-error log (an IndexedDB call refused on `about:blank`) that `errors --clear` did not remove. The session was closed and the urgent checks rerun with a fresh log, which stayed empty. That entry did not come from the application.
 
 **Limits of this QA.** The resource-timing list does not see requests from workers; these manual-entry journeys start none, and lab-file imports were not repeated because this release does not change the parsers (the 2026-10-01 NetLog record still covers them). The SCORE2 moderate- and high-risk regions were checked by the engine tests, not in the browser. No QA finding is open.
+
+## 2026-10-04 landing redesign QA and release
+
+**Scope and privacy boundary.** This release changes presentation only: the site-wide colour tokens, Bricolage Grotesque headings, the landing header, the chapter scroll, and the colours of the 3D character and its SVG fallback. Texts, questions, scoring, exports and the data boundary are unchanged. `next/font` self-hosts Bricolage Grotesque at build time, so no font is requested from a third party at run time. The only new dependency, `lenis` 1.3.26 (no dependencies of its own), is imported dynamically on desktop fine pointers when decorative motion is allowed; it is never downloaded on touch devices or with reduced motion. It reads wheel and scroll events in the page and writes classes on `<html>`; its distributed code makes no network request and uses no browser storage. The local QA, its six fixes and its gates are recorded in French in [the design and QA record](reviews/2026-10-04-refonte-da-accueil-design.md); every local request went to `localhost`.
+
+**Gates before deployment** (Node v26.7.0, npm 11.19.0): non-incremental TypeScript exit 0; lint 0 errors and the two existing warnings in ignored local directories; 71 files / 9,236 tests passed; Vinext build 5/5 stages; `next build` compiled; `git diff --check` clean; `npm audit --omit=dev` zero vulnerabilities. The full `npm audit` still reports only the development-only braces advisory (GHSA-vfj7-8cjw-p6xm).
+
+**Preview and deployment (2026-10-04).** At the owner's request the branch was pushed for a Vercel preview, `dpl_5FztS4ozq8HYNh5y7AK4uoz1sXVS`, behind Vercel Authentication; the owner then asked for the merge and the deployment. `main` was fast-forwarded from `e37c4b4` to `ac1d0f8` and pushed at 09:27:28Z. Two seconds later the Git integration created `dpl_5E9onP33tUxJQkh2JpPH6sq8CcDy`; it was ready and promoted to `https://will-i-die-soon.vercel.app` at 09:28:09Z. `dpl_3vvzUksUy49YfTeqMNdaccY4hrXb` (source `e37c4b4`) is the rollback target for the previous landing.
+
+**Production QA.** A headless Chrome session checked the alias, at 1440 × 900 unless noted:
+
+- The alias returned the CSP, COOP, Permissions-Policy, Referrer-Policy, `nosniff`, `X-Frame-Options` and HSTS headers. Bricolage Grotesque and DM Sans loaded, and Lenis was active.
+- Wheel steps settled on the four chapters (841, 1,471, 2,101 and 2,731 px), then scrolling stayed free (2,931 px); scrolling back up returned to 0 with the header visible. The French landing read correctly.
+- An iPhone 14 emulation (390 × 844) went through the chapters without horizontal overflow; the emulation keeps a fine pointer, so Lenis stayed active there. Reduced motion showed the static story.
+- An English Express journey (45, France) reached the results with the new headings and palette. The page's 33 resources were all same-origin, `document.cookie` and browser storage stayed empty, and the console was empty.
+- After that journey, `<html>` still carried the `lenis` class (defect below).
+
+**Defect found in production and fixed.** `74c0480`: Lenis 1.3.26 does not clear, on `destroy()`, the 400 ms timer that a native scroll arms. When the landing unmounted inside that window (Express started right after a scroll, a chapter snap or a button that the click scrolled into view), the timer reset the scrolling state and wrote the `lenis` class back on `<html>`, so the questionnaire and results kept the `html.lenis { height: auto }` rule meant for the landing. The hook now calls `stop()` before `destroy()`. The new `app/hooks/use-smooth-scroll.lenis.test.tsx` drives the real package through a native scroll and an unmount; it failed before the fix. Gates after the fix: 72 files / 9,237 tests, non-incremental TypeScript exit 0, lint 0 errors and the two existing warnings, Vinext build 5/5 stages, `next build` compiled, `git diff --check` clean. A local production build then left `<html>` without a class after Express was started from the hero and from the conversion card.
+
+**Fix deployment.** `main` was pushed from `ac1d0f8` to `74c0480` at 09:44:43Z. Two seconds later the Git integration created `dpl_12QNAJ36qECwGe8i25iU3pBSQWAF` (region `iad1`); it was ready and promoted at 09:45:10Z. The served landing chunk contains `try{e?.stop()}catch{}try{e?.destroy()}catch{}`. `dpl_5E9onP33tUxJQkh2JpPH6sq8CcDy` (source `ac1d0f8`) restores the redesign without the fix, and `dpl_3vvzUksUy49YfTeqMNdaccY4hrXb` the previous landing. The alias returned the same headers with `/` (200), an unknown route (404) and `/favicon.svg` (200), and no `Set-Cookie`.
+
+**Production QA of the fix** (1440 × 900):
+
+- A native scroll to 120 px (`window.scrollTo`) set `lenis lenis-scrolling` on `<html>`; "Start Express", clicked by script inside the 400 ms window, left `<html>` without a class right after the click and one second later.
+- Seven wheel steps settled on the four chapters (841, 1,471, 2,101 and 2,731 px), then scrolled freely to 4,231 px; the conversion card's "Start Express", scrolled into view by the click, also left no class.
+- The nine Express questions (each answered "I don't know or prefer not to answer") and the results kept `<html>` without a class, and the results scrolled natively.
+- "Restart from the beginning" brought the landing back with Lenis restarted: the `lenis` class returned, and scrolling up went from 4,237 to 3,737, 3,237 and 2,737 px, then settled on the chapters at 2,101 and 1,471 px.
+- The page's 15 resources were all same-origin. `document.cookie`, `localStorage`, `sessionStorage`, IndexedDB, Cache Storage and the service-worker registrations stayed empty, and the console and page-error logs were empty.
+
+**Observations kept.** Neither was changed: the first predates this release, and the second has no visible effect.
+
+- "Restart from the beginning" brings the landing back at its bottom (4,737 px of 4,737 here) with focus on `<body>`: no screen change resets the scroll, so the browser clamps the results' scroll position to the landing's height. The code before the redesign (`e37c4b4`) has no scroll reset and no landing focus either, so this behavior predates the release.
+- After that remount, Lenis 1.3.26 counts a zero-velocity native scroll event as native scrolling without arming its reset timer, so `lenis-scrolling` stays on `<html>` until the next gesture. No rule of the app uses that class, and the first wheel step clears it.
+
+**Test-harness note.** The agent-browser accessibility snapshot listed the buttons of the results tools section, which has used `content-visibility: auto` since 2026-08-03, only once the section was near the viewport, so "Restart from the beginning" was scrolled into view before the click. Whether assistive technologies see the same gap was not checked.
+
+**Limits of this QA.** Real Safari and Firefox, trackpads, touch devices and screen readers were not tested; the mobile views are Chrome emulations. The resource-timing list does not see requests from workers; these journeys start none. No finding of this release is open; the two observations above are kept for a later decision.
