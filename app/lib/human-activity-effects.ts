@@ -45,7 +45,7 @@ export function createHumanActivityEffects({ head, torso, chest, blanket }: Atta
     point: (t: number) => THREE.Vector3, radius = 0.013) =>
     mesh(parent, name, tube(Array.from({ length: 17 }, (_, i) => point(i / 16)), radius), surface);
   const sphere = own(new THREE.SphereGeometry(1, 12, 8));
-  const faceColor = "#28695f";
+  const faceColor = "#0a6b5e";
 
   const happy = group("meal-expression", head);
   const happyInk = paint(faceColor);
@@ -71,7 +71,7 @@ export function createHumanActivityEffects({ head, torso, chest, blanket }: Atta
     new THREE.Vector3(-0.06, -0.07, 0), new THREE.Vector3(0.06, -0.07, 0),
   ], 0.010);
   const dreams = Array.from({ length: 3 }, (_, index) => {
-    const value = mesh(sleeping, `sleep-drift-${index}`, dreamGeometry, paint("#715178"));
+    const value = mesh(sleeping, `sleep-drift-${index}`, dreamGeometry, paint("#6a4c84"));
     return value;
   });
 
@@ -90,7 +90,7 @@ export function createHumanActivityEffects({ head, torso, chest, blanket }: Atta
     new THREE.Vector2(0.18, 0.67), new THREE.Vector2(0, 1),
   ], 12));
   const drops = Array.from({ length: 8 }, (_, index) =>
-    mesh(running, `sweat-drop-${index}`, dropGeometry, paint("#287f91")));
+    mesh(running, `sweat-drop-${index}`, dropGeometry, paint("#286c82")));
 
   const focused = group("strength-expression", head);
   const effortInk = paint(faceColor);
@@ -99,7 +99,7 @@ export function createHumanActivityEffects({ head, torso, chest, blanket }: Atta
   faceStroke(focused, "effort-mouth", effortInk,
     (t) => facePoint((t - 0.5) * 0.10, -0.13 + Math.sin(t * Math.PI) * 0.017), 0.012);
   const effort = group("strength-effort", torso);
-  const effortPulse = paint("#4d8c80");
+  const effortPulse = paint("#0a6b5e");
   for (const side of [-1, 1]) for (let index = 0; index < 2; index += 1) {
     mesh(effort, `effort-mark-${side}-${index}`, tube(Array.from({ length: 9 }, (_, step) => {
       const t = step / 8;

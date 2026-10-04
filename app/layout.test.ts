@@ -11,9 +11,9 @@ type InspectedElement = ReactElement<{
   suppressHydrationWarning?: boolean;
 }>;
 
-const { dmSans, manrope } = vi.hoisted(() => ({
+const { bricolage, dmSans } = vi.hoisted(() => ({
+  bricolage: vi.fn(() => ({ variable: "--font-display" })),
   dmSans: vi.fn(() => ({ variable: "--font-body" })),
-  manrope: vi.fn(() => ({ variable: "--font-display" })),
 }));
 
 const requestHeaders = vi.hoisted(() => ({
@@ -21,8 +21,8 @@ const requestHeaders = vi.hoisted(() => ({
 }));
 
 vi.mock("next/font/google", () => ({
+  Bricolage_Grotesque: bricolage,
   DM_Sans: dmSans,
-  Manrope: manrope,
 }));
 
 vi.mock("next/headers", () => ({
@@ -104,7 +104,10 @@ test("uses two locally hosted typefaces for titles and reading", async () => {
   await import("./layout");
   const source = readFileSync("app/layout.tsx", "utf8");
 
-  expect(manrope).toHaveBeenCalledWith(expect.objectContaining({
+  // L'axe optique laisse la fonte resserrer seule les grands titres, sans interlettrage négatif.
+  expect(bricolage).toHaveBeenCalledWith(expect.objectContaining({
+    axes: ["opsz"],
+    display: "swap",
     style: "normal",
     subsets: ["latin"],
     variable: "--font-display",
@@ -117,7 +120,7 @@ test("uses two locally hosted typefaces for titles and reading", async () => {
   }));
   expect(source).toContain("--font-display");
   expect(source).toContain("--font-body");
-  expect(source).not.toMatch(/Space_Grotesk|Geist_Mono|\bGeist\b/);
+  expect(source).not.toMatch(/Manrope|Space_Grotesk|Geist_Mono|\bGeist\b/);
 });
 
 test("applies only two font resources; data shares the reading typeface", async () => {

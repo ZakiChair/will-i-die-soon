@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --abyss: #F1F6F3;
+  --abyss: #F4F5EE;
   --depth: #FFFFFF;
-  --mist: #173D38;
-  --phosphor: #086F66;
-  --current: #075A53;
-  --flare: #A33B47;
-  --muted: #526C65;
-  --line: #D4E1D9;
-  --line-strong: #92AAA0;
+  --mist: #10302B;
+  --phosphor: #0A6B5E;
+  --current: #08554B;
+  --flare: #A63A4C;
+  --muted: #4D6159;
+  --line: #DFE3D8;
+  --line-strong: #A1ADA2;
   --surface: #FFFFFF;
-  --surface-soft: #E4EEE7;
+  --surface-soft: #E9EEE2;
   --surface-strong: #FFFFFF;
-  --accent: #715178;
-  --accent-soft: #EEE7EF;
-  --highlight: #D8E9B2;
-  --inverse: #F4FBF5;
+  --accent: #6A4C84;
+  --accent-soft: #EFE9F4;
+  --highlight: #D3EE8F;
+  --inverse: #F6FAF2;
   --pillar-cardio: #286C82;
   --pillar-strength: #8D6328;
-  --pillar-sleep: #715178;
-  --pillar-nutrition: #086F66;
+  --pillar-sleep: #6A4C84;
+  --pillar-nutrition: #0A6B5E;
 }
 
 * { box-sizing: border-box; }
@@ -208,11 +208,11 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   background: linear-gradient(90deg, var(--abyss) 4%, color-mix(in srgb, var(--abyss) 75%, transparent) 30%, transparent 54%);
 }
 /* The sculpture is a separate, lazily loaded WebGL layer. */
-.living-atlas { position: absolute; inset: 0 0 0 36%; color: #93d9ed; pointer-events: none; }
-.living-atlas::before { content: ""; position: absolute; inset: 16% 8%; border-radius: 50%; background: radial-gradient(ellipse, #29628624, transparent 68%); }
-.living-atlas[data-scene="strength"] { color: #edc69c; }
-.living-atlas[data-scene="sleep"] { color: #bda5f1; }
-.living-atlas[data-scene="energy"] { color: #91dfc3; }
+.living-atlas { position: absolute; inset: 0 0 0 36%; color: var(--phosphor); pointer-events: none; }
+.living-atlas::before { content: ""; position: absolute; inset: 16% 8%; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--phosphor) 14%, transparent), transparent 68%); }
+.living-atlas[data-scene="strength"] { color: var(--pillar-strength); }
+.living-atlas[data-scene="sleep"] { color: var(--accent); }
+.living-atlas[data-scene="energy"] { color: var(--current); }
 .living-atlas__canvas, .living-atlas__still { position: absolute; inset: 0; width: 100%; height: 100%; }
 .living-atlas__canvas canvas { display: block; width: 100%; height: 100%; }
 .living-atlas__still { padding: 2%; opacity: 1; }
@@ -250,9 +250,9 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
   backdrop-filter: none;
 }
 .human-atlas-scene__card > .data-label { color: var(--current); }
-.human-atlas-scene[data-atlas-scene="strength"] .data-label { color: #edc69c; }
-.human-atlas-scene[data-atlas-scene="sleep"] .data-label { color: #bda5f1; }
-.human-atlas-scene[data-atlas-scene="energy"] .data-label { color: #91dfc3; }
+.human-atlas-scene[data-atlas-scene="strength"] .data-label { color: var(--pillar-strength); }
+.human-atlas-scene[data-atlas-scene="sleep"] .data-label { color: var(--accent); }
+.human-atlas-scene[data-atlas-scene="energy"] .data-label { color: var(--current); }
 .human-atlas-scene h3 { hyphens: none; text-wrap: balance; margin: 13px 0; color: var(--mist); font-size: 2.25rem; font-weight: 600; letter-spacing: 0; line-height: 1.16; text-shadow: 0 2px 18px var(--abyss); }
 .human-atlas-scene__card > p:not(.data-label) { color: var(--muted); line-height: 1.65; text-shadow: 0 1px 12px var(--abyss); }
 .human-atlas-scene small, .human-atlas-static small { color: var(--muted); font-family: var(--font-data), monospace; font-size: .75rem; line-height: 1.55; font-variant-numeric: tabular-nums lining-nums; }
@@ -1491,7 +1491,7 @@ html:is([data-motion-bootstrap="pending"], [data-motion-bootstrap="ready"]) [dat
 }
 
 @media print {
-  :root { --abyss: #173D38; --mist: #FFFFFF; --depth: #FFFFFF; --phosphor: #075A53; --current: #075A53; --surface: #FFFFFF; --surface-soft: #FFFFFF; --surface-strong: #FFFFFF; --line: color-mix(in srgb, var(--abyss) 22%, transparent); --line-strong: color-mix(in srgb, var(--abyss) 38%, transparent); --muted: var(--abyss); }
+  :root { --abyss: #10302B; --mist: #FFFFFF; --depth: #FFFFFF; --phosphor: #08554B; --current: #08554B; --surface: #FFFFFF; --surface-soft: #FFFFFF; --surface-strong: #FFFFFF; --line: color-mix(in srgb, var(--abyss) 22%, transparent); --line-strong: color-mix(in srgb, var(--abyss) 38%, transparent); --muted: var(--abyss); }
   .express-profile, .express-priority, .express-result-card[data-axis] { background: transparent; box-shadow: none; break-inside: avoid; }
   .express-profile { padding: 20px; grid-template-columns: 1fr 1fr; gap: 28px; }
   .express-profile__score { font-size: 3.5rem; }

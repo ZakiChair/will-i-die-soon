@@ -132,8 +132,16 @@ vi.mock("../lib/gsap-client", () => ({
 import {
   atlasMotionLimits,
   atlasSceneFromProgress,
+  snapAtlasProgress,
   useLandingTimeline,
 } from "./use-landing-timeline";
+
+type SnapTrigger = Readonly<{
+  direction?: number;
+  end?: number;
+  scroll?: () => number;
+  start?: number;
+}>;
 
 type ScrollTriggerConfig = Readonly<{
   invalidateOnRefresh: boolean;
@@ -141,6 +149,14 @@ type ScrollTriggerConfig = Readonly<{
   onRefresh: (trigger: { progress: number }) => void;
   onUpdate: (trigger: { progress: number }) => void;
   scrub: number;
+  snap: Readonly<{
+    delay: number;
+    duration: Readonly<{ min: number; max: number }>;
+    ease: string;
+    inertia: boolean;
+    snapTo: (value: number, trigger?: SnapTrigger) => number;
+  }>;
+  start: unknown;
   trigger: Element;
 }>;
 
@@ -841,4 +857,98 @@ test.each(["onUpdate", "onRefresh"] as const)("sélectionne le dernier axe à la
 
   act(() => trigger[callback]({ progress: 0.999 }));
   expect(screen.getByRole("status")).toHaveTextContent("sleep");
+});
+
+test("aimante dans le sens du geste, ramène les micro-déplacements et laisse sortir après le dernier chapitre", () => {
+  const points = [0, 0.15, 0.35, 0.55, 0.75];
+  const deadZone = 0.004;
+
+  expect(snapAtlasProgress(0.2, 1, points, deadZone)).toBe(0.35);
+  expect(snapAtlasProgress(0.152, 1, points, deadZone)).toBe(0.15);
+  expect(snapAtlasProgress(0.05, 1, points, deadZone)).toBe(0.15);
+  expect(snapAtlasProgress(0.35, 1, points, deadZone)).toBe(0.35);
+  expect(snapAtlasProgress(0.3, -1, points, deadZone)).toBe(0.15);
+  expect(snapAtlasProgress(0.348, -1, points, deadZone)).toBe(0.35);
+  expect(snapAtlasProgress(0.05, -1, points, deadZone)).toBe(0);
+  expect(snapAtlasProgress(0.2, 0, points, deadZone)).toBe(0.15);
+  expect(snapAtlasProgress(0.3, 0, points, deadZone)).toBe(0.35);
+  expect(snapAtlasProgress(0.9, 1, points, deadZone)).toBe(0.9);
+  expect(snapAtlasProgress(0.9, -1, points, deadZone)).toBe(0.75);
+  expect(snapAtlasProgress(Number.NaN, 1, points, deadZone)).toBe(0);
+  expect(snapAtlasProgress(-1, -1, points, deadZone)).toBe(0);
+  expect(snapAtlasProgress(0.4, 1, [], deadZone)).toBe(0.4);
+  expect(snapAtlasProgress(0.4, 1, [0.55, Number.NaN, 0.15], deadZone)).toBe(0.55);
+});
+
+test("aimante le récit sur les ancres réelles des chapitres et se retire hors mesure", () => {
+  vi.spyOn(window, "innerHeight", "get").mockReturnValue(800);
+  render(<TimelineProbe chapters />);
+  const tops: Record<string, number> = { sleep: -400, breath: 400, strength: 1200, energy: 2000 };
+  for (const chapter of document.querySelectorAll<HTMLElement>("[data-atlas-scene]")) {
+    chapter.getBoundingClientRect = () => ({ top: tops[chapter.dataset.atlasScene!], height: 560 } as DOMRect);
+  }
+  const { snap } = scrollTriggerConfig();
+
+  expect(snap).toEqual(expect.objectContaining({
+    delay: 0.18,
+    duration: { min: 0.3, max: 0.8 },
+    ease: "power2.inOut",
+    inertia: false,
+  }));
+  // Position 1000 sur une course de 4000 : ancres à 0,15, 0,35, 0,55 et 0,75 ; zone morte de 16 px.
+  const trigger = { direction: 1, end: 4000, scroll: () => 1000, start: 0 };
+  expect(snap.snapTo(0.2, trigger)).toBeCloseTo(0.35);
+  expect(snap.snapTo(0.152, trigger)).toBeCloseTo(0.15);
+  expect(snap.snapTo(0.2, { ...trigger, direction: -1 })).toBeCloseTo(0.15);
+  expect(snap.snapTo(0.05, trigger)).toBeCloseTo(0.15);
+  expect(snap.snapTo(0.05, { ...trigger, direction: -1 })).toBe(0);
+  expect(snap.snapTo(0.9, trigger)).toBe(0.9);
+  expect(snap.snapTo(0.9, { ...trigger, direction: -1 })).toBeCloseTo(0.75);
+  expect(snap.snapTo(0.42)).toBe(0.42);
+  expect(snap.snapTo(0.42, { direction: 1, end: Number.NaN, start: 0 })).toBe(0.42);
+});
+
+test("ouvre le récit en haut de page quand le héros est posé sur la scène, sinon au sommet de l'atlas", () => {
+  render(<TimelineProbe chapters />);
+  const { start } = scrollTriggerConfig();
+  if (typeof start !== "function") throw new Error("Expected a start re-evaluated on refresh");
+  const hero = document.querySelector<HTMLElement>(".landing__atlas-hero")!;
+
+  expect(start()).toBe("top top");
+  hero.style.position = "absolute";
+  expect(start()).toBe(0);
+});
+
+test.each(["unmount", "reduced"] as const)("fond chaque chapitre selon sa distance au centre puis efface sa présence après %s", (reason) => {
+  vi.spyOn(window, "innerHeight", "get").mockReturnValue(800);
+  const { unmount } = render(<TimelineProbe chapters />);
+  const tops: Record<string, number> = { sleep: -900, breath: 200, strength: 520, energy: 1600 };
+  const chapters = Array.from(document.querySelectorAll<HTMLElement>("[data-atlas-scene]"));
+  for (const chapter of chapters) {
+    chapter.getBoundingClientRect = () => ({ top: tops[chapter.dataset.atlasScene!], height: 400 } as DOMRect);
+  }
+  const value = (id: string, property: string) => Number(
+    chapters.find((chapter) => chapter.dataset.atlasScene === id)!.style.getPropertyValue(property),
+  );
+
+  act(() => scrollTriggerConfig().onUpdate({ progress: 0.3 }));
+
+  expect(value("breath", "--scene-presence")).toBeCloseTo(1);
+  expect(value("strength", "--scene-presence")).toBeGreaterThan(0);
+  expect(value("strength", "--scene-presence")).toBeLessThan(0.5);
+  expect(value("sleep", "--scene-presence")).toBe(0);
+  expect(value("energy", "--scene-presence")).toBe(0);
+  expect(value("breath", "--scene-drift")).toBeCloseTo(0);
+  expect(value("strength", "--scene-drift")).toBeGreaterThan(0);
+  expect(value("sleep", "--scene-drift")).toBe(-1);
+  expect(value("energy", "--scene-drift")).toBe(1);
+  expect(continuousTimeline().calls.some((call) => call.to.opacity !== undefined)).toBe(false);
+
+  if (reason === "unmount") unmount();
+  else act(() => motion?.setReduced(true));
+
+  for (const chapter of chapters) {
+    expect(chapter.style.getPropertyValue("--scene-presence")).toBe("");
+    expect(chapter.style.getPropertyValue("--scene-drift")).toBe("");
+  }
 });

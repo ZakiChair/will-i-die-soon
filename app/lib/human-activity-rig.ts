@@ -108,20 +108,20 @@ export function createHumanActivityRig(): HumanActivityRig {
   };
   const bed = prop("bed");
   bed.group.position.fromArray(HUMAN_ACTIVITY_PROPS.bed.position);
-  const bedding = material("#d5dfd2", bed);
+  const bedding = material("#e2e5d8", bed);
   const frameMaterial = material("#756854", bed);
   mesh(bed.group, "bed-frame", box, frameMaterial, 0, -0.22, 0, 1.86, 0.14, 5.35);
   mesh(bed.group, "mattress", box, bedding, 0, 0, 0, ...HUMAN_ACTIVITY_PROPS.bed.size);
-  mesh(bed.group, "pillow", sphere, material("#eef2e6", bed), 0, 0.31, -2.08, 0.78, 0.14, 0.47);
-  mesh(bed.group, "duvet", sphere, material("#8c7891", bed), 0, 0.61, 0.92, 0.89, 0.33, 1.64);
-  mesh(bed.group, "duvet-fold", sphere, material("#b5a5b8", bed), 0, 0.76, -0.56, 0.87, 0.11, 0.24);
+  mesh(bed.group, "pillow", sphere, material("#f4f5ee", bed), 0, 0.31, -2.08, 0.78, 0.14, 0.47);
+  mesh(bed.group, "duvet", sphere, material("#86719a", bed), 0, 0.61, 0.92, 0.89, 0.33, 1.64);
+  mesh(bed.group, "duvet-fold", sphere, material("#b4a6c4", bed), 0, 0.76, -0.56, 0.87, 0.11, 0.24);
   for (const x of [-0.72, 0.72]) for (const z of [-2.2, 2.2]) {
     mesh(bed.group, "bed-leg", cylinder, frameMaterial, x, -0.32, z, 0.075, 0.2, 0.075);
   }
 
   const track = prop("track");
-  mesh(track.group, "running-track", box, material("#c9dccc", track, 0, 0.4), 0, -2.705, 0.12, 1.6, 0.015, 5.3);
-  const lane = material("#92aa97", track);
+  mesh(track.group, "running-track", box, material("#dde8c4", track, 0, 0.4), 0, -2.705, 0.12, 1.6, 0.015, 5.3);
+  const lane = material("#9fb48f", track);
   for (const x of [-0.7, 0.7]) mesh(track.group, "track-edge", box, lane, x, -2.693, 0.12, 0.035, 0.009, 5.2);
   for (let index = 0; index < 4; index += 1) mesh(track.group, "track-mark", box, lane, 0, -2.692, -1.9 + index * 1.3, 0.035, 0.009, 0.5);
 

@@ -23,17 +23,17 @@ function StaticHuman({ scene }: { scene: HumanAtlasSceneId }) {
     <svg className="living-atlas__still human-signal-still" viewBox="0 0 600 480" fill="none" data-action={scene} data-appearance="translucent">
       <defs>
         <linearGradient id={gradientId} x1="185" y1="170" x2="350" y2="325" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#E9F6EF" stopOpacity=".45" />
-          <stop offset=".48" stopColor="#98C2B5" stopOpacity=".65" />
-          <stop offset="1" stopColor="#4D8C80" stopOpacity=".82" />
+          <stop stopColor="#EAF4EC" stopOpacity=".45" />
+          <stop offset=".48" stopColor="#93C5B3" stopOpacity=".65" />
+          <stop offset="1" stopColor="#4F9A86" stopOpacity=".82" />
         </linearGradient>
       </defs>
-      <ellipse cx="300" cy="401" rx="190" ry="14" fill="#526C65" opacity=".14" />
+      <ellipse cx="300" cy="401" rx="190" ry="14" fill="#4D6159" opacity=".14" />
       <g strokeLinecap="round" strokeLinejoin="round">
         {scene === "sleep" ? <>
           <path d="M80 336v46m440-46v46" stroke="#756854" strokeWidth="12" />
-          <rect x="65" y="303" width="470" height="38" rx="12" fill="#D5DFD2" />
-          <ellipse cx="122" cy="293" rx="43" ry="12" fill="#EEF2E6" />
+          <rect x="65" y="303" width="470" height="38" rx="12" fill="#E2E5D8" />
+          <ellipse cx="122" cy="293" rx="43" ry="12" fill="#F4F5EE" />
           <g>
             <path d="M277 284h75l104 9M275 294h66l115 7" stroke={surface} strokeWidth="20" />
             <path d="M263 286h49" stroke={surface} strokeWidth="31" />
@@ -41,22 +41,22 @@ function StaticHuman({ scene }: { scene: HumanAtlasSceneId }) {
             <path d="M151 272l20 6" stroke={surface} strokeWidth="18" />
             <path d="M169 278l91 7" stroke={surface} strokeWidth="41" />
             <path d="M177 271l55 18 30-12" stroke={surface} strokeWidth="15" />
-            <circle cx="129" cy="272" r="25" fill={surface} stroke="#65998B" strokeOpacity=".6" strokeWidth="1.2" />
-            <g data-human-expression="resting" stroke="#356E64" strokeWidth="2.2">
+            <circle cx="129" cy="272" r="25" fill={surface} stroke="#4F9A86" strokeOpacity=".6" strokeWidth="1.2" />
+            <g data-human-expression="resting" stroke="#0A6B5E" strokeWidth="2.2">
               <path d="M116 268q4 3 8 0m8 0q4 3 8 0" />
               <path d="M124 279q5 2 10 0" />
             </g>
           </g>
         </> : scene === "breath" ? <>
-          <path d="M160 389h270M140 411h270" stroke="#92AA97" strokeWidth="3" />
+          <path d="M160 389h270M140 411h270" stroke="#9FB48F" strokeWidth="3" />
           <g>
             <path d="M292 274l-49 47-26 63M287 273l60 32 27-55" stroke={surface} strokeWidth="21" />
             <path d="M291 266l-24 30m21-30 35 24" stroke={surface} strokeWidth="30" />
             <path d="M329 177l-10 17" stroke={surface} strokeWidth="18" />
             <path d="M321 196l-45 15-24-36M319 198l48 29 24-31" stroke={surface} strokeWidth="16" />
             <path d="M316 195l-26 64" stroke={surface} strokeWidth="44" />
-            <circle cx="333" cy="157" r="25" fill={surface} stroke="#65998B" strokeOpacity=".6" strokeWidth="1.2" />
-            <g data-human-effect="sweat" fill="#6FABAD" stroke="#357C78" strokeWidth="1.2" opacity=".85">
+            <circle cx="333" cy="157" r="25" fill={surface} stroke="#4F9A86" strokeOpacity=".6" strokeWidth="1.2" />
+            <g data-human-effect="sweat" fill="#7FB3C4" stroke="#286C82" strokeWidth="1.2" opacity=".85">
               <path d="M309 114c-1 5-6 8-6 12a5 5 0 0 0 10 0c0-4-3-8-4-12Z" />
               <path d="M369 142c-1 5-6 8-6 12a5 5 0 0 0 10 0c0-4-3-8-4-12Z" />
               <path d="M302 165c-1 4-5 7-5 10a4 4 0 0 0 8 0c0-3-2-7-3-10Z" />
@@ -70,8 +70,8 @@ function StaticHuman({ scene }: { scene: HumanAtlasSceneId }) {
             <path d="M293 388h20m7 0h22" stroke={surface} strokeWidth="12" />
             <path d="M347 180l-17 19" stroke={surface} strokeWidth="18" />
             <path d="M279 249l51-51" stroke={surface} strokeWidth="44" />
-            <circle cx="352" cy="159" r="25" fill={surface} stroke="#65998B" strokeOpacity=".6" strokeWidth="1.2" />
-            <g data-human-expression="focused" stroke="#356E64" strokeWidth="2.2">
+            <circle cx="352" cy="159" r="25" fill={surface} stroke="#4F9A86" strokeOpacity=".6" strokeWidth="1.2" />
+            <g data-human-expression="focused" stroke="#0A6B5E" strokeWidth="2.2">
               <path d="M339 153l8 3m12 0 8-3" />
               <path d="M348 171h10" />
             </g>
@@ -99,8 +99,8 @@ function StaticHuman({ scene }: { scene: HumanAtlasSceneId }) {
             <path d="M279 388h20m2 0h21" stroke={surface} strokeWidth="12" />
             <path d="M248 201l-3 20" stroke={surface} strokeWidth="18" />
             <path d="M245 221v51" stroke={surface} strokeWidth="44" />
-            <circle cx="248" cy="180" r="25" fill={surface} stroke="#65998B" strokeOpacity=".6" strokeWidth="1.2" />
-            <g data-human-expression="happy" stroke="#356E64" strokeWidth="2.4">
+            <circle cx="248" cy="180" r="25" fill={surface} stroke="#4F9A86" strokeOpacity=".6" strokeWidth="1.2" />
+            <g data-human-expression="happy" stroke="#0A6B5E" strokeWidth="2.4">
               <path d="M236 176q4-5 8 0m8 0q4-5 8 0" />
               <path d="M238 185q10 13 20 0" />
             </g>

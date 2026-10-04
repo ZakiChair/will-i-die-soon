@@ -5,7 +5,7 @@ export function createHumanTranslucentMaterial(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     name: "human-frosted-surface",
     uniforms: {
-      uTint: { value: new THREE.Color("#619b90") },
+      uTint: { value: new THREE.Color("#4f9a86") },
       uOpacity: { value: 0.78 },
     },
     vertexShader: `

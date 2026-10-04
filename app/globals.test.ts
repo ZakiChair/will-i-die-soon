@@ -78,8 +78,8 @@ function contrast(left: string, right: string): number {
 
 describe("Atlas health visual contract", () => {
   test("defines contrasting reading surfaces for the journey and the print palette", () => {
-    expect(css).toContain("--abyss: #F1F6F3");
-    expect(css).toContain("--mist: #173D38");
+    expect(css).toContain("--abyss: #F4F5EE");
+    expect(css).toContain("--mist: #10302B");
     expect(declarationsFor("html")).toContain("color-scheme: light");
     const journey = declarationsFor(":root");
     for (const surface of ["abyss", "depth", "surface", "surface-soft", "surface-strong"]) {
@@ -95,6 +95,22 @@ describe("Atlas health visual contract", () => {
       .toBeGreaterThanOrEqual(7);
     expect(contrast(colorVariable("accent", journey), colorVariable("accent-soft", journey)))
       .toBeGreaterThanOrEqual(4.5);
+  });
+
+  test("draws the Atlas scene and chapter colors from the shared tokens", () => {
+    for (const selector of [
+      ".living-atlas",
+      ".living-atlas::before",
+      '.living-atlas[data-scene="strength"]',
+      '.living-atlas[data-scene="sleep"]',
+      '.living-atlas[data-scene="energy"]',
+      '.human-atlas-scene[data-atlas-scene="strength"] .data-label',
+      '.human-atlas-scene[data-atlas-scene="sleep"] .data-label',
+      '.human-atlas-scene[data-atlas-scene="energy"] .data-label',
+    ]) {
+      expect(declarationsFor(selector)).not.toMatch(/#[0-9A-Fa-f]{3,8}\b/);
+      expect(declarationsFor(selector)).toMatch(/var\(--/);
+    }
   });
 
   test("uses the reading and data variables without compressed tracking or viewport-sized type", () => {

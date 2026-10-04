@@ -1,123 +1,237 @@
 /* Accueil ouvert : les couleurs viennent exclusivement du thème global. */
+/* Propriété enregistrée : la teinte du chapitre glisse d'une scène à l'autre au lieu de sauter. */
+@property --scene-accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+html:has(.landing--health) { --landing-header-height: 76px; }
 html:has(.landing--health), .landing.landing--health {
   color-scheme: light;
   background: var(--abyss);
 }
-.landing--health .landing__header, .landing--health .depth-section, .landing--health .privacy-panel, .landing--health .landing__footnote { width: min(1200px, calc(100% - 64px)); }
-.landing--health .landing__header { min-height: 88px; border-bottom: 1px solid var(--line); }
+
+/* Règles de lenis/dist/lenis.css reprises ici : Lenis n'est importé qu'au bureau. */
+html.lenis, html.lenis body { height: auto; }
+.lenis:not(.lenis-autoToggle).lenis-stopped { overflow: clip; }
+.lenis [data-lenis-prevent], .lenis [data-lenis-prevent-wheel], .lenis [data-lenis-prevent-touch] { overscroll-behavior: contain; }
+.lenis.lenis-smooth iframe { pointer-events: none; }
+
+.landing--health .depth-section, .landing--health .privacy-panel, .landing--health .landing__footnote { width: min(1200px, calc(100% - 64px)); }
+
+/* Collant et non fixe : MotionScreen transforme son contenu, ce qui casserait position: fixed. */
+.landing--health .landing__header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  width: 100%;
+  min-height: var(--landing-header-height);
+  margin: 0;
+  padding: 0 calc(max(32px, (100% - 1200px) / 2) + 136px) 0 max(32px, calc((100% - 1200px) / 2));
+  border-bottom: 1px solid transparent;
+  transition: transform .45s cubic-bezier(.22, .8, .24, 1), background-color .3s ease, border-color .3s ease;
+}
+.landing--health .landing__header[data-header-scrolled] {
+  border-bottom-color: var(--line);
+  background: color-mix(in srgb, var(--abyss) 84%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  backdrop-filter: blur(16px) saturate(1.15);
+}
+.landing--health .landing__header[data-header="hidden"] { transform: translateY(-100%); }
+/* Focus clavier seulement : après un clic, le bouton garde le focus mais l'en-tête doit pouvoir s'effacer. */
+html:has(.language-switcher :focus-visible) .landing--health .landing__header { transform: none; }
 .landing--health .wordmark { font-size: 1.0625rem; font-weight: 750; }
-.landing--health .wordmark::before { width: 28px; height: 28px; margin-right: 10px; vertical-align: -.4em; }
-.landing--health .prototype-label { font-size: .75rem; font-weight: 500; }
-html:has(.landing--health) .language-switcher { top: 17px; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--depth); }
-html:has(.landing--health) .language-switcher__option { border: 0; border-radius: 8px; background: transparent; }
+.landing--health .wordmark::before { width: 30px; height: 30px; margin-right: 10px; vertical-align: -.5em; }
+.landing--health .prototype-label { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--depth) 60%, transparent); font-size: .75rem; font-weight: 500; }
+
+/* Le sélecteur vit hors de l'accueil : il suit l'en-tête par :has(). */
+/* Au-dessus de l'en-tête : sans la transformation de MotionScreen (mouvement réduit), le flou de l'en-tête le couvrirait. */
+html:has(.landing--health) .language-switcher {
+  position: fixed;
+  z-index: 30;
+  top: calc((var(--landing-header-height) - 54px) / 2);
+  right: max(32px, calc((100% - 1200px) / 2));
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--depth) 88%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: transform .45s cubic-bezier(.22, .8, .24, 1);
+}
+html:has(.landing--health) .language-switcher__option { border: 0; border-radius: 999px; background: transparent; }
+html:has(.landing--health) .language-switcher__option:hover:not([aria-pressed="true"]) { color: var(--mist); background: var(--surface-soft); }
 html:has(.landing--health) .language-switcher__option[aria-pressed="true"] { background: var(--mist); color: var(--inverse); }
-.landing--health .landing__atlas-experience { margin-top: 0; --atlas-stage-height: min(900px, calc(100svh - 88px)); }
-.landing--health .landing__atlas-hero { top: clamp(58px, 10vh, 104px); left: max(32px, calc((100vw - 1200px) / 2)); width: min(42%, 540px); }
-.landing--health .landing__atlas-hero h1 { max-width: 540px; margin: 24px 0 28px; font-size: 4.25rem; font-weight: 600; line-height: 1.12; hyphens: none; text-wrap: balance; }
-.landing--health .landing__atlas-hero > .data-label { font-size: .9375rem; font-weight: 600; color: var(--accent); }
-.landing--health .landing__atlas-hero > p:not(.data-label) { max-width: 39ch; font-size: 1.125rem; line-height: 1.7; }
-.health-home-facts { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 28px 0; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: .875rem; }
-.health-home-facts > span { display: inline-flex; align-items: center; gap: 8px; }
-.health-home-facts > span::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--phosphor); }
-.landing--health .landing__primary-cta { min-height: 56px; padding-inline: 28px; border-radius: 14px 14px 14px 4px; color: var(--inverse); box-shadow: none; font-weight: 650; transition: background .2s ease; }
-.landing--health .landing__primary-cta:hover { transform: none; box-shadow: none; background: var(--current); }
-.landing--health .landing__hero-actions { gap: 8px 24px; }
-.landing--health .landing__depth-link { font-size: .9375rem; color: var(--current); }
-.landing--health .landing__scroll-hint { margin-top: 34px; }
-.landing--health .human-atlas-stage { --scene-accent: var(--phosphor); }
+html:has(.landing--health .landing__header[data-header="hidden"]) .language-switcher:not(:has(:focus-visible)) { transform: translateY(calc(-100% - 24px)); }
+
+/* Héros */
+.landing--health .landing__atlas-experience { margin-top: 0; --atlas-stage-height: 100svh; }
+.landing--health .landing__atlas-hero { top: clamp(36px, 7svh, 84px); left: max(32px, calc((100% - 1200px) / 2)); width: min(560px, 46% - 32px); }
+.landing--health .landing__atlas-hero h1 { max-width: 560px; margin: 20px 0 24px; font-size: 4.5rem; font-weight: 600; line-height: 1.08; hyphens: none; text-wrap: balance; }
+.landing--health .landing__atlas-hero > .data-label { margin: 0; color: var(--accent); font-size: .875rem; font-weight: 600; }
+.landing--health .landing__atlas-hero > .data-label > [data-hero-handoff] { display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px 6px 12px; border-radius: 999px; background: var(--accent-soft); }
+.landing--health .landing__atlas-hero > .data-label > [data-hero-handoff]::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 18%, transparent); }
+.landing--health .landing__atlas-hero > p:not(.data-label) { max-width: 40ch; font-size: 1.125rem; line-height: 1.65; }
+.health-home-facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0 30px; color: var(--muted); font-size: .875rem; }
+.health-home-facts > span { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 14px 0 12px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--depth) 70%, transparent); }
+.health-home-facts > span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--phosphor); }
+.landing--health .landing__hero-actions { gap: 10px 26px; }
+.landing--health .landing__primary-cta { display: inline-flex; align-items: center; justify-content: center; gap: 14px; min-height: 56px; padding: 0 24px 0 28px; border-radius: 999px; color: var(--inverse); box-shadow: 0 14px 30px -18px color-mix(in srgb, var(--phosphor) 80%, transparent); font-weight: 650; transition: background-color .2s ease, box-shadow .2s ease; }
+/* Chevron dessiné en CSS : aucun texte généré n'est lu par les lecteurs d'écran. */
+.landing--health .landing__primary-cta::after { content: ""; flex: none; width: 7px; height: 7px; margin-left: -3px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); transition: translate .25s cubic-bezier(.22, .8, .24, 1); }
+.landing--health .landing__primary-cta:hover { background: var(--current); box-shadow: 0 18px 34px -18px color-mix(in srgb, var(--current) 85%, transparent); }
+.landing--health .landing__primary-cta:hover::after { translate: 3px 0; }
+.landing--health .landing__primary-cta:focus-visible { box-shadow: 0 0 0 8px var(--abyss); }
+.landing--health .landing__depth-link { color: var(--current); font-size: .9375rem; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-decoration-thickness: 1.5px; text-underline-offset: 6px; transition: text-decoration-color .2s ease; }
+.landing--health .landing__depth-link:hover { text-decoration-color: currentColor; }
+.landing--health .landing__scroll-hint { margin-top: 36px; }
+/* L'indice suit le fondu du texte : le cercle et la flèche vivent dans le span de transition. */
+.landing--health .landing__scroll-hint::before { content: none; }
+.landing--health .landing__scroll-hint > [data-hero-handoff] { position: relative; display: inline-flex; align-items: center; min-height: 30px; padding-left: 42px; }
+.landing--health .landing__scroll-hint > [data-hero-handoff]::before { content: ""; position: absolute; top: 50%; left: 0; width: 30px; height: 30px; margin-top: -15px; border: 1px solid var(--line-strong); border-radius: 50%; }
+.landing--health .landing__scroll-hint > [data-hero-handoff]::after { content: ""; position: absolute; top: 50%; left: 11px; width: 8px; height: 8px; margin-top: -6px; border-right: 2px solid var(--phosphor); border-bottom: 2px solid var(--phosphor); transform: rotate(45deg); animation: landing-hint-nudge 2.4s ease-in-out infinite; }
+
+/* Scène */
+.landing--health .human-atlas-stage { --scene-accent: var(--phosphor); transition: --scene-accent .8s ease; }
+.landing--health [data-active-scene="breath"] .human-atlas-stage { --scene-accent: var(--pillar-cardio); }
+.landing--health [data-active-scene="strength"] .human-atlas-stage { --scene-accent: var(--pillar-strength); }
 .landing--health [data-active-scene="sleep"] .human-atlas-stage { --scene-accent: var(--accent); }
-.landing--health [data-active-scene="strength"] .human-atlas-stage { --scene-accent: var(--current); }
 .landing--health [data-active-scene="energy"] .human-atlas-stage { --scene-accent: var(--phosphor); }
-.landing--health .human-atlas-stage::before { content: ""; position: absolute; z-index: 0; left: 45%; top: 24%; width: 49%; height: 64%; border: 1px solid color-mix(in srgb, var(--scene-accent) 25%, transparent); border-radius: 48% 52% 65% 35%; pointer-events: none; background: color-mix(in srgb, var(--highlight) 18%, transparent); transform: perspective(800px) rotateX(52deg) rotateZ(calc(-24deg + var(--atlas-scroll, 0) * 54deg)); opacity: .75; }
-.landing--health .human-atlas-stage::after { z-index: 0; inset: 8% -3% 4% 34%; background: radial-gradient(ellipse, color-mix(in srgb, var(--scene-accent) 9%, transparent), transparent 65%); transform: translateY(calc(var(--atlas-chapter-progress, 0) * -24px)) scale(calc(.9 + var(--atlas-chapter-progress, 0) * .12)); pointer-events: none; }
-.landing--health .living-atlas--human { z-index: 1; inset: 102px 12px 66px 40%; height: auto; color: var(--phosphor); background: transparent; border: 0; border-radius: 0; overflow: visible; }
+.landing--health .human-atlas-stage::before { content: ""; position: absolute; z-index: 0; left: 46%; top: 27%; width: 48%; height: 62%; border: 1px solid color-mix(in srgb, var(--scene-accent) 24%, transparent); border-radius: 46% 54% 62% 38% / 52% 44% 56% 48%; pointer-events: none; background: radial-gradient(closest-side, color-mix(in srgb, var(--highlight) 36%, transparent), color-mix(in srgb, var(--highlight) 14%, transparent) 70%, transparent); transform: perspective(900px) rotateX(56deg) rotateZ(calc(-24deg + var(--atlas-scroll, 0) * 54deg)); opacity: .85; }
+.landing--health .human-atlas-stage::after { z-index: 0; inset: 6% -4% 2% 36%; background: radial-gradient(closest-side, color-mix(in srgb, var(--scene-accent) 12%, transparent), transparent); transform: translateY(calc(var(--atlas-chapter-progress, 0) * -24px)) scale(calc(.9 + var(--atlas-chapter-progress, 0) * .12)); pointer-events: none; }
+.landing--health .living-atlas--human { z-index: 1; inset: 132px max(16px, calc((100% - 1232px) / 2)) 112px 44%; height: auto; color: var(--phosphor); background: transparent; border: 0; border-radius: 0; overflow: visible; }
 .landing--health .living-atlas--human::before { content: none; display: none; background: none; }
 .living-atlas--human .living-atlas__still { padding: 9% 10%; }
-.human-signal-still__heart { color: var(--phosphor); fill: var(--surface-soft); }
-.human-signal-still__brain { color: var(--accent); fill: var(--accent-soft); }
-.human-signal-still__nutrition { color: var(--current); fill: var(--highlight); }
-.health-axis-map { position: absolute; z-index: 6; inset: 0 3% 0 43%; pointer-events: none; }
-.health-axis-map__title { position: absolute; top: 10px; left: 0; right: 0; margin: 0; text-align: center; font-size: .75rem; font-weight: 600; color: var(--muted); }
-.health-axis-map nav { position: absolute; top: 40px; left: 0; right: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 6px; border: 1px solid var(--line); border-radius: 18px 18px 18px 5px; background: color-mix(in srgb, var(--depth) 80%, transparent); }
-.health-axis-map__caption { position: absolute; bottom: 36px; left: 4%; right: 4%; margin: 0; text-align: center; font-size: .75rem; color: var(--muted); }
-.health-axis-map__label { --axis: var(--phosphor); position: relative; display: flex; flex-direction: row; justify-content: center; gap: 8px; align-items: center; width: auto; min-height: 52px; padding: 10px 8px; color: var(--mist); background: transparent; border: 0; border-radius: 12px; text-decoration: none; pointer-events: auto; transition: color .25s ease, background .25s ease; }
+/* Titre, onglets et consigne s'empilent en haut : à l'arrivée, le bas de la scène passe sous la ligne de flottaison. */
+.health-axis-map { position: absolute; z-index: 6; inset: 0 max(32px, calc((100% - 1200px) / 2)) 0 46%; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 26px; pointer-events: none; }
+.health-axis-map__title { margin: 0; text-align: center; font-size: .75rem; font-weight: 600; color: var(--muted); }
+.health-axis-map nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: min(100%, 600px); padding: 5px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--depth) 76%, transparent); box-shadow: 0 18px 40px -30px color-mix(in srgb, var(--mist) 50%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.health-axis-map__caption { margin: 6px 0 0; padding-inline: 4%; text-align: center; font-size: .75rem; color: var(--muted); }
+.health-axis-map__label { --axis: var(--pillar-cardio); position: relative; display: flex; flex-direction: row; justify-content: center; gap: 8px; align-items: center; width: auto; min-height: 50px; padding: 10px 8px; color: var(--mist); background: transparent; border: 0; border-radius: 999px; text-decoration: none; pointer-events: auto; transition: color .25s ease, background-color .25s ease; }
+.health-axis-map__label[data-axis="strength"] { --axis: var(--pillar-strength); }
 .health-axis-map__label[data-axis="sleep"] { --axis: var(--accent); }
-.health-axis-map__label[data-axis="strength"] { --axis: var(--current); }
 .health-axis-map__label[data-axis="energy"] { --axis: var(--phosphor); }
-.health-axis-map__label::after { content: ""; position: absolute; height: 2px; bottom: 6px; left: 22px; right: 22px; border-radius: 2px; background: var(--highlight); transform: scaleX(var(--atlas-chapter-progress, 0)); transform-origin: left; opacity: 0; }
+.health-axis-map__label::after { content: ""; position: absolute; height: 2px; bottom: 7px; left: 26px; right: 26px; border-radius: 2px; background: var(--highlight); transform: scaleX(var(--atlas-chapter-progress, 0)); transform-origin: left; opacity: 0; }
 .health-axis-map__label[aria-current="step"] { background: var(--mist); color: var(--inverse); }
 .health-axis-map__label[aria-current="step"] .health-axis-map__icon { color: var(--highlight); }
 .health-axis-map__label[aria-current="step"]::after { opacity: .85; }
 .health-axis-map__label:hover:not([aria-current="step"]) { background: var(--surface-soft); }
-.health-axis-map__icon { display: inline-flex; align-items: center; color: var(--axis); width: 23px; }
-.health-axis-map__icon svg { width: 23px; height: 23px; }
+.health-axis-map__icon { display: inline-flex; align-items: center; color: var(--axis); width: 22px; }
+.health-axis-map__icon svg { width: 22px; height: 22px; }
 .health-axis-map__label strong { font-size: .9375rem; font-weight: 600; }
 .health-axis-map__metric { display: none; }
 .human-atlas-stage__mobile-story { display: none; }
-.landing--health .human-atlas-scenes { width: min(43%, 560px); padding-left: max(32px, calc((100vw - 1200px) / 2)); pointer-events: none; }
-.landing--health .human-atlas-scene { scroll-margin-top: 22svh; }
-.landing--health .human-atlas-scene:last-child { scroll-margin-top: calc(var(--atlas-stage-height) * .3 + 18px); }
+.landing--health .human-atlas-progress { left: 46%; right: max(32px, calc((100% - 1200px) / 2)); bottom: 30px; display: flex; align-items: center; gap: 16px; width: auto; }
+.landing--health .human-atlas-progress__rail { flex: 1 1 auto; width: auto; height: 2px; border-radius: 2px; background: var(--line); }
+.landing--health .human-atlas-progress__fill { border-radius: inherit; background: var(--scene-accent); }
+.landing--health .human-atlas-progress__markers { display: flex; flex: none; align-items: center; gap: 6px; }
+.landing--health .human-atlas-progress__markers > span { width: 8px; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--mist) 16%, transparent); transition: width .4s cubic-bezier(.22, .8, .24, 1), background-color .4s ease; }
+.landing--health .human-atlas-progress__markers > span[data-active="true"] { width: 26px; background: var(--scene-accent); }
+
+/* Chapitres : une colonne alignée sur la grille, centrée à l'arrêt par scroll-margin-top. */
+/* Le bas de 15svh laisse le dernier chapitre atteindre le centre avant la fin du récit. */
+.landing--health .human-atlas-scenes { width: calc(max(32px, (100% - 1200px) / 2) + min(480px, 40% - 26px)); padding-left: max(32px, calc((100% - 1200px) / 2)); padding-bottom: 15svh; pointer-events: none; }
+.landing--health .human-atlas-scene { --chapter-ink: var(--pillar-cardio); scroll-margin-top: 15svh; }
+.landing--health .human-atlas-scene[data-atlas-scene="strength"] { --chapter-ink: var(--pillar-strength); }
+.landing--health .human-atlas-scene[data-atlas-scene="sleep"] { --chapter-ink: var(--accent); }
+.landing--health .human-atlas-scene[data-atlas-scene="energy"] { --chapter-ink: var(--phosphor); }
 .landing--health .human-atlas-scroll[data-motion-ready="false"] .human-atlas-scene { opacity: 1; transform: none; }
 .landing--health .human-atlas-scene:focus-visible { outline: none; box-shadow: none; }
 .landing--health .human-atlas-scene:focus-visible h3 { text-decoration: underline; text-decoration-color: var(--phosphor); text-decoration-thickness: 2px; text-underline-offset: 7px; }
-.landing--health .human-atlas-scene__card { padding: 24px 28px 24px 0; pointer-events: auto; }
-.landing--health .human-atlas-scene h3 { font-family: var(--font-display), sans-serif; font-size: 2.75rem; font-weight: 600; line-height: 1.18; text-shadow: none; }
-.landing--health .human-atlas-scene__card > .data-label { display: inline-block; margin-bottom: 14px; padding: 0 0 9px; border: 0; border-bottom: 2px solid var(--line-strong); border-radius: 0; background: transparent; font-size: .875rem; }
-.landing--health .human-atlas-scene__card > p:not(.data-label) { max-width: 38ch; line-height: 1.7; text-shadow: none; }
-.landing--health .human-atlas-scene[data-atlas-scene="strength"] .data-label { color: var(--current); }
-.landing--health .human-atlas-scene[data-atlas-scene="sleep"] .data-label { color: var(--accent); }
-.landing--health .human-atlas-scene[data-atlas-scene="energy"] .data-label { color: var(--phosphor); }
-.landing--health .human-atlas-progress { left: 46%; right: 6%; bottom: 16px; display: block; width: auto; }
-.landing--health .human-atlas-progress__rail { width: 100%; height: 3px; border-radius: 8px; background: var(--line); }
-.landing--health .human-atlas-progress__markers { display: none; }
-.landing--health .landing__atlas-conversion { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); column-gap: clamp(36px, 6vw, 88px); width: min(1200px, calc(100% - 64px)); padding: clamp(36px, 5vw, 72px); margin-top: 56px; border: 0; border-radius: 32px 80px 32px 32px; background: var(--mist); color: var(--inverse); }
-.landing--health .landing__atlas-conversion > .data-label { grid-column: 1; margin: 0 0 18px; color: var(--highlight); font-size: .875rem; }
-.landing--health .landing__atlas-conversion h2 { grid-column: 1; margin: 0 0 24px; color: var(--inverse); font-size: 3rem; max-width: 560px; line-height: 1.2; }
+.landing--health .human-atlas-scene__card { padding: 28px 24px 28px 0; pointer-events: auto; }
+.landing--health .human-atlas-scene .human-atlas-scene__card > .data-label { display: flex; width: fit-content; align-items: center; gap: 8px; margin: 0; padding: 5px 12px 5px 10px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--chapter-ink) 9%, var(--depth)); color: var(--chapter-ink); font-size: .8125rem; }
+.landing--health .human-atlas-scene .human-atlas-scene__card > .data-label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.landing--health .human-atlas-scene h3 { margin: 18px 0 16px; font-family: var(--font-display), sans-serif; font-optical-sizing: auto; font-size: 2.75rem; font-weight: 600; line-height: 1.1; text-shadow: none; }
+.landing--health .human-atlas-scene__card > p:not(.data-label) { max-width: 38ch; margin-bottom: 16px; line-height: 1.7; text-shadow: none; }
+.landing--health .human-atlas-scene__card > small { display: block; max-width: 44ch; padding-top: 12px; border-top: 1px solid var(--line); }
+
+/* Conversion */
+.landing--health .landing__atlas-conversion { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); column-gap: clamp(36px, 6vw, 88px); width: min(1200px, calc(100% - 64px)); padding: clamp(40px, 5.5vw, 80px); margin-top: 72px; border: 0; border-radius: 40px 120px 40px 40px; background: var(--mist); color: var(--inverse); }
+.landing--health .landing__atlas-conversion::before { content: ""; position: absolute; z-index: -1; top: -38%; right: -16%; width: 64%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--highlight) 20%, transparent), transparent); pointer-events: none; }
+.landing--health :is(.landing__atlas-conversion > .data-label, .depth-section .section-heading > .data-label, .privacy-panel__eyebrow) { display: flex; width: fit-content; align-items: center; gap: 8px; margin: 0 0 20px; padding: 5px 12px 5px 10px; border-radius: 999px; font-size: .8125rem; }
+.landing--health :is(.landing__atlas-conversion > .data-label, .depth-section .section-heading > .data-label, .privacy-panel__eyebrow)::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.landing--health .landing__atlas-conversion > .data-label { grid-column: 1; justify-self: start; color: var(--highlight); background: color-mix(in srgb, var(--highlight) 12%, transparent); }
+.landing--health .landing__atlas-conversion h2 { grid-column: 1; margin: 0 0 24px; color: var(--inverse); font-size: 3rem; max-width: 560px; line-height: 1.12; }
 .landing--health .landing__atlas-conversion > p:not(.data-label) { grid-column: 1; max-width: 40ch; color: color-mix(in srgb, var(--inverse) 82%, var(--mist)); }
-.landing--health .landing__atlas-conversion > .landing__primary-cta { grid-column: 1; justify-self: start; align-self: start; margin-top: 16px; background: var(--highlight); border-color: var(--highlight); color: var(--mist); }
-.landing--health .landing__atlas-conversion > .landing__primary-cta:hover { background: var(--inverse); border-color: var(--inverse); }
+.landing--health .landing__atlas-conversion > .landing__primary-cta { grid-column: 1; justify-self: start; align-self: start; margin-top: 16px; background: var(--highlight); border-color: var(--highlight); color: var(--mist); box-shadow: none; }
+.landing--health .landing__atlas-conversion > .landing__primary-cta:hover { background: var(--inverse); border-color: var(--inverse); box-shadow: none; }
 .landing--health .landing__atlas-conversion > .landing__primary-cta:focus-visible { outline-color: var(--highlight); box-shadow: 0 0 0 8px var(--mist); }
-.landing--health .landing__atlas-conversion .reveal-rule { grid-column: 1 / -1; margin-top: 36px; background: color-mix(in srgb, var(--inverse) 20%, transparent); }
+.landing--health .landing__atlas-conversion .reveal-rule { grid-column: 1 / -1; margin-top: 40px; background: color-mix(in srgb, var(--inverse) 18%, transparent); }
 .health-output-grid { grid-column: 2; grid-row: 1 / 5; display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; align-content: center; }
-.health-output { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 8px 18px; padding: 28px 0; border-top: 1px solid color-mix(in srgb, var(--inverse) 20%, transparent); }
+.health-output { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 6px 18px; padding: 26px 0; border-top: 1px solid color-mix(in srgb, var(--inverse) 16%, transparent); }
 .health-output:first-child { border-top: 0; padding-top: 0; }
 .health-output:last-child { padding-bottom: 0; }
-.health-output__icon { grid-row: 1 / 3; display: block; width: 32px; height: 32px; margin-top: 2px; color: var(--highlight); }
-.health-output h3 { margin: 0; color: var(--inverse); font-family: var(--font-display), sans-serif; font-size: 1.25rem; font-weight: 600; }
+.health-output__icon { grid-row: 1 / 3; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: color-mix(in srgb, var(--highlight) 12%, transparent); color: var(--highlight); }
+.health-output__icon svg { width: 26px; height: 26px; }
+.health-output h3 { margin: 0; color: var(--inverse); font-family: var(--font-display), sans-serif; font-optical-sizing: auto; font-size: 1.25rem; font-weight: 600; }
 .health-output p { margin: 0; color: color-mix(in srgb, var(--inverse) 82%, var(--mist)); font-size: 1rem; max-width: 38ch; line-height: 1.65; }
-.landing--health .depth-section { margin-top: 100px; }
-.landing--health .depth-section .section-heading { display: block; max-width: 680px; margin-bottom: 38px; padding-top: 0; border-top: 0; }
-.landing--health .depth-section .section-heading > .data-label { margin-bottom: 18px; font-size: .875rem; color: var(--accent); }
-.landing--health .depth-section .section-heading h2 { font-size: 3rem; line-height: 1.2; }
+
+/* Formats */
+.landing--health .depth-section { margin-top: 112px; }
+.landing--health .depth-section .section-heading { display: block; max-width: 720px; margin-bottom: 40px; padding-top: 0; border-top: 0; }
+.landing--health .depth-section .section-heading > .data-label { color: var(--accent); background: var(--accent-soft); }
+.landing--health .depth-section .section-heading h2 { font-size: 3rem; line-height: 1.12; }
 .landing--health .depth-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 20px; }
-.landing--health .depth-card { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; min-width: 0; min-height: 300px; padding: 34px; border: 1px solid var(--line); border-radius: 16px; background: var(--depth); }
+/* translate et non transform : la révélation GSAP laisse une transformation en ligne. */
+.landing--health .depth-card { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; min-width: 0; min-height: 300px; padding: 36px; border: 1px solid var(--line); border-radius: 24px; background: var(--depth); transition: translate .35s cubic-bezier(.22, .8, .24, 1), box-shadow .35s ease, border-color .35s ease; }
+.landing--health .depth-card:hover { translate: 0 -3px; border-color: var(--line-strong); box-shadow: 0 24px 48px -32px color-mix(in srgb, var(--mist) 55%, transparent); }
 .landing--health .depth-card p { max-width: 40ch; margin: 0; }
 .landing--health .depth-card .depth-card__eyebrow { color: var(--accent); font-size: .875rem; }
-.landing--health .depth-card h3 { margin: 4px 0 6px; color: var(--mist); font-family: var(--font-display), sans-serif; font-size: 2.1rem; font-weight: 600; }
-.landing--health .depth-card button { position: static; width: auto; min-height: 50px; margin-top: auto; padding: 12px 22px; border: 1px solid var(--current); border-radius: 10px; color: var(--current); background: transparent; text-align: center; }
+.landing--health .depth-card h3 { margin: 4px 0 6px; color: var(--mist); font-family: var(--font-display), sans-serif; font-optical-sizing: auto; font-size: 2.1rem; font-weight: 600; }
+.landing--health .depth-card button { position: static; display: inline-flex; align-items: center; justify-content: center; width: auto; min-height: 50px; margin-top: auto; padding: 0 24px; border: 1px solid var(--current); border-radius: 999px; color: var(--current); background: transparent; text-align: center; transition: background-color .2s ease, border-color .2s ease, color .2s ease; }
 .landing--health .depth-card button:hover { color: var(--inverse); background: var(--current); }
-.landing--health .depth-card--quick { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(100px, .6fr) minmax(130px, .65fr) minmax(0, 1.3fr) auto; align-items: center; gap: 24px; min-height: 0; padding: 26px 34px; border-radius: 14px; background: var(--surface-soft); }
+.landing--health .depth-card--quick { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(100px, .6fr) minmax(130px, .65fr) minmax(0, 1.3fr) auto; align-items: center; gap: 24px; min-height: 0; padding: 26px 34px; border-color: transparent; border-radius: 20px; background: var(--surface-soft); }
 .landing--health .depth-card--quick h3 { margin: 0; font-size: 1.8rem; }
 .landing--health .depth-card--quick button { margin: 0; }
-.landing--health .depth-card--detailed { padding: 40px; border-color: transparent; border-radius: 16px 16px 48px 16px; background: var(--accent-soft); }
+.landing--health .depth-card--detailed { padding: 40px; border-color: transparent; border-radius: 24px 24px 64px 24px; background: var(--accent-soft); }
 .landing--health .depth-card--detailed button { margin-top: 16px; border-color: var(--accent); background: var(--accent); color: var(--inverse); }
 .landing--health .depth-card--detailed button:hover { border-color: var(--mist); background: var(--mist); }
-.landing--health .depth-card--deep { padding: 40px 34px; }
-.landing--health .privacy-panel { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(36px, 7vw, 100px); margin-top: 96px; padding: 56px; border: 0; border-radius: 52px 16px 16px 16px; background: var(--surface-soft); }
-.landing--health .privacy-panel h2 { margin-top: 20px; max-width: 430px; font-size: 2.5rem; line-height: 1.22; }
-.landing--health .privacy-panel__eyebrow { color: var(--current); font-size: .875rem; }
+.landing--health .depth-card--deep { padding: 40px 36px; }
+
+/* Confidentialité et note */
+.landing--health .privacy-panel { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(36px, 7vw, 100px); margin-top: 104px; padding: 56px; border: 0; border-radius: 64px 24px 24px 24px; background: var(--surface-soft); }
+.landing--health .privacy-panel h2 { margin-top: 0; max-width: 440px; font-size: 2.5rem; line-height: 1.16; }
+.landing--health .privacy-panel__eyebrow { color: var(--current); background: var(--depth); }
 .landing--health .privacy-panel__facts { gap: 22px; }
 .landing--health .privacy-panel__facts > div { padding-top: 20px; border-color: var(--line-strong); }
 .landing--health .privacy-panel__facts > div:first-child { padding-top: 0; border-top: 0; }
 .landing--health .privacy-panel dt { color: var(--mist); font-family: var(--font-body), sans-serif; font-size: 1rem; font-weight: 650; }
 .landing--health .privacy-panel dd { color: var(--muted); font-size: 1rem; }
-.landing--health .landing__footnote { max-width: 1200px; margin-top: 28px; margin-bottom: 20px; font-size: .875rem; line-height: 1.7; }
+.landing--health .landing__footnote { max-width: 1200px; margin-top: 28px; margin-bottom: 24px; font-size: .875rem; line-height: 1.7; }
+.landing--health .human-atlas-static { width: min(1200px, calc(100% - 64px)); margin-inline: auto; }
+.landing--health .human-atlas-static article { border-radius: 20px; }
 
+/* Récit séquencé au bureau : chaque carte tire son opacité et sa dérive de sa distance au centre. */
+@media screen and (min-width: 781px) {
+  .landing--health .human-atlas-scroll[data-motion="running"][data-scroll-sequenced="true"] .human-atlas-scene__card {
+    opacity: var(--scene-presence, 1);
+    transform: translate3d(0, calc(var(--scene-drift, 0) * -40px), 0);
+    will-change: opacity, transform;
+  }
+}
+/* Écrans de bureau courts : le héros et le personnage tiennent sous l'en-tête. */
+@media screen and (min-width: 781px) and (max-height: 760px) {
+  .landing--health .landing__atlas-hero { top: 28px; }
+  .landing--health .landing__atlas-hero h1 { margin: 16px 0 18px; font-size: 3.75rem; }
+  .health-home-facts { margin: 20px 0 22px; }
+  .landing--health .landing__scroll-hint { margin-top: 22px; }
+  .landing--health .living-atlas--human { inset-block: 122px 100px; }
+  .landing--health .human-atlas-scene h3 { font-size: 2.4rem; }
+}
+/* Portables à petite hauteur utile (1366 × 657, par exemple) : le titre français tient sur deux lignes. */
+@media screen and (min-width: 781px) and (max-height: 660px) {
+  .landing--health .landing__atlas-hero { top: 20px; }
+  .landing--health .landing__atlas-hero h1 { margin: 12px 0 14px; font-size: 3.25rem; }
+  .landing--health .landing__atlas-hero > p:not(.data-label) { font-size: 1rem; line-height: 1.6; }
+  .health-home-facts { margin: 16px 0 18px; }
+  .landing--health .landing__scroll-hint { margin-top: 16px; }
+}
 @media (max-width: 1000px) and (min-width: 781px) {
-  .landing--health .landing__atlas-hero { left: 28px; width: 40%; }
+  .landing--health .landing__atlas-hero { left: 28px; width: calc(46% - 28px); }
   .landing--health .landing__atlas-hero h1 { font-size: 3.4rem; }
   .landing--health .human-atlas-scene h3 { font-size: 2.2rem; }
-  .health-axis-map__label { width: auto; padding: 8px 4px; flex-direction: column; gap: 4px; }
+  .health-axis-map nav { border-radius: 24px; }
+  .health-axis-map__label { width: auto; padding: 8px 4px; flex-direction: column; gap: 4px; border-radius: 18px; }
   .health-axis-map__label strong { font-size: .8125rem; }
   .landing--health .landing__atlas-conversion { column-gap: 32px; padding: 40px; }
   .landing--health .landing__atlas-conversion h2 { font-size: 2.5rem; }
@@ -126,90 +240,116 @@ html:has(.landing--health) .language-switcher__option[aria-pressed="true"] { bac
   .landing--health .privacy-panel { padding: 40px; gap: 36px; }
 }
 @media screen and (max-width: 780px) {
-  .landing--health .landing__header, .landing--health .depth-section, .landing--health .privacy-panel, .landing--health .landing__footnote { width: calc(100% - 40px); }
-  .landing--health .landing__header { min-height: 82px; }
-  .landing--health .wordmark { font-size: .875rem; }
+  .landing--health .depth-section, .landing--health .privacy-panel, .landing--health .landing__footnote { width: calc(100% - 40px); }
+  .landing--health .landing__header { padding: 0 136px 0 20px; }
+  html:has(.landing--health) .language-switcher { right: 20px; }
+  .landing--health .wordmark { font-size: .9375rem; }
   .landing--health .landing__atlas-experience { --atlas-stage-height: 100svh; }
-  .landing--health .landing__atlas-hero { position: relative; top: auto; left: auto; width: calc(100% - 40px); padding: 24px 0 12px; margin: 0 auto; }
-  .landing--health .landing__atlas-hero h1 { font-size: 3rem; margin: 18px 0 22px; max-width: 580px; }
+  .landing--health .landing__atlas-hero { position: relative; top: auto; left: auto; width: calc(100% - 40px); padding: 28px 0 16px; margin: 0 auto; }
+  .landing--health .landing__atlas-hero h1 { font-size: 3.25rem; margin: 18px 0 22px; max-width: 580px; }
   .landing--health .landing__atlas-hero > p:not(.data-label) { font-size: 1rem; max-width: 43ch; }
-  .health-home-facts { margin: 20px 0; padding-top: 16px; gap: 7px 14px; font-size: .8125rem; }
-  .landing--health .landing__hero-actions { gap: 8px 16px; }
-  .landing--health .landing__hero-actions .landing__primary-cta { padding-inline: 18px; }
+  .health-home-facts { gap: 6px; margin: 20px 0 22px; font-size: .8125rem; }
+  .health-home-facts > span { min-height: 30px; padding: 0 12px 0 10px; }
+  .landing--health .landing__hero-actions { gap: 8px 18px; }
+  .landing--health .landing__hero-actions .landing__primary-cta { padding: 0 20px 0 24px; }
   .landing--health .landing__depth-link { font-size: .875rem; }
-  .landing--health .landing__scroll-hint { margin: 20px 0 0; }
+  .landing--health .landing__scroll-hint { margin: 22px 0 0; }
   .landing--health .living-atlas--human { inset: 86px 4px auto; height: 46%; }
-  .landing--health .human-atlas-scroll[data-scroll-sequenced="true"] .human-atlas-stage { display: grid; grid-template-rows: 86px minmax(0, 1fr) auto 32px; }
+  .landing--health .human-atlas-scroll[data-scroll-sequenced="true"] .human-atlas-stage { display: grid; grid-template-rows: 86px minmax(0, 1fr) auto 36px; }
   .landing--health .human-atlas-scroll[data-scroll-sequenced="true"] .living-atlas--human { position: relative; inset: auto; grid-row: 2; width: calc(100% - 8px); height: 100%; min-height: 0; justify-self: center; }
   .landing--health .human-atlas-stage::before { left: 8%; top: 18%; width: 84%; height: 36%; }
   .landing--health .human-atlas-stage::after { inset: 6% -12% 40%; }
-  .health-axis-map { inset: 0 12px; }
-  .health-axis-map nav { position: absolute; top: 10px; left: 0; right: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 4px; border-radius: 16px; pointer-events: auto; }
+  .health-axis-map { inset: 0 12px; padding-top: 10px; }
+  .health-axis-map nav { width: 100%; gap: 2px; padding: 4px; border-radius: 22px; pointer-events: auto; }
   .health-axis-map__title { display: none; }
-  .health-axis-map__label { width: auto; padding: 8px 3px 11px; display: flex; flex-direction: column; gap: 4px; min-height: 58px; border-radius: 11px; }
+  .health-axis-map__label { width: auto; padding: 8px 3px 11px; display: flex; flex-direction: column; gap: 4px; min-height: 58px; border-radius: 18px; }
   .health-axis-map__label strong { font-size: .75rem; }
   .health-axis-map__icon, .health-axis-map__icon svg { width: 22px; height: 22px; }
   .health-axis-map__metric { display: none; }
   .health-axis-map__label::after { left: 16px; right: 16px; bottom: 6px; }
   .health-axis-map__caption { display: none; }
-  .landing--health .human-atlas-scenes { width: 100%; padding-inline: 20px; }
+  .landing--health .human-atlas-scenes { width: 100%; padding-inline: 20px; padding-bottom: 0; }
+  .landing--health .human-atlas-scene { scroll-margin-top: 22svh; }
   .landing--health .human-atlas-scene:last-child { scroll-margin-top: calc(var(--atlas-stage-height) * .45 + 18px); }
-  .landing--health .human-atlas-scene__card { padding: 20px 18px; width: 100%; border-radius: 12px; background: var(--abyss); }
+  .landing--health .human-atlas-scene__card { padding: 20px 18px; width: 100%; border-radius: 16px; background: var(--abyss); }
   .landing--health .human-atlas-scroll[data-scroll-sequenced="true"]:not([data-scene-motion="static"]) .human-atlas-scene[data-active="false"] .human-atlas-scene__card { opacity: 0; pointer-events: none; }
   .landing--health .human-atlas-scroll[data-motion="running"][data-scroll-sequenced="true"] .human-atlas-scene__card { opacity: 0; pointer-events: none; }
-  .landing--health .human-atlas-scroll[data-motion="running"][data-scroll-sequenced="true"] .human-atlas-stage__mobile-story { display: block; position: relative; grid-row: 3; margin-inline: 24px; padding: 10px 0; z-index: 6; color: var(--mist); animation: atlas-story-arrive .48s cubic-bezier(.2,.7,.2,1) both; }
-  .human-atlas-stage__mobile-story > .data-label { margin-bottom: 12px; font-size: .75rem; color: var(--phosphor); }
-  .human-atlas-stage__mobile-story h3 { margin: 8px 0 14px; font-family: var(--font-display), sans-serif; font-size: 1.8rem; line-height: 1.15; font-weight: 600; hyphens: none; }
+  .landing--health .human-atlas-scroll[data-motion="running"][data-scroll-sequenced="true"] .human-atlas-stage__mobile-story { display: block; position: relative; grid-row: 3; margin-inline: 24px; padding: 10px 0; z-index: 6; color: var(--mist); animation: atlas-story-arrive .5s cubic-bezier(.22, .8, .24, 1) both; }
+  .human-atlas-stage__mobile-story > .data-label { display: flex; width: fit-content; align-items: center; gap: 8px; margin-bottom: 12px; padding: 4px 11px 4px 9px; border-radius: 999px; background: color-mix(in srgb, var(--scene-accent) 9%, var(--depth)); color: var(--scene-accent); font-size: .75rem; }
+  .human-atlas-stage__mobile-story > .data-label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .human-atlas-stage__mobile-story h3 { margin: 8px 0 12px; font-family: var(--font-display), sans-serif; font-optical-sizing: auto; font-size: 1.85rem; line-height: 1.12; font-weight: 600; hyphens: none; }
   .human-atlas-stage__mobile-story > p:not(.data-label) { font-size: .9375rem; line-height: 1.55; color: var(--muted); }
   .human-atlas-stage__mobile-story small { display: block; font-size: .75rem; line-height: 1.45; color: var(--muted); }
   .human-atlas-scroll:has(.human-atlas-scene:focus-visible) .human-atlas-stage__mobile-story h3 { text-decoration: underline; text-decoration-color: var(--phosphor); text-decoration-thickness: 2px; text-underline-offset: 6px; }
-  .landing--health .human-atlas-progress { left: 24px; right: 24px; bottom: 14px; }
-  .landing--health .human-atlas-scene h3 { max-width: 480px; font-size: 1.8rem; }
+  .landing--health .human-atlas-progress { left: 24px; right: 24px; bottom: 16px; gap: 12px; }
+  .landing--health .human-atlas-scene h3 { max-width: 480px; font-size: 1.85rem; }
   .landing--health .human-atlas-scene__card > p:not(.data-label) { font-size: .9375rem; }
-  .landing--health .landing__atlas-conversion { display: block; width: calc(100% - 32px); margin-top: 32px; padding: 36px 24px; border-radius: 20px 44px 20px 20px; }
+  .landing--health .landing__atlas-conversion { display: block; width: calc(100% - 32px); margin-top: 32px; padding: 36px 24px; border-radius: 24px 56px 24px 24px; }
+  .landing--health .landing__atlas-conversion::before { top: -12%; right: -40%; width: 110%; }
   .landing--health .landing__atlas-conversion h2 { font-size: 2.15rem; }
   .landing--health .landing__atlas-conversion > .landing__primary-cta { width: 100%; margin-top: 24px; padding-inline: 16px; }
   .health-output-grid { grid-column: auto; grid-row: auto; grid-template-columns: 1fr; gap: 0; margin: 30px 0 0; }
-  .health-output { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 8px 16px; padding: 22px 0; }
-  .health-output__icon { grid-row: 1 / 3; margin: 0; }
+  .health-output { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 6px 16px; padding: 22px 0; }
+  .health-output__icon { grid-row: 1 / 3; width: 40px; height: 40px; margin: 0; border-radius: 12px; }
+  .health-output__icon svg { width: 24px; height: 24px; }
   .health-output h3, .health-output p { margin: 0; }
   .landing--health .depth-section { margin-top: 64px; }
   .landing--health .depth-section .section-heading { margin-bottom: 26px; }
   .landing--health .depth-section .section-heading h2 { font-size: 2.2rem; }
   .landing--health .depth-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .landing--health .depth-card, .landing--health .depth-card--quick { display: flex; gap: 14px; min-height: 0; padding: 28px 24px; }
+  .landing--health .depth-card, .landing--health .depth-card--quick { display: flex; gap: 14px; min-height: 0; padding: 28px 24px; border-radius: 22px; }
   .landing--health .depth-card--quick { align-items: flex-start; }
+  .landing--health .depth-card--detailed { border-radius: 22px 22px 48px 22px; }
   .landing--health .depth-card h3 { margin: 0; font-size: 1.85rem; }
   .landing--health .depth-card button, .landing--health .depth-card--quick button { width: 100%; margin-top: 14px; }
-  .landing--health .privacy-panel { display: block; margin-top: 64px; padding: 32px 24px; border-radius: 32px 12px 12px 12px; }
+  .landing--health .privacy-panel { display: block; margin-top: 64px; padding: 32px 24px; border-radius: 40px 18px 18px 18px; }
   .landing--health .privacy-panel h2 { font-size: 2.05rem; }
   .landing--health .privacy-panel__facts { margin-top: 30px; }
   .landing--health .landing__footnote { font-size: .8125rem; }
+  .landing--health .human-atlas-static { width: calc(100% - 40px); padding-inline: 0; }
+}
+@media screen and (max-width: 560px) {
+  html:has(.landing--health) { --landing-header-height: 84px; }
+  .landing--health .landing__header { justify-content: center; gap: 4px; padding: 0 128px 0 20px; }
+  html:has(.landing--health) .language-switcher { right: 16px; }
+  .landing--health .prototype-label { padding: 0; border: 0; background: none; text-align: left; }
+  .landing--health .landing__atlas-hero h1 { font-size: 2.75rem; line-height: 1.1; }
 }
 @media screen and (max-width: 360px) {
   .human-atlas-stage__mobile-story h3 { font-size: 1.65rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .health-axis-map__label, .landing--health .landing__primary-cta { transition: none; }
-  .landing--health .landing__primary-cta:hover { transform: none; }
+  .health-axis-map__label, .landing--health .landing__primary-cta, .landing--health .landing__primary-cta::after, .landing--health .depth-card, .landing--health .depth-card button, .landing--health .landing__header, html:has(.landing--health) .language-switcher, .landing--health .human-atlas-stage, .landing--health .human-atlas-progress__markers > span { transition: none; }
+  .landing--health .depth-card:hover, .landing--health .landing__primary-cta:hover::after { translate: none; }
+  .landing--health .landing__scroll-hint > [data-hero-handoff]::after { animation: none; }
   .human-atlas-stage__mobile-story { animation: none !important; }
 }
 @keyframes atlas-story-arrive {
-  from { opacity: 0; transform: translateY(14px); }
+  from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@keyframes landing-hint-nudge {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 4px; }
 }
 @media screen {
   .landing--health .human-atlas-scroll:not([data-scroll-sequenced="true"]) .human-atlas-scene { opacity: 1; transform: none; }
-  .landing--health .human-atlas-scroll[data-motion="running"][data-scroll-sequenced="true"] .human-atlas-scene[data-active="false"] { opacity: 0; }
+  /* La section reste immobile et opaque : la mesure du chapitre actif ne dépend que du défilement. */
+  .landing--health .human-atlas-scroll[data-motion="running"][data-scroll-sequenced="true"] .human-atlas-scene { opacity: 1; transform: none; }
   .landing--health .human-atlas-scroll[data-motion="paused"] .human-atlas-stage::before,
   .landing--health .human-atlas-scroll[data-motion="paused"] .human-atlas-stage::after,
   .landing--health .human-atlas-scroll[data-motion-ready="false"] .human-atlas-stage::before,
   .landing--health .human-atlas-scroll[data-motion-ready="false"] .human-atlas-stage::after,
   .landing--health .human-atlas-stage--failed::before { content: none; }
-  .landing--health .human-atlas-scroll[data-motion="paused"] .living-atlas--human { inset: 0; height: 100%; }
-  .landing--health .human-atlas-scroll[data-motion="paused"] .health-axis-map { inset: 0; max-width: 580px; margin-inline: auto; }
+  .landing--health .human-atlas-scroll[data-motion="paused"] .living-atlas--human { inset: 112px 0 8px; height: auto; }
+  /* Scène pleine largeur : un remplissage en % de la largeur écraserait la figure fixe. */
+  .landing--health .human-atlas-scroll[data-motion="paused"] .living-atlas--human .living-atlas__still { padding: 12px 6%; }
+  .landing--health .human-atlas-scroll[data-motion="paused"] .health-axis-map { inset: 0; max-width: 600px; margin-inline: auto; padding-top: 12px; }
+  /* Sans récit défilé, un rail plein et un premier repère actif se contrediraient. */
+  .landing--health .human-atlas-scroll[data-motion="paused"] .human-atlas-progress { display: none; }
+  /* Même colonne que le héros, centré dans ces deux modes. */
   .landing--health .human-atlas-scroll[data-motion="paused"] .human-atlas-scenes,
-  .landing--health .human-atlas-scroll--failed .human-atlas-scenes { width: 100%; }
+  .landing--health .human-atlas-scroll--failed .human-atlas-scenes { width: min(720px, calc(100% - 32px)); margin-inline: auto; padding-inline: 0; }
   .landing--health .human-atlas-scroll[data-motion="paused"] .health-axis-map__title { display: none; }
 }
 /* Sur les écrans courts, le récit reste complet et laisse sa place au personnage. */
@@ -223,20 +363,24 @@ html:has(.landing--health) .language-switcher__option[aria-pressed="true"] { bac
 @media print {
   html:has(.landing--health) { color: var(--abyss); background: var(--mist); }
   .landing.landing--health { color: var(--abyss); background: var(--depth); }
-  .landing--health .landing__header, .landing--health .depth-section, .landing--health .privacy-panel, .landing--health .landing__footnote { width: 100%; }
+  .landing--health .landing__header { position: static; min-height: 0; padding: 0 0 12px; border: 0; background: none; transform: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .landing--health .depth-section, .landing--health .privacy-panel, .landing--health .landing__footnote { width: 100%; }
   .landing--health .wordmark, .landing--health .wordmark strong { color: var(--abyss); }
+  .landing--health .prototype-label { padding: 0; border: 0; background: none; }
   .landing--health .landing__atlas-hero { position: static; width: 100%; }
+  .landing--health .landing__atlas-hero > .data-label > [data-hero-handoff], .landing--health :is(.landing__atlas-conversion > .data-label, .depth-section .section-heading > .data-label, .privacy-panel__eyebrow), .landing--health .human-atlas-scene .human-atlas-scene__card > .data-label { padding: 0; background: none; }
   .landing--health .human-atlas-scenes { width: 100%; padding: 0; }
   .landing--health .human-atlas-stage { display: none !important; }
   .landing--health .landing__atlas-conversion { display: block; width: 100%; margin-top: 24px; padding: 24px 0; border: 0; border-radius: 0; background: transparent; }
+  .landing--health .landing__atlas-conversion::before { content: none; }
   .landing--health .landing__atlas-conversion :is(h2, h3, p, span), .landing--health :is(h1, h2, h3, .data-label, .privacy-panel dt) { color: var(--abyss); }
   .landing--health .landing__atlas-conversion > .data-label, .landing--health .landing__atlas-conversion > p:not(.data-label) { color: var(--abyss); }
-  .landing--health .landing__primary-cta, .landing--health .depth-card button, .landing--health .landing__atlas-conversion > .landing__primary-cta { color: var(--abyss); background: transparent; border-color: var(--abyss); }
+  .landing--health .landing__primary-cta, .landing--health .depth-card button, .landing--health .landing__atlas-conversion > .landing__primary-cta { color: var(--abyss); background: transparent; border-color: var(--abyss); box-shadow: none; }
   .landing--health .depth-grid { display: block; }
-  .landing--health .depth-card, .landing--health .depth-card--quick { display: block; min-height: 0; margin: 16px 0; padding: 20px; border: 1px solid var(--line); border-radius: 0; background: transparent; break-inside: avoid; }
+  .landing--health .depth-card, .landing--health .depth-card--quick { display: block; min-height: 0; margin: 16px 0; padding: 20px; border: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; translate: none; break-inside: avoid; }
   .landing--health .privacy-panel { display: block; margin-top: 24px; padding: 24px 0; border-radius: 0; background: transparent; }
   .landing--health .privacy-panel__facts { margin-top: 24px; }
-  .health-output-grid { display: block; }
+  .health-output-grid { display: block; margin: 20px 0 0; }
   .health-output { display: block; padding: 16px 0; border-color: var(--line); break-inside: avoid; }
   .health-output__icon { display: none; }
 }

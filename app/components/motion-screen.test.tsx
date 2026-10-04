@@ -2,15 +2,16 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 
-const { mockFromTo, mockRevert, mockUseGSAP } = vi.hoisted(() => ({
+const { mockFromTo, mockRefresh, mockRevert, mockUseGSAP } = vi.hoisted(() => ({
   mockFromTo: vi.fn(),
+  mockRefresh: vi.fn(),
   mockRevert: vi.fn(),
   mockUseGSAP: vi.fn(),
 }));
 
 vi.mock("../lib/gsap-client", () => ({
   gsap: { fromTo: mockFromTo },
-  ScrollTrigger: {},
+  ScrollTrigger: { refresh: mockRefresh },
   useGSAP: mockUseGSAP,
 }));
 
@@ -74,6 +75,28 @@ test("renders visible content and reveals it through a scoped GSAP context", () 
     expect.anything(),
     expect.objectContaining({ autoAlpha: 1 }),
   );
+});
+
+test("remeasures scroll triggers once the entrance offset has settled", () => {
+  installMotionPreference();
+  mockUseGSAP.mockImplementation((callback) => {
+    useLayoutEffect(() => {
+      callback();
+      return mockRevert;
+    }, [callback]);
+    return { context: { revert: mockRevert } };
+  });
+
+  render(
+    <MotionScreen screenKey="landing">
+      <h1>Landing</h1>
+    </MotionScreen>,
+  );
+
+  const toVars = mockFromTo.mock.calls[0]?.[2] as { onComplete?: () => void } | undefined;
+  expect(mockRefresh).not.toHaveBeenCalled();
+  toVars?.onComplete?.();
+  expect(mockRefresh).toHaveBeenCalledOnce();
 });
 
 test("keeps descendant focus stable when the screen entrance starts", async () => {

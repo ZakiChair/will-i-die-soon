@@ -88,11 +88,11 @@ export class HumanSignalScene {
       this.renderer.debug.onShaderError = () => { throw new Error("Human activity shader compilation failed"); };
       this.canvas.addEventListener("webglcontextlost", this.contextLost);
       this.host.appendChild(this.canvas);
-      this.world.add(new THREE.HemisphereLight(0xf5fbff, 0x718d96, 2.2));
-      const key = new THREE.DirectionalLight(0xfff1df, 3.2);
+      this.world.add(new THREE.HemisphereLight(0xf7f9ef, 0x6f8a7c, 2.2));
+      const key = new THREE.DirectionalLight(0xfff3e0, 3.2);
       key.position.set(-4, 7, 8);
       this.world.add(key);
-      const rim = new THREE.DirectionalLight(0xc9eaf5, 1.4);
+      const rim = new THREE.DirectionalLight(0xdaf0c0, 1.4);
       rim.position.set(4, 3, -5);
       this.world.add(rim);
       this.rig = createHumanActivityRig();

@@ -4,8 +4,10 @@ import { useCallback, useRef, useState } from "react";
 
 import { DecorativeSectionBoundary } from "./decorative-section-boundary";
 import { HumanAtlasScroll, HumanAtlasStaticStory } from "./human-atlas-scroll";
+import { useLandingHeader } from "../hooks/use-landing-header";
 import { useLandingTimeline } from "../hooks/use-landing-timeline";
 import { useSectionReveal } from "../hooks/use-section-reveal";
+import { useSmoothScroll } from "../hooks/use-smooth-scroll";
 import { healthHomeCopy } from "../i18n/health-home-copy";
 import { HealthAxisIcon } from "./health-axis-map";
 import { useI18n } from "../i18n/context";
@@ -47,6 +49,8 @@ export function Landing({ onStart }: LandingProps) {
   const [atlasFailed, setAtlasFailed] = useState(false);
   const activeScene = useLandingTimeline(atlasExperienceRef, atlasFailed, atlasProgress);
   useSectionReveal(landingRef);
+  useLandingHeader(landingRef);
+  useSmoothScroll(landingRef);
   const startExpress = () => onStart("express");
   const handleAtlasVisualFailure = useCallback(() => setAtlasFailed(true), []);
 

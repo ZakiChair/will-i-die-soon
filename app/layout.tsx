@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Manrope, DM_Sans } from "next/font/google";
+import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import { resolveMetadataOrigin } from "./lib/metadata";
 import { HERO_MOTION_BOOTSTRAP_SCRIPT } from "./lib/motion-bootstrap";
 import "./globals.css";
@@ -8,7 +8,8 @@ import "./health-home.css";
 import "./journey-design.css";
 import "./results-design.css";
 
-const display = Manrope({
+const display = Bricolage_Grotesque({
+  axes: ["opsz"],
   display: "swap",
   style: "normal",
   subsets: ["latin"],

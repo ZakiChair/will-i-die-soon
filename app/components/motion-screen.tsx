@@ -3,7 +3,7 @@
 import { useRef, type ReactNode } from "react";
 
 import { useDecorativeMotion } from "../hooks/use-decorative-motion";
-import { gsap, useGSAP } from "../lib/gsap-client";
+import { gsap, ScrollTrigger, useGSAP } from "../lib/gsap-client";
 
 type MotionScreenProps = Readonly<{
   screenKey: string;
@@ -21,7 +21,16 @@ export function MotionScreen({ screenKey, children }: MotionScreenProps) {
       gsap.fromTo(
         scope.current,
         { opacity: 0, y: 18 },
-        { autoAlpha: 1, duration: 0.45, ease: "power2.out", y: 0 },
+        {
+          autoAlpha: 1,
+          duration: 0.45,
+          ease: "power2.out",
+          y: 0,
+          // Les déclencheurs mesurés pendant l'entrée portent ce décalage de 18 px.
+          onComplete: () => {
+            if (typeof ScrollTrigger.refresh === "function") ScrollTrigger.refresh();
+          },
+        },
       );
     },
     { dependencies: [decorativeMotion], revertOnUpdate: true, scope },

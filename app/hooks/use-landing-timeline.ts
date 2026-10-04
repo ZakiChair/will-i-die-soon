@@ -23,9 +23,52 @@ const HERO_INLINE_PROPERTIES = [
   "will-change",
 ] as const;
 const ATLAS_CSS_PROPERTIES = ["--atlas-scroll", "--atlas-chapter-progress", "--atlas-scene-index"] as const;
+const CHAPTER_CSS_PROPERTIES = ["--scene-presence", "--scene-drift"] as const;
+// Un chapitre s'efface sur un peu plus d'une demi-vue : deux voisins ne sont jamais pleins ensemble.
+const CHAPTER_PRESENCE_REACH = 0.55;
+// Sous ce déplacement, l'aimant ramène au chapitre de départ (tremblement du pavé tactile).
+const SNAP_DEAD_ZONE_PX = 16;
+
+type SnapTrigger = Readonly<{
+  direction?: number;
+  end?: number;
+  scroll?: () => number;
+  start?: number;
+}>;
 
 function clampProgress(progress: number): number {
   return Number.isNaN(progress) ? 0 : Math.min(1, Math.max(0, progress));
+}
+
+function smoothstep(value: number): number {
+  const t = Math.min(1, Math.max(0, value));
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Aimant directionnel : le geste mène au point suivant dans son sens,
+ * sauf micro-déplacement ; après le dernier point, la descente reste libre.
+ */
+export function snapAtlasProgress(
+  value: number,
+  direction: number,
+  points: readonly number[],
+  deadZone = 0,
+): number {
+  const progress = clampProgress(value);
+  const stops = points.filter(Number.isFinite).map(clampProgress).sort((left, right) => left - right);
+  if (stops.length === 0) return progress;
+  const last = stops[stops.length - 1];
+  if (progress >= last) return direction > 0 ? progress : last;
+  if (progress <= stops[0]) return stops[0];
+
+  let index = 0;
+  while (index < stops.length - 2 && progress > stops[index + 1]) index += 1;
+  const from = stops[index];
+  const to = stops[index + 1];
+  if (direction > 0) return progress - from > deadZone ? to : from;
+  if (direction < 0) return to - progress > deadZone ? from : to;
+  return progress - from <= to - progress ? from : to;
 }
 
 function clearInlineMotion(nodes: Iterable<Element>): void {
@@ -208,6 +251,7 @@ export function useLandingTimeline(
         ? Array.from(landingScope.querySelectorAll<HTMLElement>("[data-hero-handoff]"))
         : [];
       const stage = landingScope?.querySelector<HTMLElement>(".human-atlas-stage");
+      const hero = landingScope?.querySelector<HTMLElement>(".landing__atlas-hero");
       // Le corps et ses lumières partagent le cadrage pour rester alignés.
       const camera = landingScope?.querySelector<HTMLElement>("[data-atlas-optics]")
         ?? landingScope?.querySelector<HTMLElement>("[data-atlas-camera]");
@@ -218,6 +262,9 @@ export function useLandingTimeline(
       const strengthSignals = landingScope?.querySelectorAll<SVGPathElement>(
         "[data-strength-signal]",
       ) ?? [];
+      const chapters = atlas
+        ? Array.from(atlas.querySelectorAll<HTMLElement>("[data-atlas-scene]"))
+        : [];
       const clearContinuousState = () => {
         clearInlineMotion(handoffTargets);
         if (camera) clearInlineMotion([camera]);
@@ -225,6 +272,9 @@ export function useLandingTimeline(
         if (progressFill) clearInlineMotion([progressFill]);
         clearInlineMotion(strengthSignals);
         for (const property of ATLAS_CSS_PROPERTIES) stage?.style.removeProperty(property);
+        for (const chapter of chapters) {
+          for (const property of CHAPTER_CSS_PROPERTIES) chapter.style.removeProperty(property);
+        }
         atlas?.removeAttribute("data-scroll-sequenced");
       };
       let timeline: ReturnType<typeof gsap.timeline> | undefined;
@@ -280,7 +330,6 @@ export function useLandingTimeline(
       }
 
       try {
-        const chapters = Array.from(atlas.querySelectorAll<HTMLElement>("[data-atlas-scene]"));
         const writeStageProgress = (progress: number, chapterProgress: number, scene: HumanAtlasSceneId) => {
           stage?.style.setProperty("--atlas-scroll", String(progress));
           stage?.style.setProperty("--atlas-chapter-progress", String(chapterProgress));
@@ -297,12 +346,17 @@ export function useLandingTimeline(
           let nearestDistance = Infinity;
           let chapterProgress = clampProgress(clampedProgress * humanAtlasStorySceneIds.length - humanAtlasStorySceneIds.indexOf(nearest));
           let firstChapterTop: number | null = null;
+          const presenceReach = viewportHeight * CHAPTER_PRESENCE_REACH;
           for (const chapter of chapters) {
             const bounds = chapter.getBoundingClientRect();
             const id = chapter.dataset.atlasScene as HumanAtlasSceneId;
             if (!humanAtlasStorySceneIds.includes(id) || !Number.isFinite(bounds.top) || !Number.isFinite(bounds.height) || bounds.height <= 0) continue;
             if (id === humanAtlasStorySceneIds[0]) firstChapterTop = bounds.top;
-            const distance = Math.abs(bounds.top + bounds.height / 2 - viewportHeight / 2);
+            const offset = bounds.top + bounds.height / 2 - viewportHeight / 2;
+            const distance = Math.abs(offset);
+            // Seule la carte consomme ces variables : la section reste immobile et sa mesure exacte.
+            chapter.style.setProperty("--scene-presence", smoothstep(1 - distance / presenceReach).toFixed(3));
+            chapter.style.setProperty("--scene-drift", Math.min(1, Math.max(-1, offset / presenceReach)).toFixed(3));
             if (distance < nearestDistance) {
               nearest = id;
               nearestDistance = distance;
@@ -324,6 +378,33 @@ export function useLandingTimeline(
           setActiveScene(nearest);
         };
 
+        // Les points d'aimant sont les positions d'ancrage des chapitres (haut moins
+        // scroll-margin-top) : un lien de navigation et l'aimant s'arrêtent au même endroit.
+        const snapPoints = (trigger: SnapTrigger): number[] => {
+          const start = Number(trigger.start);
+          const distance = Number(trigger.end) - start;
+          const scroll = typeof trigger.scroll === "function" ? Number(trigger.scroll()) : window.scrollY;
+          if (!Number.isFinite(start) || !Number.isFinite(distance) || distance <= 0 || !Number.isFinite(scroll)) return [];
+          const anchors: number[] = [];
+          for (const chapter of chapters) {
+            const bounds = chapter.getBoundingClientRect();
+            if (!Number.isFinite(bounds.top) || !Number.isFinite(bounds.height) || bounds.height <= 0) continue;
+            const margin = Number.parseFloat(getComputedStyle(chapter).scrollMarginTop);
+            anchors.push((scroll + bounds.top - (Number.isFinite(margin) ? margin : 0) - start) / distance);
+          }
+          return anchors.length > 0 ? [0, ...anchors] : [];
+        };
+        const snapToChapter = (value: number, trigger?: SnapTrigger): number => {
+          if (!active || !trigger) return value;
+          const distance = Number(trigger.end) - Number(trigger.start);
+          const deadZone = Number.isFinite(distance) && distance > 0 ? SNAP_DEAD_ZONE_PX / distance : 0;
+          const direction = Number.isFinite(trigger.direction) ? Number(trigger.direction) : 0;
+          return snapAtlasProgress(value, direction, snapPoints(trigger), deadZone);
+        };
+        // Héros posé sur la scène (bureau) : l'atlas commence sous l'en-tête, mais le récit
+        // s'ouvre en haut de page, où l'aimant ramène avec l'en-tête visible.
+        const storyStart = () => (hero && getComputedStyle(hero).position === "absolute" ? 0 : "top top");
+
         if (camera) camera.style.willChange = "transform";
         timeline = gsap.timeline({
           scrollTrigger: {
@@ -333,7 +414,14 @@ export function useLandingTimeline(
             onRefresh: syncAtlasProgress,
             onUpdate: syncAtlasProgress,
             scrub: 0.8,
-            start: "top top",
+            snap: {
+              delay: 0.18,
+              duration: { min: 0.3, max: 0.8 },
+              ease: "power2.inOut",
+              inertia: false,
+              snapTo: snapToChapter,
+            },
+            start: storyStart,
             trigger: atlas,
           },
         });
