@@ -9,7 +9,7 @@ import {
   type SettledDecorativeMotionStatus,
 } from "./use-decorative-motion";
 
-type SmoothScroller = Pick<Lenis, "destroy" | "on" | "raf" | "scrollTo">;
+type SmoothScroller = Pick<Lenis, "destroy" | "on" | "raf" | "scrollTo" | "stop">;
 
 const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
 const LINK_SCROLL_SECONDS = 1.1;
@@ -62,6 +62,14 @@ export function useSmoothScroll(scope: RefObject<HTMLElement | null>): void {
       }
       const instance = lenis;
       lenis = null;
+      try {
+        // Lenis 1.3.26 ne coupe pas à la destruction le minuteur de 400 ms armé par un
+        // défilement natif : il remet `isScrolling` à false et réécrit la classe `lenis`
+        // sur <html>. `stop()` met d'abord cet état à false, le minuteur ne change plus rien.
+        instance?.stop();
+      } catch {
+        // La destruction suit quoi qu'il arrive.
+      }
       try {
         instance?.destroy();
       } catch {

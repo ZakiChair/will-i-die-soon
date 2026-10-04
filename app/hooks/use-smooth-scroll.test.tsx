@@ -11,6 +11,7 @@ const { MockLenis, scrollTriggerUpdate, ticker } = vi.hoisted(() => {
     readonly on = vi.fn();
     readonly raf = vi.fn();
     readonly scrollTo = vi.fn();
+    readonly stop = vi.fn();
 
     constructor(readonly options: Record<string, unknown>) {
       MockLenis.instances.push(this);
