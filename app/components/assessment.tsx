@@ -10,6 +10,7 @@ import { uiCopyKeys } from "../i18n/ui-copy";
 import { healthPillarForQuestion, type HealthPillar } from "../lib/health-pillars";
 import {
   buildAssessmentQueue,
+  EXPRESS_REQUIRED_QUESTION_IDS,
   getNextQuestion,
   reconcileAssessmentState,
 } from "../lib/questionnaire";
@@ -269,6 +270,7 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
                 canGoBack={currentIndex > 0}
                 onBack={() => setCurrentIndex((index) => Math.max(0, index - 1))}
                 skipLabelKey={isExpress ? "question.skip.express" : undefined}
+                allowSkip={!(isExpress && EXPRESS_REQUIRED_QUESTION_IDS.has(question.id))}
               />
             </article>
           </MotionScreen>

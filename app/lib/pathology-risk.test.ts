@@ -797,18 +797,23 @@ describe("Lee index", () => {
     const result = complete(
       score(
         "lee-index",
-        { ...thirteenPoints, diagnosed_conditions_core: ["diabetes", "cancer", "lung", "heart_vascular"], heart_failure_diagnosed: true, functional_difficulties: ["bathing", "managing_finances", "walking_several_blocks", "pushing_pulling_heavy"] },
+        { ...thirteenPoints, diagnosed_conditions_core: ["diabetes", "cancer", "lung", "heart_vascular"], heart_failure_diagnosed: true, copd_diagnosed: true, functional_difficulties: ["bathing", "managing_finances", "walking_several_blocks", "pushing_pulling_heavy"] },
         { age: 86, countryCode: "CH" },
       ),
     );
     expect(result).toMatchObject({ points: 26, category: "very-high", riskPercent: 64 });
-    expect(result.modifiers).toEqual(["lee-lung-disease-proxy"]);
+    expect(result.modifiers).toEqual([]);
   });
 
-  test("asks about heart failure only after a heart condition is declared", () => {
+  test("asks about heart failure and COPD only after the matching condition group is declared", () => {
     const withHeart = { ...thirteenPoints, diagnosed_conditions_core: ["heart_vascular"] };
     expect(incomplete(score("lee-index", withHeart, older)).missingInputs).toEqual(["heart_failure_diagnosed"]);
     expect(complete(score("lee-index", { ...withHeart, heart_failure_diagnosed: true }, older)).points).toBe(14);
+    const withLung = { ...thirteenPoints, diagnosed_conditions_core: ["lung"] };
+    expect(incomplete(score("lee-index", withLung, older)).missingInputs).toEqual(["copd_diagnosed"]);
+    // Asthma or another long-term lung condition without COPD scores no lung-disease points.
+    expect(complete(score("lee-index", { ...withLung, copd_diagnosed: false }, older)).points).toBe(12);
+    expect(complete(score("lee-index", { ...withLung, copd_diagnosed: true }, older)).points).toBe(14);
   });
 
   test("compares quitting smoking against the same point table", () => {
@@ -863,9 +868,14 @@ describe("PLCOm2012", () => {
     expect(result).not.toHaveProperty("gain");
   });
 
-  test("flags the extrapolated ages and the lung-condition proxy", () => {
-    const result = complete(score("plcom2012", { ...currentSmoker, diagnosed_conditions_core: ["lung"] }, { age: 52, countryCode: "CH" }));
-    expect(result.modifiers).toEqual(["plco-race-reference", "plco-age-extrapolated", "plco-copd-proxy"]);
+  test("flags the extrapolated ages and reads COPD from its own question", () => {
+    const lung = { ...currentSmoker, diagnosed_conditions_core: ["lung"] };
+    expect(incomplete(score("plcom2012", lung, sixtyFive)).missingInputs).toEqual(["copd_diagnosed"]);
+    const asthmaOnly = complete(score("plcom2012", { ...lung, copd_diagnosed: false }, sixtyFive));
+    const copd = complete(score("plcom2012", { ...lung, copd_diagnosed: true }, { age: 52, countryCode: "CH" }));
+    expect(asthmaOnly.riskPercent).toBe(6.5);
+    expect(copd.modifiers).toEqual(["plco-race-reference", "plco-age-extrapolated"]);
+    expect(copd.inputs).toContainEqual({ id: "copd_diagnosed", value: true });
   });
 
   test("is not applicable for never-smokers or outside 50 to 80", () => {

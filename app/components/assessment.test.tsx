@@ -573,6 +573,16 @@ test("runs twelve Express questions without an intermission", async () => {
   expect(screen.getByRole("progressbar")).toHaveAttribute("max", "12");
 
   for (let answered = 0; answered < 12; answered += 1) {
+    const weight = screen.queryByRole("spinbutton", { name: /current weight/i });
+    if (weight) {
+      // Body weight scales the optional lifts, so Express offers no skip for it.
+      expect(screen.queryByRole("button", { name: "I don't know or prefer not to answer" })).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Continue" }));
+      expect(screen.getByRole("alert")).toBeVisible();
+      await user.type(weight, "80");
+      await user.click(screen.getByRole("button", { name: "Continue" }));
+      continue;
+    }
     await user.click(
       screen.getByRole("button", {
         name: "I don't know or prefer not to answer",
@@ -581,7 +591,10 @@ test("runs twelve Express questions without an intermission", async () => {
   }
 
   expect(onComplete).toHaveBeenCalledOnce();
-  expect(Object.values(onComplete.mock.calls[0][0])).toEqual(Array(12).fill(null));
+  const expressAnswers = onComplete.mock.calls[0][0];
+  expect(Object.keys(expressAnswers)).toHaveLength(12);
+  expect(expressAnswers.weight_kg).toBe(80);
+  expect(Object.entries(expressAnswers).filter(([id]) => id !== "weight_kg").map(([, value]) => value)).toEqual(Array(11).fill(null));
 });
 
 test.each([

@@ -68,6 +68,12 @@ test("replaces each in-memory journey screen inside its stable motion boundary",
   expect(assessment).not.toBe(consent);
 
   for (let answered = 0; answered < 12; answered += 1) {
+    const weight = screen.queryByRole("spinbutton", { name: /current weight/i });
+    if (weight) {
+      await user.type(weight, "80");
+      await user.click(screen.getByRole("button", { name: "Continue" }));
+      continue;
+    }
     await user.click(
       screen.getByRole("button", { name: /prefer not to (?:say|answer)/i }),
     );

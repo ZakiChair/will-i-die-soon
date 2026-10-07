@@ -16,6 +16,8 @@ export type QuestionControlProps = {
   canGoBack: boolean;
   questionDescriptionId?: string;
   skipLabelKey?: UiCopyKey;
+  /** When false the skip control is not rendered and only a valid value can continue. */
+  allowSkip?: boolean;
   subjectAgeYears?: number;
   countryCode?: string;
 };
@@ -42,6 +44,7 @@ export function QuestionControl({
   canGoBack,
   questionDescriptionId,
   skipLabelKey,
+  allowSkip = true,
   subjectAgeYears,
   countryCode,
 }: QuestionControlProps) {
@@ -275,13 +278,15 @@ export function QuestionControl({
         <button type="button" onClick={onBack} disabled={!canGoBack}>
           {t("question.back")}
         </button>
-        <button
-          type="button"
-          aria-pressed={answer === null}
-          onClick={() => onAnswer(null)}
-        >
-          {skipLabelKey ? t(skipLabelKey) : guidance.unknownMeasurement ?? t("question.skip")}
-        </button>
+        {allowSkip ? (
+          <button
+            type="button"
+            aria-pressed={answer === null}
+            onClick={() => onAnswer(null)}
+          >
+            {skipLabelKey ? t(skipLabelKey) : guidance.unknownMeasurement ?? t("question.skip")}
+          </button>
+        ) : null}
         <button type="submit">{t("question.continue")}</button>
       </div>
     </form>

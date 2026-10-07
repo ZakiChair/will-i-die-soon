@@ -218,12 +218,12 @@ const commonQuestionPromptPresentations = {
     en: {
       completePrompt: "What is your current weight in kilograms?",
       title: "What is your current weight?",
-      detail: "Answer in kilograms. You can prefer not to answer.",
+      detail: "Answer in kilograms. In Express it also scales the optional squat and deadlift loads.",
     },
     fr: {
       completePrompt: "Quel est votre poids actuel en kilogrammes ?",
       title: "Quel est votre poids actuel ?",
-      detail: "Répondez en kilogrammes. Vous pouvez préférer ne pas répondre.",
+      detail: "Répondez en kilogrammes. En Express, il sert aussi d’échelle aux charges facultatives de squat et de soulevé de terre.",
     },
   },
   plant_food_frequency: {

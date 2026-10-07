@@ -24,6 +24,9 @@ export const EXPRESS_QUESTION_IDS = [
   "diet_ultra_processed",
 ] as const;
 
+/** Express answers that cannot be skipped: body weight scales the optional lifts. */
+export const EXPRESS_REQUIRED_QUESTION_IDS: ReadonlySet<string> = new Set(["weight_kg"]);
+
 const DEPTH_LIMITS: Readonly<Record<AnalysisDepth, number>> = {
   express: 12,
   quick: 20,
@@ -296,7 +299,13 @@ export function buildAssessmentQueue(
   );
   assertDeepAvailable(depth, context, eligible);
 
-  return groupQuestionsByPillar(selectAssessmentQuestions(depth, eligible, stableAnswers));
+  return orderAssessmentQueue(depth, selectAssessmentQuestions(depth, eligible, stableAnswers));
+}
+
+// Express keeps its declared order so body weight is asked right before the
+// lifts it scales; the other depths group questions by health pillar.
+function orderAssessmentQueue(depth: AnalysisDepth, questions: Question[]): Question[] {
+  return depth === "express" ? questions : groupQuestionsByPillar(questions);
 }
 
 function selectAssessmentQuestions(
@@ -368,7 +377,7 @@ export function reconcileAssessmentState(
   assertDeepAvailable(depth, context, eligible);
 
   return {
-    queue: groupQuestionsByPillar(selectAssessmentQuestions(depth, eligible, stableAnswers)),
+    queue: orderAssessmentQueue(depth, selectAssessmentQuestions(depth, eligible, stableAnswers)),
     answers: stableAnswers,
   };
 }

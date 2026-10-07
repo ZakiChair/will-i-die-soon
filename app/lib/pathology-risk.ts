@@ -1558,17 +1558,25 @@ function leeAgePoints(age: number): number {
   return age < 60 ? 0 : age < 65 ? 1 : age < 70 ? 2 : age < 75 ? 3 : age < 80 ? 4 : age < 85 ? 5 : 7;
 }
 
-/** Heart failure is asked only after a heart or blood-vessel condition is reported. */
-function deriveHeartFailure(context: EvaluationContext): Derived<boolean> {
+/** A specific diagnosis asked only after the broader condition group is reported. */
+function deriveGatedDiagnosis(context: EvaluationContext, group: string, questionId: string): Derived<boolean> {
   const conditions = context.diagnosedConditions;
   if (conditions === undefined) return { value: undefined, inputs: [], missing: ["diagnosed_conditions_core"] };
-  if (!conditions.includes("heart_vascular")) {
-    return { value: false, inputs: [{ id: "heart_failure_diagnosed", value: false, derived: true }], missing: [] };
+  if (!conditions.includes(group)) {
+    return { value: false, inputs: [{ id: questionId, value: false, derived: true }], missing: [] };
   }
-  const reported = readBoolean(context.answers, "heart_failure_diagnosed");
+  const reported = readBoolean(context.answers, questionId);
   return reported === undefined
-    ? { value: undefined, inputs: [], missing: ["heart_failure_diagnosed"] }
-    : { value: reported, inputs: [{ id: "heart_failure_diagnosed", value: reported }], missing: [] };
+    ? { value: undefined, inputs: [], missing: [questionId] }
+    : { value: reported, inputs: [{ id: questionId, value: reported }], missing: [] };
+}
+
+function deriveHeartFailure(context: EvaluationContext): Derived<boolean> {
+  return deriveGatedDiagnosis(context, "heart_vascular", "heart_failure_diagnosed");
+}
+
+function deriveCopd(context: EvaluationContext): Derived<boolean> {
+  return deriveGatedDiagnosis(context, "lung", "copd_diagnosed");
 }
 
 function evaluateLeeIndex(context: EvaluationContext): PathologyScoreResult {
@@ -1587,6 +1595,7 @@ function evaluateLeeIndex(context: EvaluationContext): PathologyScoreResult {
   if (conditions === undefined) collector.missing.push("diagnosed_conditions_core");
   else collector.inputs.push({ id: "diagnosed_conditions_core", value: conditions.join(", ") });
   const heartFailure = collector.derived(deriveHeartFailure(context));
+  const lungDisease = collector.derived(deriveCopd(context));
   const currentSmoker = collector.derived(context.currentSmoker);
   const difficulties = readMulti(context.answers, "functional_difficulties");
   if (difficulties === undefined) collector.missing.push("functional_difficulties");
@@ -1594,12 +1603,16 @@ function evaluateLeeIndex(context: EvaluationContext): PathologyScoreResult {
 
   if (
     sex === undefined || bmi === undefined || conditions === undefined || heartFailure === undefined ||
-    currentSmoker === undefined || difficulties === undefined
+    lungDisease === undefined || currentSmoker === undefined || difficulties === undefined
   ) {
-    return incomplete("lee-index", LEE_SOURCES, collector, conditions === undefined ? ["heart_failure_diagnosed"] : []);
+    return incomplete(
+      "lee-index",
+      LEE_SOURCES,
+      collector,
+      conditions === undefined ? ["heart_failure_diagnosed", "copd_diagnosed"] : [],
+    );
   }
 
-  const lungDisease = conditions.includes("lung");
   const points =
     leeAgePoints(age) +
     (sex === "male" ? 2 : 0) +
@@ -1612,9 +1625,6 @@ function evaluateLeeIndex(context: EvaluationContext): PathologyScoreResult {
     difficulties.reduce((sum, item) => sum + (LEE_FUNCTIONAL_POINTS[item] ?? 0), 0);
   const stratum = LEE_STRATA.find((band) => points <= band.max) ?? LEE_STRATA[LEE_STRATA.length - 1];
   const riskPercent = LEE_VALIDATION_MORTALITY[Math.min(points, LEE_VALIDATION_MORTALITY.length - 1)];
-  // The index asked about chronic lung disease (chronic bronchitis, emphysema);
-  // the bank's "long-term lung condition" is broader, so the item is a proxy.
-  const modifiers = lungDisease ? ["lee-lung-disease-proxy"] : [];
   return complete(
     "lee-index",
     LEE_SOURCES,
@@ -1626,7 +1636,7 @@ function evaluateLeeIndex(context: EvaluationContext): PathologyScoreResult {
       level: stratum.level,
       riskPercent,
       riskHorizonYears: 4,
-      modifiers,
+      modifiers: [],
     },
     context.policy,
   );
@@ -1728,6 +1738,7 @@ function evaluatePlcom2012(context: EvaluationContext): PathologyScoreResult {
   const conditions = context.diagnosedConditions;
   if (conditions === undefined) collector.missing.push("diagnosed_conditions_core");
   else collector.inputs.push({ id: "diagnosed_conditions_core", value: conditions.join(", ") });
+  const copd = collector.derived(deriveCopd(context));
   const familyLungCancer = collector.boolean("family_lung_cancer");
   const cigarettesPerDay = collector.number("smoking_cigarettes_per_day", PLAUSIBLE.cigarettesPerDay);
   const yearsSmoked = collector.number("smoking_years_total", PLAUSIBLE.smokingYears);
@@ -1741,8 +1752,8 @@ function evaluatePlcom2012(context: EvaluationContext): PathologyScoreResult {
 
   if (
     smokedEver === undefined || currentSmoker === undefined || education === undefined || bmi === undefined ||
-    conditions === undefined || familyLungCancer === undefined || cigarettesPerDay === undefined ||
-    yearsSmoked === undefined || yearsSinceQuit === undefined
+    conditions === undefined || copd === undefined || familyLungCancer === undefined ||
+    cigarettesPerDay === undefined || yearsSmoked === undefined || yearsSinceQuit === undefined
   ) {
     // Items hidden behind the smoking-history or education gates are counted there rather than asked directly.
     const educationYears = readSingle(context.answers, "education_years");
@@ -1753,11 +1764,11 @@ function evaluatePlcom2012(context: EvaluationContext): PathologyScoreResult {
       ...(smokedEver === undefined ? ["smoking_cigarettes_per_day", "smoking_years_total", "family_lung_cancer"] : []),
       ...(educationLevelPending && !collector.missing.includes("education_highest_level") ? ["education_highest_level"] : []),
       ...(currentSmoker === undefined ? ["smoking_years_since_quit"] : []),
+      ...(conditions === undefined ? ["copd_diagnosed"] : []),
     ];
     return incomplete("plcom2012", PLCO_SOURCES, collector, conditional);
   }
 
-  const copd = conditions.includes("lung");
   const riskPercent = Math.round(
     plcom2012SixYearRisk({
       age,
@@ -1774,12 +1785,8 @@ function evaluatePlcom2012(context: EvaluationContext): PathologyScoreResult {
   ) / 10;
   const screening = riskPercent >= PLCO_SCREENING_THRESHOLD_PERCENT;
   // The race term is not collected and stays at its reference category; the
-  // PLCO cohort was aged 55–74, and "long-term lung condition" stands in for COPD.
-  const modifiers = [
-    "plco-race-reference",
-    ...(age < 55 || age > 74 ? ["plco-age-extrapolated"] : []),
-    ...(copd ? ["plco-copd-proxy"] : []),
-  ];
+  // PLCO cohort was aged 55–74.
+  const modifiers = ["plco-race-reference", ...(age < 55 || age > 74 ? ["plco-age-extrapolated"] : [])];
   return complete(
     "plcom2012",
     PLCO_SOURCES,

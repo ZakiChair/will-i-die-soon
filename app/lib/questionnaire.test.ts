@@ -39,21 +39,8 @@ const expressIds = [
   "plant_food_frequency",
   "diet_ultra_processed",
 ] as const;
-// File affichée : regroupée par pilier, le poids de corps (nutrition-métabolique) rejoint le bloc alimentation.
-const expressQueueIds = [
-  "sex_assigned_at_birth",
-  "reported_vo2_max_ml_kg_min",
-  "weekly_moderate_activity_minutes",
-  "chair_stand_30s_count",
-  "squat_one_rep_max_kg",
-  "deadlift_one_rep_max_kg",
-  "movement_strength_days",
-  "usual_sleep_hours",
-  "sleep_refreshed",
-  "weight_kg",
-  "plant_food_frequency",
-  "diet_ultra_processed",
-] as const;
+// File affichée : l'ordre déclaré de l'Express, le poids de corps juste avant les charges qu'il met à l'échelle.
+const expressQueueIds = expressIds;
 const medicationBehaviorIds = [
   "adherence_missed_doses",
   "adherence_access_barriers",
@@ -220,8 +207,8 @@ const expectedDomains: ReadonlyArray<HealthDomain> = [
 ];
 
 describe("question bank invariants", () => {
-  test("contains 156 curated questions with stable unique IDs and prompts", () => {
-    expect(questionBank).toHaveLength(156);
+  test("contains 157 curated questions with stable unique IDs and prompts", () => {
+    expect(questionBank).toHaveLength(157);
     expect(new Set(questionBank.map((question) => question.id)).size).toBe(
       questionBank.length,
     );

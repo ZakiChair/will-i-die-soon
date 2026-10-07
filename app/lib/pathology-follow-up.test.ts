@@ -185,7 +185,7 @@ describe("follow-up plan", () => {
     const diagnosis = plan({}, { age: 72, countryCode: "GB" }, "lee-index").find(
       (step) => step.kind === "question" && step.questionId === "diagnosed_conditions_core",
     );
-    expect(diagnosis).toMatchObject({ opens: ["heart_failure_diagnosed"], unlocks: ["lee-index"] });
+    expect(diagnosis).toMatchObject({ opens: ["heart_failure_diagnosed", "copd_diagnosed"], unlocks: ["lee-index"] });
   });
 
   test("every answer lowers the count by at least one, so it stays an upper bound", () => {
