@@ -42,7 +42,7 @@ describe("Human Atlas landing contract", () => {
   test("maps the cardio and strength scenes to the normed measurements and their guideline companions", () => {
     const byId = Object.fromEntries(humanAtlasScenes.map((scene) => [scene.id, scene.questionIds]));
     expect(byId.breath).toEqual(["reported_vo2_max_ml_kg_min", "weekly_moderate_activity_minutes"]);
-    expect(byId.strength).toEqual(["chair_stand_30s_count", "movement_strength_days"]);
+    expect(byId.strength).toEqual(["chair_stand_30s_count", "weight_kg", "squat_one_rep_max_kg", "deadlift_one_rep_max_kg", "movement_strength_days"]);
     expect(byId.sleep).toEqual(["usual_sleep_hours", "sleep_refreshed"]);
     expect(byId.energy).toEqual(["plant_food_frequency", "diet_ultra_processed"]);
     expect(humanAtlasReferenceQuestionIds).toEqual(["sex_assigned_at_birth"]);

@@ -9,6 +9,14 @@ export const performanceFrQuestionTranslations: Readonly<Record<string, Question
     prompt: "Combien de fois pouvez-vous vous lever complètement d'une chaise et vous rasseoir en 30 secondes, bras croisés sur la poitrine ?",
     why: "Le lever de chaise en 30 secondes est le test de force des membres inférieurs du programme CDC STEADI, avec des normes publiées par âge et par sexe ; une fonction des membres inférieurs réduite prédit les chutes, la perte d'autonomie et la mortalité chez les personnes âgées.",
   },
+  squat_one_rep_max_kg: {
+    prompt: "Quel est le squat le plus lourd que vous ayez déjà effectué pour une répétition ?",
+    why: "La force musculaire est inversement associée à la mortalité toutes causes, indépendamment de la forme aérobie, mais les normes de mortalité publiées portent sur la préhension et le lever de chaise ; un squat lu en rapport au poids du corps est une convention du produit. Facultatif : utilisez uniquement un résultat existant et laissez la réponse vide plutôt que de tenter une nouvelle répétition maximale.",
+  },
+  deadlift_one_rep_max_kg: {
+    prompt: "Quel est le soulevé de terre le plus lourd que vous ayez déjà effectué pour une répétition ?",
+    why: "La force globale rapportée au poids du corps ajoute un contexte à l'axe force, mais les normes de mortalité publiées portent sur la préhension et le lever de chaise ; un soulevé de terre lu en rapport au poids du corps est une convention du produit. Facultatif : utilisez uniquement un résultat existant et laissez la réponse vide plutôt que de tenter une nouvelle répétition maximale.",
+  },
   walking_pace: {
     prompt: "Comment décririez-vous votre allure de marche habituelle ?",
     why: "L'allure de marche auto-évaluée est un marqueur validé de la condition physique ; dans UK Biobank, une allure habituelle lente était associée à une mortalité cardiovasculaire environ deux fois plus élevée qu'une allure rapide, indépendamment du niveau d'activité.",
@@ -22,6 +30,17 @@ export const performanceFrQuestionTranslations: Readonly<Record<string, Question
       unsteady: "Je me sens instable debout ou en marchant",
       worried: "J'ai peur de tomber",
       none: "Aucune de ces situations",
+    },
+  },
+  functional_difficulties: {
+    prompt: "En raison d'un problème de santé, avez-vous des difficultés à faire seul l'une de ces activités ?",
+    why: "Ce sont les quatre items fonctionnels de l'indice de Lee, un indice validé de mortalité toutes causes à 4 ans chez les adultes de 50 ans et plus vivant à domicile (Lee et al., JAMA 2006).",
+    options: {
+      bathing: "Prendre un bain ou une douche",
+      managing_finances: "Gérer votre argent ou vos finances",
+      walking_several_blocks: "Marcher plusieurs pâtés de maisons (environ un demi-kilomètre)",
+      pushing_pulling_heavy: "Tirer ou pousser de gros objets, comme un fauteuil de salon",
+      none: "Aucune de ces activités",
     },
   },
   smoking_history_former: {

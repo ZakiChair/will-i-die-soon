@@ -5,6 +5,7 @@ import {
   chairStandBand,
   chairStandReference,
   EXPRESS_INDEX_REFERENCE,
+  liftPoints,
   sleepDurationPoints,
   vo2MaxPercentile,
 } from "./express-assessment";
@@ -68,6 +69,18 @@ describe("intervalle normal Rikli-Jones du lever de chaise", () => {
   });
 });
 
+describe("points des charges optionnelles (convention produit)", () => {
+  test.each([
+    [60, 80, 1, 75], [80, 80, 1, 100], [120, 80, 1.5, 100], [60, 80, 1.5, 50], [200, 80, 1, 100], [Number.MAX_VALUE, 80, 1.5, 100],
+  ])("%s kg pour %s kg de poids de corps, référence %s × → %s points", (load, weight, reference, points) => {
+    expect(liftPoints(load, weight, reference)).toBe(points);
+  });
+
+  test.each([[null, 80], [60, null], [null, null]])("aucun point pour charge %s et poids %s", (load, weight) => {
+    expect(liftPoints(load, weight, 1)).toBeNull();
+  });
+});
+
 describe("points de sommeil Life's Essential 8", () => {
   test.each([
     [0, 0], [3.5, 0], [4, 20], [4.5, 20], [5, 40], [5.5, 40], [6, 70], [6.5, 70],
@@ -107,6 +120,75 @@ describe("indice Express v2", () => {
     });
     expect(result.axes[0]).toMatchObject({ score: 75, signals: ["cardio-maintain"] });
     expect(result.axes[1]).toMatchObject({ score: 83, availableComponents: 2, totalComponents: 2, status: "support", signals: ["strength-maintain"] });
+  });
+
+  test("une charge optionnelle non renseignée ne compte ni comme applicable ni comme manquante", () => {
+    const withoutLifts = buildExpressAssessment(complete, adult);
+    const skipped = buildExpressAssessment({ ...complete, squat_one_rep_max_kg: null, deadlift_one_rep_max_kg: null, weight_kg: 80 }, adult);
+    expect(skipped.axes).toEqual(withoutLifts.axes);
+    expect(skipped.priorities).toEqual(withoutLifts.priorities);
+    // Le poids de corps compte comme réponse, les charges passées non.
+    expect(skipped).toMatchObject({ kind: "complete-index", score: 86, applicableComponentCount: 7, interpretableComponentCount: 7, answeredCount: 10 });
+    expect(skipped.axes[1]).toMatchObject({ score: 100, availableComponents: 1, totalComponents: 1, optionalComponents: 0 });
+    expect(skipped.priorities).not.toContain("complete-measurements");
+  });
+
+  test("une charge renseignée avec le poids de corps entre dans la moyenne de l'axe force", () => {
+    const result = buildExpressAssessment({ ...complete, weight_kg: 80, squat_one_rep_max_kg: 60 }, adult);
+    // Squat 60 / 80 = 0,75 × poids de corps face à la référence 1,0 → 75 points, en moyenne avec 100 points de renforcement.
+    expect(result.axes[1]).toMatchObject({ score: 88, availableComponents: 2, totalComponents: 2, optionalComponents: 1, status: "support" });
+    expect(result).toMatchObject({ kind: "complete-index", score: 83, applicableComponentCount: 8, interpretableComponentCount: 8, answeredCount: 11, profile: "favorable" });
+    expect(result.axes[1].signals).toEqual(["strength-maintain", "chair-stand-reference-from-60"]);
+  });
+
+  test("le soulevé de terre est lu face à 1,5 × le poids de corps et les deux charges s'ajoutent aux composantes", () => {
+    const result = buildExpressAssessment({ ...complete, weight_kg: 80, squat_one_rep_max_kg: 40, deadlift_one_rep_max_kg: 120 }, adult);
+    // Squat 0,5 × → 50 points ; soulevé 1,5 × → 100 points ; renforcement 100 → moyenne 83,3.
+    expect(result.axes[1]).toMatchObject({ score: 83, availableComponents: 3, totalComponents: 3, optionalComponents: 2 });
+    expect(result).toMatchObject({ kind: "complete-index", applicableComponentCount: 9, interpretableComponentCount: 9, answeredCount: 12 });
+    const seniorResult = buildExpressAssessment({ ...completeSenior, weight_kg: 60, squat_one_rep_max_kg: 30, deadlift_one_rep_max_kg: 45 }, senior);
+    expect(seniorResult.axes[1]).toMatchObject({ availableComponents: 4, totalComponents: 4, optionalComponents: 2 });
+    expect(seniorResult).toMatchObject({ kind: "complete-index", applicableComponentCount: 10, interpretableComponentCount: 10 });
+  });
+
+  test("note 100 points chaque charge atteignant exactement sa référence de poids de corps", () => {
+    const result = buildExpressAssessment({ ...complete, weight_kg: 80, squat_one_rep_max_kg: 100, deadlift_one_rep_max_kg: 150 }, adult);
+    // Squat 100 / 80 = 1,25 × ≥ 1,0 → 100 ; soulevé 150 / 80 = 1,875 × ≥ 1,5 → 100 ; renforcement 100 → axe 100.
+    expect(result.axes[1]).toMatchObject({ score: 100, availableComponents: 3, totalComponents: 3, optionalComponents: 2, status: "support" });
+    expect(result).toMatchObject({ kind: "complete-index", score: 86, applicableComponentCount: 9, interpretableComponentCount: 9, answeredCount: 12, profile: "favorable" });
+    expect(liftPoints(80, 80, EXPRESS_INDEX_REFERENCE.squatBodyWeight)).toBe(100);
+    expect(liftPoints(120, 80, EXPRESS_INDEX_REFERENCE.deadliftBodyWeight)).toBe(100);
+  });
+
+  test("plafonne une charge élevée à 100 points sans dépassement numérique", () => {
+    const result = buildExpressAssessment({ ...complete, weight_kg: 80, squat_one_rep_max_kg: 200, deadlift_one_rep_max_kg: Number.MAX_VALUE }, adult);
+    expect(result.axes[1]).toMatchObject({ score: 100, availableComponents: 3, totalComponents: 3, optionalComponents: 2 });
+    expect(result.score).toBe(86);
+  });
+
+  test("ignore une charge sans poids de corps au lieu de la noter ou de la réclamer", () => {
+    const withoutWeight = buildExpressAssessment({ ...complete, squat_one_rep_max_kg: 60, deadlift_one_rep_max_kg: 120 }, adult);
+    const reference = buildExpressAssessment(complete, adult);
+    expect(withoutWeight.axes).toEqual(reference.axes);
+    expect(withoutWeight).toMatchObject({ kind: "complete-index", score: 86, applicableComponentCount: 7, interpretableComponentCount: 7, answeredCount: 11 });
+    expect(withoutWeight.priorities).toEqual(reference.priorities);
+    const zeroWeight = buildExpressAssessment({ ...complete, weight_kg: 0, squat_one_rep_max_kg: 60 }, adult);
+    expect(zeroWeight.axes).toEqual(reference.axes);
+  });
+
+  test.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])("rejette une charge impossible %s sans la compter comme réponse", (load) => {
+    const result = buildExpressAssessment({ ...complete, weight_kg: 80, squat_one_rep_max_kg: load, deadlift_one_rep_max_kg: load }, adult);
+    expect(result.axes).toEqual(buildExpressAssessment(complete, adult).axes);
+    expect(result.answeredCount).toBe(10);
+  });
+
+  test("une charge renseignée peut compléter le minimum de quatre composantes d'un indice provisoire", () => {
+    const threeComponents = buildExpressAssessment({ usual_sleep_hours: 8, sleep_refreshed: 10, plant_food_frequency: 5 }, adult);
+    expect(threeComponents).toMatchObject({ kind: "insufficient-inputs", interpretableComponentCount: 3 });
+    const withLift = buildExpressAssessment({ usual_sleep_hours: 8, sleep_refreshed: 10, plant_food_frequency: 5,
+      weight_kg: 80, deadlift_one_rep_max_kg: 120 }, adult);
+    expect(withLift).toMatchObject({ kind: "partial-index", score: 100, interpretableComponentCount: 4, scoredAxisCount: 3 });
+    expect(withLift.axes[1]).toMatchObject({ score: 100, availableComponents: 1, totalComponents: 2, optionalComponents: 1 });
   });
 
   test("ne convertit pas les absences en zéros", () => {
@@ -233,6 +315,7 @@ describe("indice Express v2", () => {
   test("rejette les valeurs impossibles indépendamment de l'interface", () => {
     const result = buildExpressAssessment({ sex_assigned_at_birth: "other", reported_vo2_max_ml_kg_min: Number.POSITIVE_INFINITY,
       weekly_moderate_activity_minutes: -1, chair_stand_30s_count: Number.NaN, movement_strength_days: -2,
+      weight_kg: 0, squat_one_rep_max_kg: -1, deadlift_one_rep_max_kg: Number.NaN,
       usual_sleep_hours: 25, sleep_refreshed: 11,
       plant_food_frequency: -1, diet_ultra_processed: "not-an-option" }, adult);
     expect(result).toMatchObject({ kind: "insufficient-inputs", score: null,
@@ -287,6 +370,7 @@ describe("indice Express v2", () => {
     expect(EXPRESS_INDEX_REFERENCE).toMatchObject({
       version: "express-index-v2", axisSupport: 65, profileAxisMinimum: 50, minimumComponents: 4, minimumAxes: 2,
       activityMinutes: 150, strengthDays: 2, plantPortions: 5, chairStandReferenceFromAge: 60,
+      squatBodyWeight: 1, deadliftBodyWeight: 1.5, optionalStrengthLifts: ["squat_one_rep_max_kg", "deadlift_one_rep_max_kg"],
       processedPoints: { never: 100, rarely: 80, sometimes: 50, often: 25, daily: 0 },
     });
     expect(EXPRESS_INDEX_REFERENCE.sources.friend.doi).toBe("10.1016/j.mayocp.2015.07.026");
@@ -297,7 +381,7 @@ describe("indice Express v2", () => {
   });
 
   test("ignore les réponses extérieures au parcours et ne modifie pas les données", () => {
-    const input = { ...complete, height_cm: 180, weight_kg: 80, current_tobacco_nicotine: true };
+    const input = { ...complete, height_cm: 180, current_tobacco_nicotine: true };
     const before = structuredClone(input);
     expect(buildExpressAssessment(input, adult)).toEqual(buildExpressAssessment(complete, adult));
     expect(input).toEqual(before);

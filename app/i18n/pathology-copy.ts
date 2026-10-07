@@ -11,7 +11,10 @@ import type {
 } from "../lib/types";
 
 /** Instruments whose publication includes an absolute risk. */
-export type PercentInstrumentId = Extract<PathologyInstrumentId, "findrisc" | "score2" | "prevent" | "who-cvd" | "caide">;
+export type PercentInstrumentId = Extract<
+  PathologyInstrumentId,
+  "findrisc" | "score2" | "prevent" | "who-cvd" | "caide" | "lee-index" | "plcom2012"
+>;
 
 type InstrumentCopy = {
   readonly pathology: string;
@@ -58,6 +61,10 @@ const en = {
     "diabetes-esc-classification": "Diabetes was reported. ESC guidance also classifies risk by its duration, organ damage and established atherosclerosis; the estimate alone does not settle that assessment.",
     "egfr-below-45": "An eGFR below 45 places clinical cardiovascular risk at high or very high regardless of the calculated SCORE2-Diabetes estimate. Discuss this with your diabetes care team.",
     "findrisc-age-extrapolated": "FINDRISC was validated in 35–64-year-olds; outside that age range the same points apply, but the estimate is an extrapolation.",
+    "lee-lung-disease-proxy": "The index asked about chronic lung disease such as chronic bronchitis or emphysema; your “long-term lung condition” answer was counted as that item, which can overstate the points if the condition is asthma.",
+    "plco-race-reference": "The model includes a race or ethnicity term that this questionnaire does not collect; it was left at the reference group, so the estimate can be lower or higher for other groups.",
+    "plco-age-extrapolated": "PLCOm2012 was developed in 55–74-year-olds; screening programmes apply it from 50 to 80, but outside 55–74 the estimate is an extrapolation.",
+    "plco-copd-proxy": "The model asks about COPD (chronic bronchitis or emphysema); your “long-term lung condition” answer was counted as COPD, which can overstate the risk if the condition is asthma.",
   } as Readonly<Record<string, string>>,
   sourcesHeading: "Sources",
   levels: {
@@ -111,7 +118,29 @@ const en = {
     "sex-not-supported": "The instrument publishes tables only for female and male sex at birth.",
     "region-not-calibrated": "Choose your country at the start to obtain an estimate calibrated for its published risk region.",
     "outside-validated-range": "A measurement lies outside the range used to validate this model; ask a clinician to interpret it instead.",
+    "never-smoked": "This model was developed in people who have smoked; it does not apply to someone who has never smoked.",
   } satisfies Readonly<Record<PathologyNotApplicableReason, string>>,
+  outlook: {
+    title: "Estimated probabilities of major outcomes",
+    intro:
+      "Each line is a published, validated model applied to your answers, with its time horizon and the population it was validated in. The list covers only the outcomes for which such a model exists and fits your data; it is not a list of every cause of death, and none of these numbers is a prediction about you as an individual.",
+    pending: (questions: number) =>
+      `estimate pending · ${questions} question${questions > 1 ? "s" : ""} at most`,
+    pendingLabs: "estimate pending · blood test needed",
+    pendingQuestionsAndLabs: (questions: number) =>
+      `estimate pending · ${questions} question${questions > 1 ? "s" : ""} at most and a blood test`,
+    notApplicable: "not applicable to you",
+    validatedIn: (population: string) => `Validated in: ${population}`,
+    populations: {
+      "lee-index": "US community-dwelling adults aged 50 and over (Health and Retirement Study, 1998–2002)",
+      plcom2012: "US ever-smokers aged 55–74 (PLCO trial), externally validated in Europe, Canada and Australia",
+      findrisc: "Finnish adults aged 35–64",
+      score2: "European cohorts aged 40–89, calibrated to the ESC risk region of your country",
+      prevent: "US adults aged 30–79",
+      "who-cvd": "WHO 2019 charts for the region of your country",
+      caide: "Finnish adults aged 40–64 followed for twenty years",
+    } satisfies Readonly<Record<PercentInstrumentId, string>>,
+  },
   instruments: {
     findrisc: {
       pathology: "Type 2 diabetes",
@@ -218,6 +247,26 @@ const en = {
         "very-high": "Very high risk",
       },
     },
+    "lee-index": {
+      pathology: "Death from any cause within four years",
+      instrument: "Lee index (JAMA 2006)",
+      boundary: "Four-year all-cause mortality observed by point score in the validation cohort of community-dwelling US adults aged 50 and over; a population frequency, not an individual prediction.",
+      categories: {
+        low: "0–5 points: under 4% in four years",
+        moderate: "6–9 points: about 15% in four years",
+        high: "10–13 points: about 42% in four years",
+        "very-high": "14 points or more: about 64% in four years",
+      },
+    },
+    plcom2012: {
+      pathology: "Lung cancer within six years",
+      instrument: "PLCOm2012 (NEJM 2013)",
+      boundary: "Six-year probability of a lung-cancer diagnosis in people who have smoked, from the PLCO trial model used to select people for low-dose CT screening.",
+      categories: {
+        "below-screening-threshold": "Below the 1.5% screening threshold",
+        "screening-threshold-met": "At or above the 1.5% screening threshold",
+      },
+    },
   } satisfies Readonly<Record<PathologyInstrumentId, InstrumentCopy>>,
   labsTitle: "Confirmed blood-test classification",
   labsIntro: "Classified against published thresholds from your confirmed values; a single result never establishes a diagnosis.",
@@ -287,6 +336,13 @@ const en = {
     "derived:hypertension": "Hypertension",
     "derived:physically_inactive": "Physically inactive",
     "derived:daily_fruit_vegetables": "Daily vegetables or fruit",
+    functional_difficulties: "Difficulty with daily activities",
+    heart_failure_diagnosed: "Heart failure",
+    family_lung_cancer: "Lung cancer in a first-degree relative",
+    education_highest_level: "Highest education level",
+    smoking_cigarettes_per_day: "Cigarettes per day",
+    smoking_years_total: "Years smoked",
+    smoking_years_since_quit: "Years since quitting",
     "lab:total_cholesterol": "Total cholesterol",
     "lab:hdl_cholesterol": "HDL cholesterol",
     "lab:hba1c": "HbA1c",
@@ -412,6 +468,14 @@ const en = {
       "Talk to a doctor or psychologist: a conversation and a fuller questionnaire (PHQ-9) confirm or rule out depression.",
     "gad-2-clinician":
       "Talk to a doctor: a conversation and a fuller questionnaire (GAD-7) confirm or rule out an anxiety disorder, and effective treatments exist.",
+    "lee-index-keep-function":
+      "Staying active, keeping your strength and walking ability, and not smoking are the items of this index you can act on. Keep your usual medical follow-up.",
+    "lee-index-clinician":
+      "Share this result with your doctor: it combines age, conditions and daily-activity difficulties that deserve a review of treatments, falls prevention and preventive priorities. If you smoke, stopping counts in the index at any age.",
+    "plco-below-threshold":
+      "At this estimate, risk-based programmes do not select for CT screening. If you smoke, stopping is the step that lowers lung-cancer risk most; see a doctor promptly for a lasting cough, coughing blood or unexplained weight loss.",
+    "plco-screening":
+      "Ask a doctor about low-dose CT lung-cancer screening: at this estimate, risk-based programmes offer it. If you smoke, stopping is the most effective step, and screening does not replace it.",
   } satisfies Readonly<Record<PathologyOrientationId, string>>,
   followUp: {
     title: "Complete my estimates",
@@ -439,6 +503,8 @@ const EN_EVENTS: Readonly<Record<PercentInstrumentId, { one: string; other: stri
   prevent: { one: "has a heart attack or stroke, fatal or not,", other: "have a heart attack or stroke, fatal or not," },
   "who-cvd": { one: "has a heart attack or stroke, fatal or not,", other: "have a heart attack or stroke, fatal or not," },
   caide: { one: "develops dementia", other: "develop dementia" },
+  "lee-index": { one: "dies, from any cause,", other: "die, from any cause," },
+  plcom2012: { one: "is diagnosed with lung cancer", other: "are diagnosed with lung cancer" },
 };
 
 const FR_EVENTS: Readonly<Record<PercentInstrumentId, { one: string; other: string }>> = {
@@ -447,6 +513,8 @@ const FR_EVENTS: Readonly<Record<PercentInstrumentId, { one: string; other: stri
   prevent: { one: "fait un infarctus ou un AVC, mortel ou non,", other: "font un infarctus ou un AVC, mortel ou non," },
   "who-cvd": { one: "fait un infarctus ou un AVC, mortel ou non,", other: "font un infarctus ou un AVC, mortel ou non," },
   caide: { one: "développe une démence", other: "développent une démence" },
+  "lee-index": { one: "décède, toutes causes confondues,", other: "décèdent, toutes causes confondues," },
+  plcom2012: { one: "reçoit un diagnostic de cancer du poumon", other: "reçoivent un diagnostic de cancer du poumon" },
 };
 
 const fr = {
@@ -486,7 +554,11 @@ const fr = {
     declared_kidney: "Une maladie rénale a été déclarée. Les recommandations ESC classent l’insuffisance rénale chronique modérée ou sévère en risque élevé ou très élevé indépendamment de cette estimation, qui suppose une fonction rénale normale.",
     "diabetes-esc-classification": "Un diabète a été déclaré. Les recommandations ESC tiennent aussi compte de sa durée, de l’atteinte des organes et de l’athérosclérose établie\u00a0; l’estimation seule ne tranche pas cette évaluation.",
     "egfr-below-45": "Un DFG estimé inférieur à 45 place le risque cardiovasculaire clinique à un niveau élevé ou très élevé indépendamment du calcul SCORE2-Diabetes. Parlez-en à l’équipe qui suit votre diabète.",
-    "findrisc-age-extrapolated": "Le FINDRISC a été validé entre 35 et 64 ans ; en dehors de cette plage d’âge, les mêmes points s’appliquent mais l’estimation est une extrapolation.",
+    "findrisc-age-extrapolated": "Le FINDRISC a été validé entre 35 et 64 ans\u00a0; en dehors de cette plage d’âge, les mêmes points s’appliquent mais l’estimation est une extrapolation.",
+    "lee-lung-disease-proxy": "L’indice interrogeait sur une maladie pulmonaire chronique (bronchite chronique, emphysème)\u00a0; votre réponse «\u00a0maladie pulmonaire de longue durée\u00a0» a été comptée pour cet item, ce qui peut surestimer les points s’il s’agit d’un asthme.",
+    "plco-race-reference": "Le modèle comporte un terme d’origine ethnique que ce questionnaire ne recueille pas\u00a0; il a été laissé au groupe de référence, l’estimation peut donc être plus basse ou plus haute pour d’autres groupes.",
+    "plco-age-extrapolated": "PLCOm2012 a été développé chez des 55–74 ans\u00a0; les programmes de dépistage l’appliquent de 50 à 80 ans, mais hors de 55–74 ans l’estimation est une extrapolation.",
+    "plco-copd-proxy": "Le modèle interroge sur une BPCO (bronchite chronique ou emphysème)\u00a0; votre réponse «\u00a0maladie pulmonaire de longue durée\u00a0» a été comptée comme une BPCO, ce qui peut surestimer le risque s’il s’agit d’un asthme.",
   } as Readonly<Record<string, string>>,
   sourcesHeading: "Sources",
   levels: {
@@ -540,7 +612,29 @@ const fr = {
     "sex-not-supported": "L’instrument ne publie des tables que pour le sexe féminin et masculin à la naissance.",
     "region-not-calibrated": "Choisissez votre pays au début pour obtenir une estimation calibrée pour sa région de risque publiée.",
     "outside-validated-range": "Une mesure dépasse la plage de validation de ce modèle\u00a0; demandez plutôt son interprétation à un professionnel de santé.",
+    "never-smoked": "Ce modèle a été développé chez des personnes ayant fumé\u00a0; il ne s’applique pas à quelqu’un qui n’a jamais fumé.",
   } satisfies Readonly<Record<PathologyNotApplicableReason, string>>,
+  outlook: {
+    title: "Probabilités estimées d’issues majeures",
+    intro:
+      "Chaque ligne est un modèle publié et validé, appliqué à vos réponses, avec son horizon et la population dans laquelle il a été validé. La liste ne couvre que les issues pour lesquelles un tel modèle existe et correspond à vos données\u00a0; ce n’est pas la liste de toutes les causes de décès, et aucun de ces nombres n’est une prédiction vous concernant individuellement.",
+    pending: (questions: number) =>
+      `estimation en attente · ${questions} question${questions > 1 ? "s" : ""} au plus`,
+    pendingLabs: "estimation en attente · bilan sanguin nécessaire",
+    pendingQuestionsAndLabs: (questions: number) =>
+      `estimation en attente · ${questions} question${questions > 1 ? "s" : ""} au plus et un bilan sanguin`,
+    notApplicable: "ne s’applique pas à vous",
+    validatedIn: (population: string) => `Validé chez\u00a0: ${population}`,
+    populations: {
+      "lee-index": "adultes américains de 50 ans et plus vivant à domicile (Health and Retirement Study, 1998–2002)",
+      plcom2012: "fumeurs et anciens fumeurs américains de 55–74 ans (essai PLCO), validé en Europe, au Canada et en Australie",
+      findrisc: "adultes finlandais de 35–64 ans",
+      score2: "cohortes européennes de 40–89 ans, calibrées sur la région de risque ESC de votre pays",
+      prevent: "adultes américains de 30–79 ans",
+      "who-cvd": "tables OMS 2019 de la région de votre pays",
+      caide: "adultes finlandais de 40–64 ans suivis vingt ans",
+    } satisfies Readonly<Record<PercentInstrumentId, string>>,
+  },
   instruments: {
     findrisc: {
       pathology: "Diabète de type 2",
@@ -647,6 +741,26 @@ const fr = {
         "very-high": "Risque très élevé",
       },
     },
+    "lee-index": {
+      pathology: "Décès toutes causes dans les quatre ans",
+      instrument: "Indice de Lee (JAMA 2006)",
+      boundary: "Mortalité toutes causes à quatre ans observée par score de points dans la cohorte de validation d’adultes américains de 50 ans et plus vivant à domicile\u00a0; une fréquence de population, pas une prédiction individuelle.",
+      categories: {
+        low: "0–5 points\u00a0: moins de 4\u202f% en quatre ans",
+        moderate: "6–9 points\u00a0: environ 15\u202f% en quatre ans",
+        high: "10–13 points\u00a0: environ 42\u202f% en quatre ans",
+        "very-high": "14 points ou plus\u00a0: environ 64\u202f% en quatre ans",
+      },
+    },
+    plcom2012: {
+      pathology: "Cancer du poumon dans les six ans",
+      instrument: "PLCOm2012 (NEJM 2013)",
+      boundary: "Probabilité à six ans d’un diagnostic de cancer du poumon chez les personnes ayant fumé, selon le modèle de l’essai PLCO utilisé pour sélectionner les candidats au dépistage par scanner faible dose.",
+      categories: {
+        "below-screening-threshold": "Sous le seuil de dépistage de 1,5\u202f%",
+        "screening-threshold-met": "Au seuil de dépistage de 1,5\u202f% ou au-dessus",
+      },
+    },
   } satisfies Readonly<Record<PathologyInstrumentId, InstrumentCopy>>,
   labsTitle: "Classification du bilan sanguin confirmé",
   labsIntro: "Classée selon des seuils publiés à partir de vos valeurs confirmées\u00a0; un résultat isolé n’établit jamais un diagnostic.",
@@ -716,6 +830,13 @@ const fr = {
     "derived:hypertension": "Hypertension",
     "derived:physically_inactive": "Inactif physiquement",
     "derived:daily_fruit_vegetables": "Légumes ou fruits quotidiens",
+    functional_difficulties: "Difficultés dans les activités quotidiennes",
+    heart_failure_diagnosed: "Insuffisance cardiaque",
+    family_lung_cancer: "Cancer du poumon chez un parent au premier degré",
+    education_highest_level: "Niveau d’études le plus élevé",
+    smoking_cigarettes_per_day: "Cigarettes par jour",
+    smoking_years_total: "Années de tabagisme",
+    smoking_years_since_quit: "Années depuis l’arrêt",
     "lab:total_cholesterol": "Cholestérol total",
     "lab:hdl_cholesterol": "Cholestérol HDL",
     "lab:hba1c": "HbA1c",
@@ -847,6 +968,14 @@ const fr = {
       "Parlez-en à un médecin ou à un psychologue\u00a0: un entretien et un questionnaire plus complet (PHQ-9) confirment ou écartent une dépression.",
     "gad-2-clinician":
       "Parlez-en à un médecin\u00a0: un entretien et un questionnaire plus complet (GAD-7) confirment ou écartent un trouble anxieux, et des traitements efficaces existent.",
+    "lee-index-keep-function":
+      "Rester actif, garder sa force et sa capacité de marche et ne pas fumer sont les items de cet indice sur lesquels vous pouvez agir. Gardez votre suivi médical habituel.",
+    "lee-index-clinician":
+      "Montrez ce résultat à votre médecin\u00a0: il combine l’âge, des maladies et des difficultés dans les activités quotidiennes qui méritent une revue des traitements, de la prévention des chutes et des priorités de prévention. Si vous fumez, arrêter compte dans l’indice à tout âge.",
+    "plco-below-threshold":
+      "À cette estimation, les programmes fondés sur le risque ne sélectionnent pas pour un dépistage par scanner. Si vous fumez, arrêter est la mesure qui réduit le plus le risque de cancer du poumon\u00a0; consultez rapidement en cas de toux durable, de crachats de sang ou d’amaigrissement inexpliqué.",
+    "plco-screening":
+      "Demandez à un médecin un dépistage du cancer du poumon par scanner faible dose\u00a0: à cette estimation, les programmes fondés sur le risque le proposent. Si vous fumez, arrêter reste la mesure la plus efficace, et le dépistage ne la remplace pas.",
   } satisfies Readonly<Record<PathologyOrientationId, string>>,
   followUp: {
     title: "Compléter mes estimations",

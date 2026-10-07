@@ -71,7 +71,7 @@ test("makes Express the primary adult route outside decorative content", async (
   const { container } = render(<Landing onStart={onStart} />);
 
   expect(screen.getByRole("heading", { name: "How are you, really?" })).toBeVisible();
-  expect(screen.getByText("9 questions")).toBeVisible();
+  expect(screen.getByText("12 questions")).toBeVisible();
   expect(screen.getByText("Ages 18+")).toBeVisible();
 
   const expressButtons = screen.getAllByRole("button", { name: "Start Express" });
@@ -230,7 +230,7 @@ test("presents the complete Atlas and secondary routes in French", async () => {
   await user.click(screen.getByRole("button", { name: "Français" }));
 
   expect(screen.getByRole("heading", { name: /Comment allez[‑-]vous, vraiment\s\?/ })).toBeVisible();
-  expect(screen.getByText("9 questions")).toBeVisible();
+  expect(screen.getByText("12 questions")).toBeVisible();
   expect(screen.getByText("Dès 18 ans")).toBeVisible();
   expect(screen.getAllByRole("button", { name: "Commencer Express" })).toHaveLength(2);
   expect(screen.getAllByRole("heading", { level: 3 }).slice(0, 4).map(({ textContent }) => textContent))

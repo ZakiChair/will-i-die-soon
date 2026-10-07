@@ -2,7 +2,7 @@ import type { ReleasePolicy } from "./types";
 
 export const RISK_RULESET_VERSION = "risk-rules-v1";
 
-export const PATHOLOGY_RULESET_VERSION = "pathology-scores-v3";
+export const PATHOLOGY_RULESET_VERSION = "pathology-scores-v4";
 
 export const prototypePolicy: ReleasePolicy = {
   audience: "private-research",

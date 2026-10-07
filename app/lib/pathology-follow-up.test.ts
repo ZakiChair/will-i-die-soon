@@ -163,6 +163,31 @@ describe("follow-up plan", () => {
       .not.toHaveProperty("opensLab");
   });
 
+  test("counts the smoking details behind the open branch of a compound gate", () => {
+    const profile = { age: 65, countryCode: "CH" };
+    const current = plan({}, profile, "plcom2012").find(
+      (step) => step.kind === "question" && step.questionId === "current_tobacco_nicotine",
+    );
+    expect(current).toMatchObject({ opens: ["family_lung_cancer", "smoking_cigarettes_per_day", "smoking_years_total"] });
+    const steps = plan({}, profile, "plcom2012");
+    expect(steps.find((step) => step.kind === "question" && step.questionId === "education_years")).toMatchObject({ opens: ["education_highest_level"] });
+    expect(steps.find((step) => step.kind === "question" && step.questionId === "smoking_history_former")).toMatchObject({ opens: ["smoking_years_since_quit"] });
+
+    // A no on the current gate moves the hidden items behind the former-smoker question.
+    const former = plan({ current_tobacco_nicotine: false }, profile, "plcom2012").find(
+      (step) => step.kind === "question" && step.questionId === "smoking_history_former",
+    );
+    expect(former).toMatchObject({ opens: expect.arrayContaining(["smoking_cigarettes_per_day", "family_lung_cancer"]) });
+    expect(questionIds(plan({ current_tobacco_nicotine: false }, profile, "plcom2012"))).not.toContain("current_tobacco_nicotine");
+  });
+
+  test("counts heart failure behind the diagnosis gate for the Lee index", () => {
+    const diagnosis = plan({}, { age: 72, countryCode: "GB" }, "lee-index").find(
+      (step) => step.kind === "question" && step.questionId === "diagnosed_conditions_core",
+    );
+    expect(diagnosis).toMatchObject({ opens: ["heart_failure_diagnosed"], unlocks: ["lee-index"] });
+  });
+
   test("every answer lowers the count by at least one, so it stays an upper bound", () => {
     const questions = new Map(questionBank.map((question) => [question.id, question]));
     const starts: ReadonlyArray<readonly [AnswerMap, ProfileContext, ReadonlyArray<ConfirmedLabValue>?]> = [

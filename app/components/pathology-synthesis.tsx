@@ -55,7 +55,26 @@ type PathologySynthesisProps = Readonly<{
 const questionsById = new Map(questionBank.map((question) => [question.id, question]));
 
 /** Instruments whose publication includes an absolute risk the policy may withhold. */
-const PERCENT_INSTRUMENTS: ReadonlySet<PathologyInstrumentId> = new Set(["findrisc", "score2", "prevent", "who-cvd", "caide"]);
+const PERCENT_INSTRUMENTS: ReadonlySet<PathologyInstrumentId> = new Set([
+  "findrisc",
+  "score2",
+  "prevent",
+  "who-cvd",
+  "caide",
+  "lee-index",
+  "plcom2012",
+]);
+
+/** Outcome order of the probability overview: mortality first, then the organ-specific models. */
+const OUTLOOK_ORDER: ReadonlyArray<PercentInstrumentId> = [
+  "lee-index",
+  "score2",
+  "prevent",
+  "who-cvd",
+  "plcom2012",
+  "findrisc",
+  "caide",
+];
 
 function isPercentInstrument(instrument: PathologyInstrumentId): instrument is PercentInstrumentId {
   return PERCENT_INSTRUMENTS.has(instrument);
@@ -465,6 +484,65 @@ function ScoreCard({
   );
 }
 
+type OutlookProps = Readonly<{
+  scores: ReadonlyArray<PathologyScoreResult>;
+  pendingQuestions?: ReadonlyMap<PathologyInstrumentId, number>;
+}>;
+
+/** One line per validated model with a published probability: horizon, value and validation population. */
+function OutcomeOutlook({ scores, pendingQuestions }: OutlookProps) {
+  const { locale } = useI18n();
+  const copy = pathologyCopy[locale];
+  const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 });
+  const rows = OUTLOOK_ORDER.flatMap((instrument) => {
+    const score = scores.find((candidate) => candidate.instrument === instrument);
+    return score ? [{ instrument, score }] : [];
+  });
+  if (rows.length === 0) return null;
+  return (
+    <section className="pathology-outlook" aria-labelledby="pathology-outlook-title" data-reveal="group">
+      <h3 id="pathology-outlook-title" data-reveal-item>{copy.outlook.title}</h3>
+      <p data-reveal-item>{copy.outlook.intro}</p>
+      <ul className="pathology-outlook__list">
+        {rows.map(({ instrument, score }) => {
+          const label = copy.instruments[instrument];
+          let readout: string;
+          if (score.status === "complete") {
+            readout =
+              score.riskPercent !== undefined && score.riskHorizonYears !== undefined
+                ? score.riskPercent === 0
+                  ? copy.percentReadoutUnder(percent.format(0.01), score.riskHorizonYears)
+                  : copy.percentReadout(percent.format(score.riskPercent / 100), score.riskHorizonYears)
+                : pathologyCategoryLabel(locale, instrument, score.category);
+          } else if (score.status === "incomplete") {
+            const needsLabs = score.missingInputs.some((id) => id.startsWith("lab:"));
+            const questions = pendingQuestions?.get(instrument) ?? 0;
+            readout =
+              questions > 0 && needsLabs
+                ? copy.outlook.pendingQuestionsAndLabs(questions)
+                : questions > 0
+                  ? copy.outlook.pending(questions)
+                  : needsLabs
+                    ? copy.outlook.pendingLabs
+                    : copy.statusIncomplete;
+          } else {
+            readout = copy.outlook.notApplicable;
+          }
+          return (
+            <li key={instrument} data-instrument={instrument} data-status={score.status} data-reveal-item>
+              <span className="pathology-outlook__outcome">{label.pathology}</span>
+              <strong className="pathology-outlook__readout">{readout}</strong>
+              <span className="pathology-outlook__meta">
+                {label.instrument} · {copy.outlook.validatedIn(copy.outlook.populations[instrument])}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 /** Answering follow-up questions moves later sections, so scroll-triggered reveals must re-measure. */
 function useScrollTriggerRefreshOnResize(target: RefObject<HTMLElement | null>) {
   useEffect(() => {
@@ -555,6 +633,8 @@ export function PathologySynthesisSection({ synthesis, depth, answers, followUp 
           {copy.rulesetVersion(synthesis.rulesetVersion)}
         </p>
       </div>
+
+      <OutcomeOutlook scores={synthesis.scores} pendingQuestions={plans?.perInstrument} />
 
       {followUp && followUpScope !== null ? (
         <PathologyFollowUp

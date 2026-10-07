@@ -14,6 +14,9 @@ export const EXPRESS_QUESTION_IDS = [
   "reported_vo2_max_ml_kg_min",
   "weekly_moderate_activity_minutes",
   "chair_stand_30s_count",
+  "weight_kg",
+  "squat_one_rep_max_kg",
+  "deadlift_one_rep_max_kg",
   "movement_strength_days",
   "usual_sleep_hours",
   "sleep_refreshed",
@@ -22,7 +25,7 @@ export const EXPRESS_QUESTION_IDS = [
 ] as const;
 
 const DEPTH_LIMITS: Readonly<Record<AnalysisDepth, number>> = {
-  express: 9,
+  express: 12,
   quick: 20,
   detailed: 50,
   deep: 200,
@@ -33,7 +36,7 @@ const DEPTH_LIMITS: Readonly<Record<AnalysisDepth, number>> = {
 // every eligible base question plus active branches, so its minimum only
 // guards against a profile too thin for a deep pass.
 const DEPTH_MINIMUMS: Readonly<Record<AnalysisDepth, number>> = {
-  express: 9,
+  express: 12,
   quick: 10,
   detailed: 30,
   deep: 80,
@@ -228,7 +231,7 @@ function isExpressAdult(context: ProfileContext): boolean {
 function assertExpressAdult(depth: AnalysisDepth, context: ProfileContext): void {
   if (depth === "express" && !isExpressAdult(context)) {
     throw new RangeError(
-      "Express assessment is available only to adults with all nine eligible questions.",
+      "Express assessment is available only to adults with all twelve eligible questions.",
     );
   }
 }
@@ -308,7 +311,7 @@ function selectAssessmentQuestions(
       const question = questionsById.get(id);
       if (!question) {
         throw new RangeError(
-          "Express assessment is available only to adults with all nine eligible questions.",
+          "Express assessment is available only to adults with all twelve eligible questions.",
         );
       }
       selected.push(question);

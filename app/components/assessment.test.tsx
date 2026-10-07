@@ -164,7 +164,7 @@ test.each(["quick", "deep"] as const)("termine le parcours %s masculin sans ques
   const answers = onComplete.mock.calls[0][0];
   expect(answers.sex_assigned_at_birth).toBe("male");
   expect(answers).not.toHaveProperty("pregnancy_relevant");
-  expect(Object.keys(answers)).toHaveLength(depth === "quick" ? 20 : 92);
+  expect(Object.keys(answers)).toHaveLength(depth === "quick" ? 20 : 94);
 }, 20000);
 
 test("remounts the question sheet in a motion screen keyed by the active question ID", async () => {
@@ -326,7 +326,7 @@ test("starts the full Deep queue with every eligible adult question", async () =
   await user.click(screen.getByRole("button", { name: /start deep/i }));
   await continuePastIntermission(user);
 
-  expect(screen.getByText("Question 1 of 93")).toBeVisible();
+  expect(screen.getByText("Question 1 of 95")).toBeVisible();
 });
 
 test("interrupts immediately for a confirmed red flag and lets the user correct it", async () => {
@@ -561,7 +561,7 @@ test("Quick completes after exactly 20 deliberate skips stored only as null", as
   expect(Object.values(completedAnswers)).not.toContain(undefined);
 });
 
-test("runs nine Express questions without an intermission", async () => {
+test("runs twelve Express questions without an intermission", async () => {
   const user = userEvent.setup();
   const onComplete = vi.fn();
   render(<Assessment depth="express" profile={adultProfile} onComplete={onComplete} />);
@@ -569,10 +569,10 @@ test("runs nine Express questions without an intermission", async () => {
   expect(
     screen.queryByRole("button", { name: "Continue assessment" }),
   ).not.toBeInTheDocument();
-  expect(screen.getByText("Question 1 of 9")).toBeVisible();
-  expect(screen.getByRole("progressbar")).toHaveAttribute("max", "9");
+  expect(screen.getByText("Question 1 of 12")).toBeVisible();
+  expect(screen.getByRole("progressbar")).toHaveAttribute("max", "12");
 
-  for (let answered = 0; answered < 9; answered += 1) {
+  for (let answered = 0; answered < 12; answered += 1) {
     await user.click(
       screen.getByRole("button", {
         name: "I don't know or prefer not to answer",
@@ -581,13 +581,13 @@ test("runs nine Express questions without an intermission", async () => {
   }
 
   expect(onComplete).toHaveBeenCalledOnce();
-  expect(Object.values(onComplete.mock.calls[0][0])).toEqual(Array(9).fill(null));
+  expect(Object.values(onComplete.mock.calls[0][0])).toEqual(Array(12).fill(null));
 });
 
 test.each([
   ["quick", 20, 4, null],
   ["detailed", 50, 4, 1],
-  ["deep", 99, 4, 1],
+  ["deep", 101, 4, 1],
 ] as const)(
   "%s adaptation completes %i questions with %i intermissions and %s medication follow-ups",
   async (depth, questionCount, expectedIntermissions, expectedFollowUps) => {

@@ -178,6 +178,30 @@ const commonQuestionPromptPresentations = {
       detail: "Asseyez-vous au milieu d'une chaise stable sans accoudoirs, pieds à plat, bras croisés sur la poitrine. Comptez les levers complets en 30 secondes. Passez le test si vous vous sentez instable ou si vous êtes seul sans appui.",
     },
   },
+  squat_one_rep_max_kg: {
+    en: {
+      completePrompt: "What is the heaviest squat you have already completed for one repetition?",
+      title: "What is your heaviest completed squat?",
+      detail: "Optional. Use the heaviest weight you have already completed for one repetition, in kilograms. Do not attempt a new maximal lift; leave the answer blank if you do not know it.",
+    },
+    fr: {
+      completePrompt: "Quel est le squat le plus lourd que vous ayez déjà effectué pour une répétition ?",
+      title: "Quelle est votre charge maximale déjà soulevée au squat ?",
+      detail: "Facultatif. Indiquez la charge du squat le plus lourd déjà effectué sur une répétition, en kilogrammes. Ne tentez pas de nouvelle charge maximale ; laissez la réponse vide si vous ne la connaissez pas.",
+    },
+  },
+  deadlift_one_rep_max_kg: {
+    en: {
+      completePrompt: "What is the heaviest deadlift you have already completed for one repetition?",
+      title: "What is your heaviest completed deadlift?",
+      detail: "Optional. Use the heaviest weight you have already completed for one repetition, in kilograms. Do not attempt a new maximal lift; leave the answer blank if you do not know it.",
+    },
+    fr: {
+      completePrompt: "Quel est le soulevé de terre le plus lourd que vous ayez déjà effectué pour une répétition ?",
+      title: "Quelle est votre charge maximale déjà soulevée au soulevé de terre ?",
+      detail: "Facultatif. Indiquez la charge du soulevé de terre le plus lourd déjà effectué sur une répétition, en kilogrammes. Ne tentez pas de nouvelle charge maximale ; laissez la réponse vide si vous ne la connaissez pas.",
+    },
+  },
   height_cm: {
     en: {
       completePrompt: "What is your current height in centimetres?",

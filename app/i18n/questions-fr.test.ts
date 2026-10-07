@@ -25,8 +25,8 @@ describe("French question translations", () => {
     expect(localized.options?.map(({ value }) => value)).toEqual(["procedure", "none"]);
   });
 
-  it("covers the audited 150-question bank with every canonical option value", () => {
-    expect(questionBank).toHaveLength(150);
+  it("covers the audited 156-question bank with every canonical option value", () => {
+    expect(questionBank).toHaveLength(156);
     expect(Object.keys(frQuestionTranslations).sort()).toEqual(
       questionBank.map(({ id }) => id).sort(),
     );
@@ -46,6 +46,8 @@ describe("French question translations", () => {
     expect(questionUnitKeys).toMatchObject({
       reported_vo2_max_ml_kg_min: "unit.reported_vo2_max_ml_kg_min",
       chair_stand_30s_count: "unit.chair_stand_30s_count",
+      squat_one_rep_max_kg: "unit.squat_one_rep_max_kg",
+      deadlift_one_rep_max_kg: "unit.deadlift_one_rep_max_kg",
       weekly_moderate_activity_minutes: "unit.weekly_moderate_activity_minutes",
     });
   });

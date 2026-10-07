@@ -234,7 +234,9 @@ export type PathologyInstrumentId =
   | "phq-2"
   | "gad-2"
   | "copd-ps"
-  | "caide";
+  | "caide"
+  | "lee-index"
+  | "plcom2012";
 
 export type PathologyRiskLevel = "low" | "moderate" | "high" | "very-high";
 
@@ -245,7 +247,8 @@ export type PathologyNotApplicableReason =
   | "outside-validated-range"
   | "established-cvd"
   | "sex-not-supported"
-  | "region-not-calibrated";
+  | "region-not-calibrated"
+  | "never-smoked";
 
 /** One value the instrument used; `derived` marks values reconstructed from other answers. */
 export type PathologyScoreInput = {

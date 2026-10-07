@@ -341,7 +341,19 @@ test("adult results publish validated screening scores with category, points, pe
   expect(sleep).toHaveAttribute("data-status", "not-applicable");
   expect(sleep).toHaveTextContent("already diagnosed this condition");
   expect(within(section).getAllByRole("listitem").filter((item) => item.classList.contains("pathology-score")).map((item) => item.dataset.status))
-    .toEqual(["complete", ...Array<string>(6).fill("incomplete"), "not-applicable"]);
+    .toEqual(["complete", ...Array<string>(6).fill("incomplete"), ...Array<string>(3).fill("not-applicable")]);
+
+  const outlook = within(section).getByRole("region", { name: "Estimated probabilities of major outcomes" });
+  expect(outlook).toHaveTextContent("not a list of every cause of death");
+  const outlookRows = within(outlook).getAllByRole("listitem");
+  expect(outlookRows.map((row) => row.dataset.instrument)).toEqual(["lee-index", "score2", "plcom2012", "findrisc", "caide"]);
+  expect(outlookRows.map((row) => row.dataset.status)).toEqual(["not-applicable", "incomplete", "not-applicable", "complete", "incomplete"]);
+  expect(outlookRows[0]).toHaveTextContent("Death from any cause");
+  expect(outlookRows[0]).toHaveTextContent("not applicable to you");
+  expect(outlookRows[0]).toHaveTextContent("Validated in: US community-dwelling adults aged 50 and over");
+  expect(outlookRows[1]).toHaveTextContent("estimate pending · 1 question at most and a blood test");
+  expect(outlookRows[3]).toHaveTextContent("about 1% estimated risk over 10 years");
+  expect(outlookRows[4]).toHaveTextContent(/estimate pending · \d+ questions? at most/);
 
   const labs = screen.getByRole("region", { name: "Confirmed blood-test classification" });
   expect(within(labs).getByRole("row", { name: /HbA1c/ })).toHaveTextContent("Prediabetes range");
@@ -945,10 +957,15 @@ test("renders the complete adult result presentation in French while preserving 
   expect(
     screen.getByRole("region", { name: "Contexte de laboratoire confirmé" }),
   ).toHaveTextContent("4.0–5.6");
+  const outlook = screen.getByRole("region", { name: "Probabilités estimées d’issues majeures" });
+  expect(outlook).toHaveTextContent("ce n’est pas la liste de toutes les causes de décès");
+  expect(within(outlook).getAllByRole("listitem")[0]).toHaveTextContent("Décès toutes causes dans les quatre ans");
+  expect(within(outlook).getAllByRole("listitem")[0]).toHaveTextContent("ne s’applique pas à vous");
+  expect(outlook).toHaveTextContent("Validé chez : adultes américains de 50 ans et plus");
   expect(screen.getByRole("button", { name: "Télécharger le JSON" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Recommencer depuis le début" })).toBeVisible();
   expect(document.body.textContent).not.toMatch(
-    /Your personal summary|cardiovascular health score, not a mortality verdict|of metrics assessed|Actions you can choose|Confirmed lab context|Keep or clear these results/i,
+    /Your personal summary|cardiovascular health score, not a mortality verdict|of metrics assessed|Actions you can choose|Confirmed lab context|Keep or clear these results|Estimated probabilities of major outcomes/i,
   );
 });
 

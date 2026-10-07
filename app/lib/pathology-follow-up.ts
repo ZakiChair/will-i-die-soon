@@ -1,6 +1,6 @@
 import { questionBank } from "../data/questions";
 import { getEligibleQuestions } from "./questionnaire";
-import type { AnswerMap, PathologyInstrumentId, PathologySynthesis, ProfileContext } from "./types";
+import type { AnswerMap, BranchCondition, PathologyInstrumentId, PathologySynthesis, ProfileContext } from "./types";
 
 export type FollowUpScope = PathologyInstrumentId | "all";
 
@@ -18,10 +18,22 @@ export type FollowUpStep =
 
 const questionsById = new Map(questionBank.map((question) => [question.id, question]));
 
-/** The single question a hidden question waits for, when its condition is that simple. */
-function gateFor(questionId: string): string | undefined {
-  const condition = questionsById.get(questionId)?.condition;
-  return condition && "questionId" in condition ? condition.questionId : undefined;
+/** Every question a hidden question's condition reads, in declaration order. */
+function gateQuestions(condition: BranchCondition | undefined): string[] {
+  if (!condition) return [];
+  if ("questionId" in condition) return [condition.questionId];
+  const branches = "all" in condition ? condition.all : condition.any;
+  return branches.flatMap(gateQuestions);
+}
+
+/**
+ * The gate a hidden question is counted behind: an unanswered eligible gate first, so a
+ * compound condition moves to the branch still open; otherwise the first eligible gate,
+ * which a closed simple gate is asked again through.
+ */
+function gateFor(questionId: string, eligible: ReadonlySet<string>, answers: AnswerMap): string | undefined {
+  const gates = gateQuestions(questionsById.get(questionId)?.condition).filter((gate) => eligible.has(gate));
+  return gates.find((gate) => answers[gate] === undefined) ?? gates[0];
 }
 
 function addOnce<T>(list: T[], item: T): void {
@@ -49,8 +61,8 @@ export function buildFollowUpPlan(
     let questionId = inputId;
     let opens: string | undefined;
     if (!eligible.has(inputId)) {
-      const gate = gateFor(inputId);
-      if (!gate || !eligible.has(gate)) return;
+      const gate = gateFor(inputId, eligible, answers);
+      if (!gate) return;
       questionId = gate;
       opens = inputId;
     }

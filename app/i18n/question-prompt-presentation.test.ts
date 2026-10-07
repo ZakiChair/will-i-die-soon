@@ -146,6 +146,11 @@ describe("question prompt presentation", () => {
     const chairStand = requiredQuestion("chair_stand_30s_count");
     const stands = getQuestionPromptPresentation(chairStand.id, locale, localizeQuestion(chairStand, locale).prompt);
     expect(stands.detail).toMatch(locale === "fr" ? /30 secondes.*instable/ : /30 seconds.*unsteady/);
+    for (const id of ["squat_one_rep_max_kg", "deadlift_one_rep_max_kg"]) {
+      const lift = requiredQuestion(id);
+      const lifting = getQuestionPromptPresentation(lift.id, locale, localizeQuestion(lift, locale).prompt);
+      expect(lifting.detail).toMatch(locale === "fr" ? /^Facultatif\..*déjà effectué.*kilogrammes.*Ne tentez pas/ : /^Optional\..*already completed.*kilograms.*Do not attempt/);
+    }
   });
 
   test.each(["en", "fr"] satisfies Locale[])("explains how to take each pathology measurement in %s", (locale) => {

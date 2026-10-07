@@ -186,9 +186,11 @@ test("validated screening scores travel in the report with status, inputs, and s
     dementiaFactors: Array<Record<string, unknown>>;
   };
 
-  expect(exported.rulesetVersion).toBe("pathology-scores-v3");
+  expect(exported.rulesetVersion).toBe("pathology-scores-v4");
   expect(exported.interpretation).toBe("published-screening-instruments-not-a-diagnosis");
-  expect(exported.scores).toHaveLength(8);
+  expect(exported.scores).toHaveLength(10);
+  expect(exported.scores.find((score) => score.instrument === "lee-index")).toMatchObject({ status: "not-applicable", reason: "age-out-of-range" });
+  expect(exported.scores.find((score) => score.instrument === "plcom2012")).toMatchObject({ status: "not-applicable", reason: "age-out-of-range" });
   expect(exported.scores.find((score) => score.instrument === "findrisc")).toEqual({
     instrument: "findrisc",
     status: "complete",
@@ -392,12 +394,15 @@ test("explicit raw opt-in includes only valid structured answers and still remov
   );
 });
 
-test("adult Express raw opt-in exports all nine structured answers without private metadata", async () => {
+test("adult Express raw opt-in exports all twelve structured answers without private metadata", async () => {
   const answers = {
     sex_assigned_at_birth: "female",
     reported_vo2_max_ml_kg_min: 20,
     weekly_moderate_activity_minutes: 150,
     chair_stand_30s_count: 14,
+    weight_kg: 60,
+    squat_one_rep_max_kg: 60,
+    deadlift_one_rep_max_kg: 90,
     movement_strength_days: 2,
     usual_sleep_hours: 7.5,
     sleep_refreshed: 8,
@@ -424,24 +429,27 @@ test("adult Express raw opt-in exports all nine structured answers without priva
   expect(json.assessmentDepth).toBe("express");
   expect(json.rawAnswers).toEqual({
     chair_stand_30s_count: 14,
+    deadlift_one_rep_max_kg: 90,
     diet_ultra_processed: "rarely",
     movement_strength_days: 2,
     plant_food_frequency: 4,
     reported_vo2_max_ml_kg_min: 20,
     sex_assigned_at_birth: "female",
     sleep_refreshed: 8,
+    squat_one_rep_max_kg: 60,
     usual_sleep_hours: 7.5,
     weekly_moderate_activity_minutes: 150,
+    weight_kg: 60,
   });
   expect(JSON.stringify(json)).not.toMatch(/SECRET|STREET ADDRESS|exact_location/i);
   expect(json).not.toHaveProperty("expressSummary");
   expect(json.expressAssessment).toMatchObject({
     version: "express-index-v2",
     kind: "complete-index",
-    score: 82,
-    answeredCount: 9,
-    interpretableComponentCount: 8,
-    applicableComponentCount: 8,
+    score: 84,
+    answeredCount: 12,
+    interpretableComponentCount: 10,
+    applicableComponentCount: 10,
     scoredAxisCount: 4,
   });
 });
@@ -477,6 +485,7 @@ test("Express exports its interpreted index separately without raw measurements 
     referencePopulation: {
       vo2Max: { registry: "FRIEND", population: expect.stringMatching(/US adults aged 20-79 without cardiovascular disease/) },
       chairStand: { reference: expect.stringMatching(/Rikli & Jones/), population: expect.stringMatching(/community-dwelling adults aged 60-94/) },
+      oneRepMax: { reference: "product convention", population: expect.stringMatching(/1\.0 × \(squat\) and 1\.5 × \(deadlift\)/), optional: true },
     },
   });
   const expressAssessment = json.expressAssessment as { sources: string[]; reference: { sources: { friend: { doi: string } } } };

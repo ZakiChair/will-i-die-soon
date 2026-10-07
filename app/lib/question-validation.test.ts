@@ -24,11 +24,19 @@ test.each([
   ["sedentary_total_hours", 24, 25],
   ["movement_strength_days", 7, 8],
   ["chair_stand_30s_count", 60, 61],
+  ["squat_one_rep_max_kg", 600, 601],
+  ["deadlift_one_rep_max_kg", 600, 601],
   ["smoking_cigarettes_per_day", 100, 101],
   ["blood_pressure_diastolic", 200, 201],
 ])("uses the stated observation period for %s", (id, valid, invalid) => {
   expect(validateQuestionAnswer({ id, answerType: "number" }, valid)).toBeNull();
   expect(validateQuestionAnswer({ id, answerType: "number" }, invalid)).toEqual({ kind: "range", maximum: valid });
+});
+
+test.each(["squat_one_rep_max_kg", "deadlift_one_rep_max_kg"])("requires a positive load for %s", (id) => {
+  expect(validateQuestionAnswer({ id, answerType: "number" }, 0)).toEqual({ kind: "positive" });
+  expect(validateQuestionAnswer({ id, answerType: "number" }, 62.5)).toBeNull();
+  expect(validateQuestionAnswer({ id, answerType: "number" }, null)).toEqual({ kind: "required" });
 });
 
 test("keeps a false answer valid and distinguishes it from an unanswered question", () => {

@@ -69,9 +69,9 @@ test("keeps every conditional gate in the same or an earlier pillar", () => {
       }
     }
   }
-  expect(questionBank).toHaveLength(150);
-  expect(conditionalQuestions).toBe(55);
-  expect(gateEdges).toBe(68);
+  expect(questionBank).toHaveLength(156);
+  expect(conditionalQuestions).toBe(58);
+  expect(gateEdges).toBe(74);
   expect(violations).toEqual([]);
 });
 
@@ -110,11 +110,15 @@ test("maps adult Express performance questions to their intended pillars", () =>
   expect(healthPillarForQuestion(byId.get("falls_past_year")!)).toBe(
     "strength-neural",
   );
+  for (const id of ["squat_one_rep_max_kg", "deadlift_one_rep_max_kg", "functional_difficulties"]) {
+    expect(healthPillarForQuestion(byId.get(id)!)).toBe("strength-neural");
+  }
   expect(healthPillarForQuestion(byId.get("walking_pace")!)).toBe("cardio-energy");
-  for (const id of ["reported_vo2_max_ml_kg_min", "chair_stand_30s_count"]) {
+  for (const id of ["reported_vo2_max_ml_kg_min", "chair_stand_30s_count", "squat_one_rep_max_kg", "deadlift_one_rep_max_kg"]) {
     expect(byId.get(id)).toMatchObject({ id, minAge: 18 });
   }
   expect(byId.get("falls_past_year")).toMatchObject({ minAge: 60 });
+  expect(byId.get("functional_difficulties")).toMatchObject({ minAge: 50 });
 });
 
 test("groups without changing IDs and preserves order inside each pillar", () => {

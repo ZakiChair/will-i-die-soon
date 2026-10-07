@@ -229,6 +229,11 @@ export function createRedactedExport(
                 reference: "Rikli & Jones Senior Fitness Test",
                 population: "community-dwelling adults aged 60-94; no reference before age 60",
               },
+              oneRepMax: {
+                reference: "product convention",
+                population: "load / body weight against 1.0 × (squat) and 1.5 × (deadlift); no age or sex norm, not a validated mortality predictor",
+                optional: true,
+              },
             },
             sources: Object.values(EXPRESS_INDEX_REFERENCE.sources).map(({ url }) => url),
           },

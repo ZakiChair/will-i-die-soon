@@ -141,6 +141,12 @@ export function ExpressResults({ answers, ageYears }: { readonly answers: Answer
         ? copy.readings.chairStand(metric(summary.strength.chairStandCount, t("expressResults.unit.stands")), summary.strength.chairStandBand,
           chairStandRange.low, chairStandRange.high, referenceSex, chairStandRange.ageFrom, chairStandRange.ageTo)
         : copy.readings.chairStandNoReference;
+  const liftReading = (loadKg: number | null, ratio: number | null, reference: number) => {
+    if (loadKg === null) return missing;
+    const load = metric(loadKg, "kg");
+    return ratio === null ? copy.readings.liftNoBodyWeight(load)
+      : copy.readings.liftRatio(load, numberFormat.format(ratio), numberFormat.format(reference));
+  };
 
   const rawReadings: Record<ExpressAxisId, ReactNode> = {
     cardio: (
@@ -157,6 +163,8 @@ export function ExpressResults({ answers, ageYears }: { readonly answers: Answer
         <div><dt>{t("expressResults.strength.chairStand")}</dt><dd>{summary.strength.chairStandCount === null ? missing
           : summary.strength.chairStandBand !== null ? chairStandNote
           : <>{metric(summary.strength.chairStandCount, t("expressResults.unit.stands"))} · <span>{chairStandNote}</span></>}</dd></div>
+        <div><dt>{copy.readings.squatLabel}</dt><dd>{liftReading(summary.strength.squatKg, summary.strength.squatBodyWeightRatio, EXPRESS_INDEX_REFERENCE.squatBodyWeight)}</dd></div>
+        <div><dt>{copy.readings.deadliftLabel}</dt><dd>{liftReading(summary.strength.deadliftKg, summary.strength.deadliftBodyWeightRatio, EXPRESS_INDEX_REFERENCE.deadliftBodyWeight)}</dd></div>
         <div><dt>{t("expressResults.strength.days")}</dt><dd>{summary.strength.strengthDays === null ? missing : copy.readings.strengthDays(metric(summary.strength.strengthDays, t("expressResults.unit.daysPerWeek")))}</dd></div>
       </dl>
     ),
@@ -217,7 +225,7 @@ export function ExpressResults({ answers, ageYears }: { readonly answers: Answer
           <h3 id={`${inspectorId}-title`}>{copy.axisPanelTitle(selectedAxisCopy.label)}</h3>
           <p className="express-axis-inspector__score">{selectedAxis.score === null ? missing : <><strong>{selectedAxis.score}</strong> <span>/ 100</span></>}</p>
           <span className="express-result-card__status">{copy.status[selectedAxis.status]}</span>
-          <p className="express-result-card__coverage">{copy.axisCoverage(selectedAxis.availableComponents, selectedAxis.totalComponents)}</p>
+          <p className="express-result-card__coverage">{copy.axisCoverage(selectedAxis.availableComponents, selectedAxis.totalComponents, selectedAxis.optionalComponents)}</p>
         </div>
         <p>{selectedAxis.score === null ? selectedAxisCopy.missing : selectedSignal.reason}</p>
         <div className="express-axis-inspector__action">
@@ -247,7 +255,7 @@ export function ExpressResults({ answers, ageYears }: { readonly answers: Answer
                     <span className="express-result-card__bar-fill" style={{ width: `${axis.score}%` }} />
                   </div>
                 ) : null}
-                <p className="express-result-card__coverage">{copy.axisCoverage(axis.availableComponents, axis.totalComponents)}</p>
+                <p className="express-result-card__coverage">{copy.axisCoverage(axis.availableComponents, axis.totalComponents, axis.optionalComponents)}</p>
               </div>
               <div className="express-result-card__detail">
                 <div className="express-result-card__reading">{rawReadings[axis.id]}</div>

@@ -67,7 +67,7 @@ test("replaces each in-memory journey screen inside its stable motion boundary",
   expect(assessment).toBeInTheDocument();
   expect(assessment).not.toBe(consent);
 
-  for (let answered = 0; answered < 9; answered += 1) {
+  for (let answered = 0; answered < 12; answered += 1) {
     await user.click(
       screen.getByRole("button", { name: /prefer not to (?:say|answer)/i }),
     );

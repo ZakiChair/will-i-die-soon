@@ -30,9 +30,27 @@ const expressIds = [
   "reported_vo2_max_ml_kg_min",
   "weekly_moderate_activity_minutes",
   "chair_stand_30s_count",
+  "weight_kg",
+  "squat_one_rep_max_kg",
+  "deadlift_one_rep_max_kg",
   "movement_strength_days",
   "usual_sleep_hours",
   "sleep_refreshed",
+  "plant_food_frequency",
+  "diet_ultra_processed",
+] as const;
+// File affichée : regroupée par pilier, le poids de corps (nutrition-métabolique) rejoint le bloc alimentation.
+const expressQueueIds = [
+  "sex_assigned_at_birth",
+  "reported_vo2_max_ml_kg_min",
+  "weekly_moderate_activity_minutes",
+  "chair_stand_30s_count",
+  "squat_one_rep_max_kg",
+  "deadlift_one_rep_max_kg",
+  "movement_strength_days",
+  "usual_sleep_hours",
+  "sleep_refreshed",
+  "weight_kg",
   "plant_food_frequency",
   "diet_ultra_processed",
 ] as const;
@@ -50,7 +68,7 @@ describe("questions adaptées au sexe déclaré", () => {
       const queue = buildAssessmentQueue(depth, questionBank, adult, answers);
 
       expect(queue.some((question) => question.domain === "pregnancy")).toBe(false);
-      expect(queue).toHaveLength({ express: 9, quick: 20, detailed: 50, deep: 92 }[depth]);
+      expect(queue).toHaveLength({ express: 12, quick: 20, detailed: 50, deep: 94 }[depth]);
       expect(getAvailableDepths(questionBank, adult, answers)).toContain(depth);
     },
   );
@@ -202,8 +220,8 @@ const expectedDomains: ReadonlyArray<HealthDomain> = [
 ];
 
 describe("question bank invariants", () => {
-  test("contains 150 curated questions with stable unique IDs and prompts", () => {
-    expect(questionBank).toHaveLength(150);
+  test("contains 156 curated questions with stable unique IDs and prompts", () => {
+    expect(questionBank).toHaveLength(156);
     expect(new Set(questionBank.map((question) => question.id)).size).toBe(
       questionBank.length,
     );
@@ -441,7 +459,8 @@ describe("question bank invariants", () => {
 describe("questionnaire selection", () => {
   test("builds the exact adult Express queue and keeps it stable after answers", () => {
     const initial = buildAssessmentQueue("express", questionBank, adult, {});
-    expect(initial.map(({ id }) => id)).toEqual(expressIds);
+    expect(initial.map(({ id }) => id)).toEqual(expressQueueIds);
+    expect([...initial.map(({ id }) => id)].sort()).toEqual([...expressIds].sort());
 
     const reconciled = reconcileAssessmentState(
       "express",
@@ -449,7 +468,7 @@ describe("questionnaire selection", () => {
       adult,
       { reported_vo2_max_ml_kg_min: 48, weight_kg: 80 },
     );
-    expect(reconciled.queue.map(({ id }) => id)).toEqual(expressIds);
+    expect(reconciled.queue.map(({ id }) => id)).toEqual(expressQueueIds);
     expect(reconciled.answers).toMatchObject({
       reported_vo2_max_ml_kg_min: 48,
       weight_kg: 80,
@@ -511,7 +530,7 @@ describe("questionnaire selection", () => {
 
     for (const depth of ["quick", "detailed", "deep"] as const) {
       const queue = buildAssessmentQueue(depth, questionBank, adult, {});
-      const expectedCount = depth === "quick" ? 20 : depth === "detailed" ? 50 : 93;
+      const expectedCount = depth === "quick" ? 20 : depth === "detailed" ? 50 : 95;
 
       expect(queue).toHaveLength(expectedCount);
       expect(queue.map(({ id }) => id).sort()).toEqual(
@@ -544,7 +563,7 @@ describe("questionnaire selection", () => {
   test("builds the promised deterministic queue size for each depth", () => {
     expect(buildAssessmentQueue("quick", questionBank, adult, {})).toHaveLength(20);
     expect(buildAssessmentQueue("detailed", questionBank, adult, {})).toHaveLength(50);
-    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(93);
+    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(95);
     expect(buildAssessmentQueue("deep", questionBank, adult, {})).toEqual(
       buildAssessmentQueue("deep", questionBank, adult, {}),
     );
@@ -557,7 +576,7 @@ describe("questionnaire selection", () => {
 
       expect(buildAssessmentQueue("quick", questionBank, profile, {})).toHaveLength(20);
       expect(buildAssessmentQueue("detailed", questionBank, profile, {})).toHaveLength(50);
-      expect(buildAssessmentQueue("deep", questionBank, profile, {})).toHaveLength(90);
+      expect(buildAssessmentQueue("deep", questionBank, profile, {})).toHaveLength(92);
     },
   );
 
@@ -740,7 +759,7 @@ describe("questionnaire selection", () => {
     expect(() => buildAssessmentQueue("deep", questionBank, adolescent, {})).toThrow(
       /Deep.+adults only.+at least 80 are required/,
     );
-    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(93);
+    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(95);
   });
 
   test("removes adult-only questions from a child profile", () => {
@@ -831,8 +850,8 @@ describe("adaptive branches", () => {
     expect(
       medicationsSkipped.queue.some((question) => question.id.startsWith("med_detail_")),
     ).toBe(false);
-    expect(deepMedicationsYes.queue).toHaveLength(99);
-    expect(deepInitial.queue).toHaveLength(93);
+    expect(deepMedicationsYes.queue).toHaveLength(101);
+    expect(deepInitial.queue).toHaveLength(95);
     expect(
       deepInitial.queue.every((question) =>
         deepMedicationsYes.queue.some((candidate) => candidate.id === question.id),

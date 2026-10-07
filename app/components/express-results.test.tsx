@@ -96,12 +96,51 @@ test("renders the Express index, four scored axes, normed readings and a complet
   expect(screen.getByText("35 years")).toBeVisible();
   expect(screen.getByLabelText("Express index · fitness and habits")).toHaveTextContent("86 / 100");
   expect(screen.getByText("Complete profile")).toBeVisible();
-  expect(screen.getByText(/7 \/ 7 components · 9 \/ 9 answers/)).toBeVisible();
+  expect(screen.getByText(/7 \/ 7 components · 9 \/ 12 answers/)).toBeVisible();
   const compass = screen.getByRole("img", { name: "Your four-axis compass" });
   expect(compass).toHaveAccessibleDescription(/Cardio: 75.*Strength: 100.*Sleep: 90.*Nutrition: 80/);
   expect(compass.querySelector(".express-compass__shape")).toBeInTheDocument();
   expect(compass.querySelectorAll(".express-compass__point")).toHaveLength(4);
-  expect(document.body.textContent).not.toMatch(/BMI|life expectancy|elite|body weight|squat|deadlift|not population norms/i);
+  expect(screen.getByText("Squat, heaviest single repetition (optional)")).toBeVisible();
+  expect(screen.getByText("Deadlift, heaviest single repetition (optional)")).toBeVisible();
+  expect(screen.getAllByText(/components available/).map((node) => node.textContent)).toEqual([
+    "2 / 2 components available", "2 / 2 components available", "1 / 1 components available", "2 / 2 components available", "2 / 2 components available",
+  ]);
+  expect(document.body.textContent).not.toMatch(/BMI|life expectancy|elite|not population norms|optional lifts? included/i);
+});
+
+test("reads optional lifts as a body-weight ratio against the product reference when body weight is known", () => {
+  const { container } = renderExpressResults({ ...completeAnswers, weight_kg: 80, squat_one_rep_max_kg: 60, deadlift_one_rep_max_kg: 120 });
+  expect(screen.getByText("60 kg · 0.75 × body weight · product reference 1 × body weight, no age or sex norm")).toBeVisible();
+  expect(screen.getByText("120 kg · 1.5 × body weight · product reference 1.5 × body weight, no age or sex norm")).toBeVisible();
+  expect(screen.getByText("3 / 3 components available · 2 optional lifts included")).toBeVisible();
+  expect(screen.getByText(/9 \/ 9 components · 12 \/ 12 answers/)).toBeVisible();
+  expect(screen.getByText("Complete profile")).toBeVisible();
+  // Squat 75 + soulevé 100 + renforcement 100 → 92 ; indice (75 + 91,7 + 90 + 80) / 4 → 84.
+  expect(container.querySelector('.express-result-card[data-axis="strength"]')).toHaveTextContent("92 / 100");
+  expect(screen.getByLabelText("Express index · fitness and habits")).toHaveTextContent("84 / 100");
+  const compass = screen.getByRole("img", { name: "Your four-axis compass" });
+  expect(compass).toHaveAccessibleDescription(/Strength: 92/);
+});
+
+test("scores both lifts at 100 when they reach their body-weight references over a full twelve-answer Express run", () => {
+  const { container } = renderExpressResults({ ...completeAnswers, weight_kg: 80, squat_one_rep_max_kg: 100, deadlift_one_rep_max_kg: 150 });
+  expect(screen.getByText("100 kg · 1.25 × body weight · product reference 1 × body weight, no age or sex norm")).toBeVisible();
+  expect(screen.getByText("150 kg · 1.88 × body weight · product reference 1.5 × body weight, no age or sex norm")).toBeVisible();
+  expect(screen.getByText("3 / 3 components available · 2 optional lifts included")).toBeVisible();
+  expect(screen.getByText(/9 \/ 9 components · 12 \/ 12 answers/)).toBeVisible();
+  expect(container.querySelector('.express-result-card[data-axis="strength"]')).toHaveTextContent("100 / 100");
+  expect(screen.getByLabelText("Express index · fitness and habits")).toHaveTextContent("86 / 100");
+});
+
+test("keeps a declared lift visible but unscored without body weight, and leaves blank lifts out of the coverage", () => {
+  renderExpressResults({ ...completeAnswers, squat_one_rep_max_kg: 60 });
+  expect(screen.getByText("60 kg · shown without a ratio: your body weight is needed to read this optional lift, so it is not scored")).toBeVisible();
+  expect(screen.getByText("1 / 1 components available", { exact: true })).toBeVisible();
+  expect(screen.getByText(/7 \/ 7 components · 10 \/ 12 answers/)).toBeVisible();
+  expect(screen.getByText("Complete profile")).toBeVisible();
+  expect(screen.getByLabelText("Express index · fitness and habits")).toHaveTextContent("86 / 100");
+  expect(screen.queryByText(/optional lifts? included/)).not.toBeInTheDocument();
 });
 
 test("places a senior woman's chair stand and VO₂ max against the Rikli-Jones range and FRIEND percentile", () => {
@@ -109,7 +148,7 @@ test("places a senior woman's chair stand and VO₂ max against the Rikli-Jones 
   expect(screen.getByText("p50 for a 67-year-old woman · FRIEND registry")).toBeVisible();
   expect(screen.getByText("14 stands · within the 11–16 normal range for women 65–69")).toBeVisible();
   expect(screen.getByText("Woman")).toBeVisible();
-  expect(screen.getByText(/8 \/ 8 components · 9 \/ 9 answers/)).toBeVisible();
+  expect(screen.getByText(/8 \/ 8 components · 9 \/ 12 answers/)).toBeVisible();
   expect(screen.getByLabelText("Express index · fitness and habits")).toHaveTextContent("82 / 100");
   expect(container.querySelector('.express-result-card[data-axis="strength"]')).toHaveAttribute("data-status", "support");
 });
@@ -130,7 +169,7 @@ test("shows raw values without a percentile or range when sex at birth is inters
   expect(screen.getByText("Shown without a range: Rikli-Jones norms are published for men and women only.")).toBeVisible();
   expect(screen.getByText("Intersex or another variation")).toBeVisible();
   expect(document.body.textContent).not.toMatch(/\bp\d+ for a/);
-  expect(screen.getByText(/6 \/ 6 components · 9 \/ 9 answers/)).toBeVisible();
+  expect(screen.getByText(/6 \/ 6 components · 9 \/ 12 answers/)).toBeVisible();
 });
 
 test("localizes the Express snapshot in French", async () => {
@@ -146,6 +185,8 @@ test("localizes the Express snapshot in French", async () => {
   expect(screen.getByRole("heading", { name: "Alimentation" })).toBeVisible();
   expect(screen.getByText("p50 pour une femme de 67 ans · registre FRIEND")).toBeVisible();
   expect(screen.getByText("14 levers · dans l’intervalle normal 11–16 des femmes de 65–69 ans")).toBeVisible();
+  expect(screen.getByText("Squat, répétition unique la plus lourde (facultatif)")).toBeVisible();
+  expect(screen.getByText("Soulevé de terre, répétition unique la plus lourde (facultatif)")).toBeVisible();
   expect(screen.getByText("150 min / semaine · recommandation 150 min / semaine")).toBeVisible();
   expect(screen.getByText("Femme")).toBeVisible();
   expect(screen.getByLabelText("Indice Express · forme et habitudes")).toHaveTextContent("82 / 100");
@@ -182,7 +223,7 @@ test("shows localized missing values without inventing zeroes", () => {
 test("a partial profile marks only known axes and never invents a zero for the missing cardio axis", () => {
   const { container } = renderExpressResults({ ...completeAnswers, reported_vo2_max_ml_kg_min: null, weekly_moderate_activity_minutes: null });
   expect(screen.getByText("Provisional index")).toBeVisible();
-  expect(screen.getByText(/5 \/ 7 components · 7 \/ 9 answers/)).toBeVisible();
+  expect(screen.getByText(/5 \/ 7 components · 7 \/ 12 answers/)).toBeVisible();
   const compass = screen.getByRole("img", { name: "Your four-axis compass" });
   expect(compass).toHaveAccessibleDescription(/Cardio: Not provided/);
   expect(compass.querySelector(".express-compass__shape")).not.toBeInTheDocument();
@@ -224,6 +265,11 @@ test("names the published norms, their cohorts and the guideline-based items in 
   expect(method).toHaveTextContent(/community-dwelling adults aged 60–94/i);
   expect(method).toHaveTextContent(/public guidelines, which describe recommended habits, not norms/i);
   expect(method).toHaveTextContent(/Life's Essential 8: 7–<9 h 100/);
+  expect(method).toHaveTextContent(/Squat and deadlift are optional/);
+  expect(method).toHaveTextContent(/1\.0 × body weight for the squat and 1\.5 × for the deadlift/);
+  expect(method).toHaveTextContent(/product convention, not an age- or sex-specific norm and not a validated mortality predictor/);
+  expect(method).toHaveTextContent(/optional lifts left blank or given without body weight are not counted/);
+  expect(screen.getByText(/Optional squat and deadlift: ratio to body weight, a product convention with no age or sex norm/)).toBeVisible();
   expect(method).not.toHaveTextContent(/not population norms|50 ml\/kg\/min/i);
   const links = within(method as HTMLElement).getAllByRole("link");
   expect(links.map((link) => link.textContent)).toEqual([

@@ -19,7 +19,11 @@ export type PathologyOrientationId =
   | "caide-heart-and-activity"
   | "audit-c-support"
   | "phq-2-clinician"
-  | "gad-2-clinician";
+  | "gad-2-clinician"
+  | "lee-index-keep-function"
+  | "lee-index-clinician"
+  | "plco-below-threshold"
+  | "plco-screening";
 
 const ORIENTATIONS: Readonly<Record<PathologyInstrumentId, Readonly<Record<string, PathologyOrientationId>>>> = {
   findrisc: {
@@ -66,6 +70,16 @@ const ORIENTATIONS: Readonly<Record<PathologyInstrumentId, Readonly<Record<strin
   "audit-c": { positive: "audit-c-support" },
   "phq-2": { positive: "phq-2-clinician" },
   "gad-2": { positive: "gad-2-clinician" },
+  "lee-index": {
+    low: "lee-index-keep-function",
+    moderate: "lee-index-clinician",
+    high: "lee-index-clinician",
+    "very-high": "lee-index-clinician",
+  },
+  plcom2012: {
+    "below-screening-threshold": "plco-below-threshold",
+    "screening-threshold-met": "plco-screening",
+  },
 };
 
 export const ORIENTATION_SOURCE_IDS: Readonly<Record<PathologyOrientationId, ReadonlyArray<PathologySourceId>>> = {
@@ -87,6 +101,10 @@ export const ORIENTATION_SOURCE_IDS: Readonly<Record<PathologyOrientationId, Rea
   "audit-c-support": ["nhsAlcoholSupport"],
   "phq-2-clinician": ["niceDepression", "whoDepression"],
   "gad-2-clinician": ["nhsGeneralisedAnxiety"],
+  "lee-index-keep-function": ["leeIndex2006", "whoPhysicalActivity", "whoTobacco"],
+  "lee-index-clinician": ["leeIndex2006", "whoTobacco"],
+  "plco-below-threshold": ["plcom2012Tammemagi2013", "whoTobacco"],
+  "plco-screening": ["plcom2012Tammemagi2013", "uspstfLungCancerScreening2021", "whoTobacco"],
 };
 
 /** What to do next for a complete score, or for a range whose category is already settled. */

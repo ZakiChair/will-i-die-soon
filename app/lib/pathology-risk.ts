@@ -50,6 +50,9 @@ const PLAUSIBLE = {
   ldlMmol: { min: 0.1, max: 15 },
   hba1cMmol: { min: 10, max: 200 },
   egfr: { min: 1, max: 200 },
+  cigarettesPerDay: { min: 1, max: 100 },
+  smokingYears: { min: 1, max: 80 },
+  quitYears: { min: 0, max: 80 },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -1528,6 +1531,272 @@ function dementiaFamilyHistory(answers: AnswerMap): DementiaFamilyHistory {
 }
 
 // ---------------------------------------------------------------------------
+// Lee index (4-year all-cause mortality, community-dwelling adults 50+)
+// ---------------------------------------------------------------------------
+
+const LEE_SOURCES: ReadonlyArray<PathologySourceId> = ["leeIndex2006"];
+const LEE_MAX_POINTS = 26;
+/**
+ * Observed 4-year mortality by point score in the published validation cohort
+ * (Lee 2006, Table 4); the four strata are the authors' summary bands.
+ */
+const LEE_VALIDATION_MORTALITY: ReadonlyArray<number> = [1, 2, 2, 4, 6, 8, 9, 15, 20, 20, 28, 45, 44, 59, 64];
+const LEE_STRATA: ReadonlyArray<Omit<PointBand, "riskPercent">> = [
+  { max: 5, category: "low", level: "low" },
+  { max: 9, category: "moderate", level: "moderate" },
+  { max: 13, category: "high", level: "high" },
+  { max: LEE_MAX_POINTS, category: "very-high", level: "very-high" },
+];
+const LEE_FUNCTIONAL_POINTS: Readonly<Record<string, number>> = {
+  bathing: 2,
+  managing_finances: 2,
+  walking_several_blocks: 2,
+  pushing_pulling_heavy: 1,
+};
+
+function leeAgePoints(age: number): number {
+  return age < 60 ? 0 : age < 65 ? 1 : age < 70 ? 2 : age < 75 ? 3 : age < 80 ? 4 : age < 85 ? 5 : 7;
+}
+
+/** Heart failure is asked only after a heart or blood-vessel condition is reported. */
+function deriveHeartFailure(context: EvaluationContext): Derived<boolean> {
+  const conditions = context.diagnosedConditions;
+  if (conditions === undefined) return { value: undefined, inputs: [], missing: ["diagnosed_conditions_core"] };
+  if (!conditions.includes("heart_vascular")) {
+    return { value: false, inputs: [{ id: "heart_failure_diagnosed", value: false, derived: true }], missing: [] };
+  }
+  const reported = readBoolean(context.answers, "heart_failure_diagnosed");
+  return reported === undefined
+    ? { value: undefined, inputs: [], missing: ["heart_failure_diagnosed"] }
+    : { value: reported, inputs: [{ id: "heart_failure_diagnosed", value: reported }], missing: [] };
+}
+
+function evaluateLeeIndex(context: EvaluationContext): PathologyScoreResult {
+  const age = context.profile.age;
+  if (age < 50) {
+    return notApplicable("lee-index", LEE_SOURCES, "age-out-of-range", [{ id: "profile:age", value: age }]);
+  }
+  const collector = new InputCollector(context);
+  const sex = collector.sex();
+  if (sex === "intersex") {
+    return notApplicable("lee-index", LEE_SOURCES, "sex-not-supported", collector.inputs);
+  }
+  collector.age();
+  const bmi = collector.derived(context.bodyMassIndex);
+  const conditions = context.diagnosedConditions;
+  if (conditions === undefined) collector.missing.push("diagnosed_conditions_core");
+  else collector.inputs.push({ id: "diagnosed_conditions_core", value: conditions.join(", ") });
+  const heartFailure = collector.derived(deriveHeartFailure(context));
+  const currentSmoker = collector.derived(context.currentSmoker);
+  const difficulties = readMulti(context.answers, "functional_difficulties");
+  if (difficulties === undefined) collector.missing.push("functional_difficulties");
+  else collector.inputs.push({ id: "functional_difficulties", value: difficulties.join(", ") });
+
+  if (
+    sex === undefined || bmi === undefined || conditions === undefined || heartFailure === undefined ||
+    currentSmoker === undefined || difficulties === undefined
+  ) {
+    return incomplete("lee-index", LEE_SOURCES, collector, conditions === undefined ? ["heart_failure_diagnosed"] : []);
+  }
+
+  const lungDisease = conditions.includes("lung");
+  const points =
+    leeAgePoints(age) +
+    (sex === "male" ? 2 : 0) +
+    (conditions.includes("diabetes") ? 1 : 0) +
+    (conditions.includes("cancer") ? 2 : 0) +
+    (lungDisease ? 2 : 0) +
+    (heartFailure ? 2 : 0) +
+    (bmi < 25 ? 1 : 0) +
+    (currentSmoker ? 2 : 0) +
+    difficulties.reduce((sum, item) => sum + (LEE_FUNCTIONAL_POINTS[item] ?? 0), 0);
+  const stratum = LEE_STRATA.find((band) => points <= band.max) ?? LEE_STRATA[LEE_STRATA.length - 1];
+  const riskPercent = LEE_VALIDATION_MORTALITY[Math.min(points, LEE_VALIDATION_MORTALITY.length - 1)];
+  // The index asked about chronic lung disease (chronic bronchitis, emphysema);
+  // the bank's "long-term lung condition" is broader, so the item is a proxy.
+  const modifiers = lungDisease ? ["lee-lung-disease-proxy"] : [];
+  return complete(
+    "lee-index",
+    LEE_SOURCES,
+    collector,
+    {
+      points,
+      maxPoints: LEE_MAX_POINTS,
+      category: stratum.category,
+      level: stratum.level,
+      riskPercent,
+      riskHorizonYears: 4,
+      modifiers,
+    },
+    context.policy,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PLCOm2012 (6-year lung cancer risk in ever-smokers)
+// ---------------------------------------------------------------------------
+
+const PLCO_SOURCES: ReadonlyArray<PathologySourceId> = ["plcom2012Tammemagi2013"];
+/** Logistic coefficients of PLCOm2012 (Tammemägi 2013, NEJM; centring values from the publication). */
+const PLCO = {
+  intercept: -4.532506,
+  age: 0.0778868,
+  ageCentre: 62,
+  education: -0.0812744,
+  educationCentre: 4,
+  bmi: -0.0274194,
+  bmiCentre: 27,
+  copd: 0.3553063,
+  personalCancer: 0.4589971,
+  familyLungCancer: 0.587185,
+  currentSmoker: 0.2597431,
+  intensity: -1.822606,
+  intensityCentre: 0.4021541613,
+  duration: 0.0317321,
+  durationCentre: 27,
+  quitYears: -0.0308572,
+  quitYearsCentre: 10,
+} as const;
+/** Six-year risk at which PLCO-based screening selection matched the USPSTF 2013 criteria. */
+const PLCO_SCREENING_THRESHOLD_PERCENT = 1.5;
+const PLCO_EDUCATION_LEVEL: Readonly<Record<string, number>> = {
+  six_or_less: 1,
+  seven_to_nine: 1,
+  secondary_incomplete: 1,
+  secondary_diploma: 2,
+  post_secondary_vocational: 3,
+  some_university: 4,
+  university_degree: 5,
+  postgraduate_degree: 6,
+};
+
+/** PLCOm2012 education level from the three-band question, refined by the six-level follow-up when it applies. */
+function derivePlcoEducation(context: EvaluationContext): Derived<number> {
+  const years = readSingle(context.answers, "education_years");
+  if (years === undefined) return { value: undefined, inputs: [], missing: ["education_years"] };
+  const inputs: PathologyScoreInput[] = [{ id: "education_years", value: years }];
+  if (years !== "ten_plus") {
+    return { value: PLCO_EDUCATION_LEVEL[years], inputs, missing: [] };
+  }
+  const level = readSingle(context.answers, "education_highest_level");
+  if (level === undefined) return { value: undefined, inputs, missing: ["education_highest_level"] };
+  return { value: PLCO_EDUCATION_LEVEL[level], inputs: [...inputs, { id: "education_highest_level", value: level }], missing: [] };
+}
+
+export function plcom2012SixYearRisk(input: Readonly<{
+  age: number;
+  educationLevel: number;
+  bmi: number;
+  copd: boolean;
+  personalCancer: boolean;
+  familyLungCancer: boolean;
+  currentSmoker: boolean;
+  cigarettesPerDay: number;
+  yearsSmoked: number;
+  yearsSinceQuit: number;
+}>): number {
+  const linear =
+    PLCO.intercept +
+    PLCO.age * (input.age - PLCO.ageCentre) +
+    PLCO.education * (input.educationLevel - PLCO.educationCentre) +
+    PLCO.bmi * (input.bmi - PLCO.bmiCentre) +
+    (input.copd ? PLCO.copd : 0) +
+    (input.personalCancer ? PLCO.personalCancer : 0) +
+    (input.familyLungCancer ? PLCO.familyLungCancer : 0) +
+    (input.currentSmoker ? PLCO.currentSmoker : 0) +
+    PLCO.intensity * ((input.cigarettesPerDay / 10) ** -1 - PLCO.intensityCentre) +
+    PLCO.duration * (input.yearsSmoked - PLCO.durationCentre) +
+    PLCO.quitYears * (input.yearsSinceQuit - PLCO.quitYearsCentre);
+  return (100 * Math.exp(linear)) / (1 + Math.exp(linear));
+}
+
+function evaluatePlcom2012(context: EvaluationContext): PathologyScoreResult {
+  const age = context.profile.age;
+  const everSmoked = deriveEverSmoked(context);
+  if (everSmoked.value === false) {
+    return notApplicable("plcom2012", PLCO_SOURCES, "never-smoked", everSmoked.inputs);
+  }
+  if (age < 50 || age > 80) {
+    return notApplicable("plcom2012", PLCO_SOURCES, "age-out-of-range", [{ id: "profile:age", value: age }]);
+  }
+  const collector = new InputCollector(context);
+  collector.age();
+  const smokedEver = collector.derived(everSmoked);
+  const currentSmoker = collector.derived(context.currentSmoker);
+  const education = collector.derived(derivePlcoEducation(context));
+  const bmi = collector.derived(context.bodyMassIndex);
+  const conditions = context.diagnosedConditions;
+  if (conditions === undefined) collector.missing.push("diagnosed_conditions_core");
+  else collector.inputs.push({ id: "diagnosed_conditions_core", value: conditions.join(", ") });
+  const familyLungCancer = collector.boolean("family_lung_cancer");
+  const cigarettesPerDay = collector.number("smoking_cigarettes_per_day", PLAUSIBLE.cigarettesPerDay);
+  const yearsSmoked = collector.number("smoking_years_total", PLAUSIBLE.smokingYears);
+  let yearsSinceQuit: number | undefined;
+  if (currentSmoker === true) {
+    yearsSinceQuit = 0;
+    collector.inputs.push({ id: "smoking_years_since_quit", value: 0, derived: true });
+  } else if (currentSmoker === false) {
+    yearsSinceQuit = collector.number("smoking_years_since_quit", PLAUSIBLE.quitYears);
+  }
+
+  if (
+    smokedEver === undefined || currentSmoker === undefined || education === undefined || bmi === undefined ||
+    conditions === undefined || familyLungCancer === undefined || cigarettesPerDay === undefined ||
+    yearsSmoked === undefined || yearsSinceQuit === undefined
+  ) {
+    // Items hidden behind the smoking-history or education gates are counted there rather than asked directly.
+    const educationYears = readSingle(context.answers, "education_years");
+    const educationLevelPending =
+      (educationYears === undefined || educationYears === "ten_plus") &&
+      readSingle(context.answers, "education_highest_level") === undefined;
+    const conditional = [
+      ...(smokedEver === undefined ? ["smoking_cigarettes_per_day", "smoking_years_total", "family_lung_cancer"] : []),
+      ...(educationLevelPending && !collector.missing.includes("education_highest_level") ? ["education_highest_level"] : []),
+      ...(currentSmoker === undefined ? ["smoking_years_since_quit"] : []),
+    ];
+    return incomplete("plcom2012", PLCO_SOURCES, collector, conditional);
+  }
+
+  const copd = conditions.includes("lung");
+  const riskPercent = Math.round(
+    plcom2012SixYearRisk({
+      age,
+      educationLevel: education,
+      bmi,
+      copd,
+      personalCancer: conditions.includes("cancer"),
+      familyLungCancer,
+      currentSmoker,
+      cigarettesPerDay,
+      yearsSmoked,
+      yearsSinceQuit,
+    }) * 10,
+  ) / 10;
+  const screening = riskPercent >= PLCO_SCREENING_THRESHOLD_PERCENT;
+  // The race term is not collected and stays at its reference category; the
+  // PLCO cohort was aged 55–74, and "long-term lung condition" stands in for COPD.
+  const modifiers = [
+    "plco-race-reference",
+    ...(age < 55 || age > 74 ? ["plco-age-extrapolated"] : []),
+    ...(copd ? ["plco-copd-proxy"] : []),
+  ];
+  return complete(
+    "plcom2012",
+    PLCO_SOURCES,
+    collector,
+    {
+      category: screening ? "screening-threshold-met" : "below-screening-threshold",
+      level: screening ? "high" : "low",
+      riskPercent,
+      riskHorizonYears: 6,
+      modifiers,
+    },
+    context.policy,
+  );
+}
+
+
+// ---------------------------------------------------------------------------
 // Ranges over missing answers and habit gains at an equal profile
 // ---------------------------------------------------------------------------
 
@@ -1694,6 +1963,22 @@ const HABIT_RULES: Partial<Record<PathologyInstrumentId, ReadonlyArray<HabitRule
       replacements: { current_tobacco_nicotine: false },
     },
   ],
+  "lee-index": [
+    {
+      id: "no-smoking",
+      applies: (score) => usedValue(score, "derived:current_smoker") === true,
+      replacements: { current_tobacco_nicotine: false },
+    },
+  ],
+  // Quitting today sets quit time to zero and keeps the former-smoker status,
+  // which is how PLCOm2012 reads someone who has just stopped.
+  plcom2012: [
+    {
+      id: "no-smoking",
+      applies: (score) => usedValue(score, "derived:current_smoker") === true,
+      replacements: { current_tobacco_nicotine: false, smoking_history_former: true, smoking_years_since_quit: 0 },
+    },
+  ],
 };
 
 function gainFor(score: CompleteScore, reevaluate: Reevaluate): PathologyHabitGain | undefined {
@@ -1745,6 +2030,8 @@ const EVALUATORS: ReadonlyArray<Evaluator> = [
   evaluateStopBang,
   evaluateCopdPs,
   evaluateCaide,
+  evaluateLeeIndex,
+  evaluatePlcom2012,
   evaluateAuditC,
   (context) =>
     evaluateTwoItemScreen(context, "phq-2", ["low_interest_frequency", "mood_low_frequency"], ["phq2Kroenke2003"]),

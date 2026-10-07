@@ -49,6 +49,14 @@ const PRACTICAL_WHY = {
     en: "The bottom number of the same reading completes the blood-pressure metric of Life's Essential 8.",
     fr: "Le chiffre du bas de la même mesure complète la métrique de tension artérielle du Life's Essential 8.",
   },
+  squat_one_rep_max_kg: {
+    en: "An existing squat result adds context to your strength as a ratio to body weight, a product convention. It is optional and does not assess your overall health.",
+    fr: "Un résultat de squat déjà connu apporte un repère de force en rapport au poids du corps, une convention du produit. Il est facultatif et n'évalue pas votre santé globale.",
+  },
+  deadlift_one_rep_max_kg: {
+    en: "An existing deadlift result adds context to your strength as a ratio to body weight, a product convention. It is optional and does not assess your overall health.",
+    fr: "Un résultat de soulevé de terre déjà connu apporte un repère de force en rapport au poids du corps, une convention du produit. Il est facultatif et n'évalue pas votre santé globale.",
+  },
   movement_strength_days: {
     en: "This describes how often strengthening activity is part of your week, alongside everyday movement.",
     fr: "Cette fréquence décrit la place du renforcement musculaire dans votre semaine, en complément des mouvements du quotidien.",
@@ -69,7 +77,13 @@ const PRACTICAL_WHY = {
 
 const UNKNOWN_MEASUREMENTS = new Set([
   "reported_vo2_max_ml_kg_min", "chair_stand_30s_count",
+  "squat_one_rep_max_kg", "deadlift_one_rep_max_kg",
   "waist_circumference_cm", "neck_circumference_cm",
+]);
+
+const MAXIMAL_LIFT_QUESTIONS = new Set([
+  "squat_one_rep_max_kg",
+  "deadlift_one_rep_max_kg",
 ]);
 
 const ALCOHOL_DRINK_QUESTIONS = new Set([
@@ -126,7 +140,11 @@ export function getQuestionGuidance(
 ): Guidance {
   const scale = SCALE_ANCHORS[questionId as keyof typeof SCALE_ANCHORS]?.[locale];
   const why = PRACTICAL_WHY[questionId as keyof typeof PRACTICAL_WHY]?.[locale];
-  const notice = questionId === "chair_stand_30s_count"
+  const notice = MAXIMAL_LIFT_QUESTIONS.has(questionId)
+    ? locale === "fr"
+      ? "Saisissez un résultat déjà connu. Ne faites pas de test maximal pour ce questionnaire ; vous pouvez laisser la réponse vide."
+      : "Enter a result you already know. Do not perform a maximal test for this questionnaire; you can leave the answer blank."
+    : questionId === "chair_stand_30s_count"
     ? locale === "fr"
       ? "Chaise stable sans accoudoirs, bras croisés sur la poitrine, 30 secondes. Ne tentez pas le test si vous vous sentez instable, avez une douleur ou êtes seul sans appui ; laissez alors la réponse vide."
       : "Use a stable chair without armrests, arms crossed over the chest, for 30 seconds. Do not attempt the test if you feel unsteady, have pain, or are alone without support; leave the answer blank instead."

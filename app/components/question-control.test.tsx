@@ -230,6 +230,8 @@ test("omits aria-describedby when a question has no presentation detail", () => 
 test.each([
   ["usual_sleep_hours", "100"],
   ["chair_stand_30s_count", "61"],
+  ["squat_one_rep_max_kg", "0"],
+  ["deadlift_one_rep_max_kg", "601"],
   ["movement_strength_days", "-1"],
   ["diet_legumes", "-1"],
   ["height_cm", "0"],
@@ -302,6 +304,21 @@ test("shows the chair-stand safety instruction before answering chair_stand_30s_
   expect(guidance).toBeVisible();
   expect(guidance.closest("details")).toBeNull();
   expect(screen.getByRole("spinbutton").getAttribute("aria-describedby")).toContain(guidance.id);
+  await user.click(screen.getByRole("button", { name: "Je ne connais pas cette mesure" }));
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith(null);
+});
+
+test.each(["squat_one_rep_max_kg", "deadlift_one_rep_max_kg"])("shows the no-maximal-test notice and the kg unit for the optional %s", async (id) => {
+  const user = userEvent.setup();
+  const onAnswer = renderControl(id);
+  const notice = screen.getByText(/Do not perform a maximal test for this questionnaire/);
+  expect(notice).toBeVisible();
+  expect(notice.closest("details")).toBeNull();
+  const input = screen.getByRole("spinbutton");
+  expect(input.getAttribute("aria-describedby")).toContain(notice.id);
+  expect(screen.getByText("kg")).toBeVisible();
+  await chooseFrench(user);
+  expect(screen.getByText(/Ne faites pas de test maximal pour ce questionnaire/)).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Je ne connais pas cette mesure" }));
   expect(onAnswer).toHaveBeenCalledExactlyOnceWith(null);
 });

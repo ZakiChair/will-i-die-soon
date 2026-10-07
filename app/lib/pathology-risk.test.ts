@@ -6,6 +6,7 @@ import { normalizeLabValue, type ConfirmedLabValue, type FastingStatus, type Lab
 import {
   evaluatePathologyRisk,
   PATHOLOGY_RULESET_VERSION,
+  plcom2012SixYearRisk,
   resolvePathologySources,
   score2TenYearRisk,
   shallowestDepthFor,
@@ -762,6 +763,126 @@ describe("CAIDE", () => {
   });
 });
 
+describe("Lee index", () => {
+  const thirteenPoints: AnswerMap = {
+    sex_assigned_at_birth: "male", // 2
+    height_cm: 175,
+    weight_kg: 70.4, // BMI 23 → 1
+    diagnosed_conditions_core: ["diabetes"], // 1
+    current_tobacco_nicotine: true, // 2
+    functional_difficulties: ["bathing", "walking_several_blocks"], // 4
+  };
+  const older: ProfileContext = { age: 72, countryCode: "CH" }; // 3
+
+  test("reproduces the published points and reads the validation-cohort mortality", () => {
+    const result = complete(score("lee-index", thirteenPoints, older));
+    expect(result).toMatchObject({ points: 13, maxPoints: 26, category: "high", level: "high", riskPercent: 59, riskHorizonYears: 4 });
+    expect(result.modifiers).toEqual([]);
+    expect(result.inputs).toContainEqual({ id: "heart_failure_diagnosed", value: false, derived: true });
+  });
+
+  test("scores a protective profile as low with the published one percent", () => {
+    const result = complete(
+      score(
+        "lee-index",
+        { sex_assigned_at_birth: "female", height_cm: 165, weight_kg: 74, diagnosed_conditions_core: ["none"], current_tobacco_nicotine: false, functional_difficulties: ["none"] },
+        { age: 55, countryCode: "CH" },
+      ),
+    );
+    expect(result).toMatchObject({ points: 0, category: "low", riskPercent: 1 });
+    expect(result).not.toHaveProperty("gain");
+  });
+
+  test("caps the mortality readout at the last published point score", () => {
+    const result = complete(
+      score(
+        "lee-index",
+        { ...thirteenPoints, diagnosed_conditions_core: ["diabetes", "cancer", "lung", "heart_vascular"], heart_failure_diagnosed: true, functional_difficulties: ["bathing", "managing_finances", "walking_several_blocks", "pushing_pulling_heavy"] },
+        { age: 86, countryCode: "CH" },
+      ),
+    );
+    expect(result).toMatchObject({ points: 26, category: "very-high", riskPercent: 64 });
+    expect(result.modifiers).toEqual(["lee-lung-disease-proxy"]);
+  });
+
+  test("asks about heart failure only after a heart condition is declared", () => {
+    const withHeart = { ...thirteenPoints, diagnosed_conditions_core: ["heart_vascular"] };
+    expect(incomplete(score("lee-index", withHeart, older)).missingInputs).toEqual(["heart_failure_diagnosed"]);
+    expect(complete(score("lee-index", { ...withHeart, heart_failure_diagnosed: true }, older)).points).toBe(14);
+  });
+
+  test("compares quitting smoking against the same point table", () => {
+    const result = complete(score("lee-index", thirteenPoints, older));
+    expect(result.gain).toMatchObject({ habits: ["no-smoking"], points: 11, category: "high", riskPercent: 45 });
+  });
+
+  test("is restricted to ages 50 and over and names missing functional items", () => {
+    expect(notApplicable(score("lee-index", thirteenPoints, { age: 49, countryCode: "CH" })).reason).toBe("age-out-of-range");
+    expect(incomplete(score("lee-index", omit(thirteenPoints, "functional_difficulties"), older)).missingInputs).toEqual(["functional_difficulties"]);
+  });
+});
+
+describe("PLCOm2012", () => {
+  const currentSmoker: AnswerMap = {
+    education_years: "ten_plus",
+    education_highest_level: "secondary_diploma",
+    height_cm: 170,
+    weight_kg: 70,
+    diagnosed_conditions_core: ["none"],
+    current_tobacco_nicotine: true,
+    smoking_history_former: false,
+    family_lung_cancer: true,
+    smoking_cigarettes_per_day: 20,
+    smoking_years_total: 40,
+  };
+  const sixtyFive: ProfileContext = { age: 65, countryCode: "CH" };
+
+  test("reproduces the logistic model at the centring values", () => {
+    const reference = { age: 62, educationLevel: 4, bmi: 27, copd: false, personalCancer: false, familyLungCancer: false, currentSmoker: true, cigarettesPerDay: 20, yearsSmoked: 27, yearsSinceQuit: 0 };
+    expect(plcom2012SixYearRisk(reference)).toBeCloseTo(1.563, 3);
+    expect(plcom2012SixYearRisk({ ...reference, currentSmoker: false, yearsSinceQuit: 10 })).toBeCloseTo(0.892, 3);
+  });
+
+  test("scores a current smoker above the screening threshold", () => {
+    const result = complete(score("plcom2012", currentSmoker, sixtyFive));
+    expect(result).toMatchObject({ category: "screening-threshold-met", level: "high", riskPercent: 6.5, riskHorizonYears: 6 });
+    expect(result.modifiers).toEqual(["plco-race-reference"]);
+    expect(result.inputs).toContainEqual({ id: "smoking_years_since_quit", value: 0, derived: true });
+    expect(result.gain).toMatchObject({ habits: ["no-smoking"], category: "screening-threshold-met", riskPercent: 5.1 });
+  });
+
+  test("scores a light former smoker below the threshold using the three-band education answer", () => {
+    const result = complete(
+      score(
+        "plcom2012",
+        { education_years: "seven_to_nine", height_cm: 170, weight_kg: 78, diagnosed_conditions_core: ["none"], current_tobacco_nicotine: false, smoking_history_former: true, family_lung_cancer: false, smoking_cigarettes_per_day: 10, smoking_years_total: 15, smoking_years_since_quit: 20 },
+        { age: 58, countryCode: "CH" },
+      ),
+    );
+    expect(result).toMatchObject({ category: "below-screening-threshold", level: "low", riskPercent: 0.2 });
+    expect(result).not.toHaveProperty("gain");
+  });
+
+  test("flags the extrapolated ages and the lung-condition proxy", () => {
+    const result = complete(score("plcom2012", { ...currentSmoker, diagnosed_conditions_core: ["lung"] }, { age: 52, countryCode: "CH" }));
+    expect(result.modifiers).toEqual(["plco-race-reference", "plco-age-extrapolated", "plco-copd-proxy"]);
+  });
+
+  test("is not applicable for never-smokers or outside 50 to 80", () => {
+    const never = { ...currentSmoker, current_tobacco_nicotine: false };
+    expect(notApplicable(score("plcom2012", never, sixtyFive)).reason).toBe("never-smoked");
+    expect(notApplicable(score("plcom2012", currentSmoker, { age: 49, countryCode: "CH" })).reason).toBe("age-out-of-range");
+    expect(notApplicable(score("plcom2012", currentSmoker, { age: 81, countryCode: "CH" })).reason).toBe("age-out-of-range");
+  });
+
+  test("names the smoking history and the education follow-up when missing", () => {
+    const missing = incomplete(score("plcom2012", omit(currentSmoker, "education_highest_level", "smoking_cigarettes_per_day", "family_lung_cancer"), sixtyFive));
+    expect(missing.missingInputs).toEqual(["education_highest_level", "family_lung_cancer", "smoking_cigarettes_per_day"]);
+    const former = incomplete(score("plcom2012", { ...currentSmoker, current_tobacco_nicotine: false, smoking_history_former: true }, sixtyFive));
+    expect(former.missingInputs).toEqual(["smoking_years_since_quit"]);
+  });
+});
+
 describe("release policy and audience", () => {
   test("withholds percentages but keeps categories when the policy forbids probabilities", () => {
     const result = complete(score("findrisc", FINDRISC_ZERO, CH_40, [], publicWellnessPolicy));
@@ -782,7 +903,7 @@ describe("release policy and audience", () => {
     });
   });
 
-  test("evaluates all eight instruments for an adult and cites resolvable sources", () => {
+  test("evaluates all ten instruments for an adult and cites resolvable sources", () => {
     const synthesis = evaluatePathologyRisk({}, CH, [], prototypePolicy);
     expect(synthesis.scores.map((result) => result.instrument)).toEqual([
       "score2",
@@ -790,6 +911,8 @@ describe("release policy and audience", () => {
       "stop-bang",
       "copd-ps",
       "caide",
+      "lee-index",
+      "plcom2012",
       "audit-c",
       "phq-2",
       "gad-2",

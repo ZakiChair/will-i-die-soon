@@ -19,7 +19,11 @@ describe("Express summary", () => {
     ).toEqual({
       sex: "female",
       cardio: { vo2Max: 20, vo2Percentile: 50, moderateMinutes: 120 },
-      strength: { chairStandCount: 14, chairStandBand: "within", strengthDays: 1 },
+      strength: {
+        chairStandCount: 14, chairStandBand: "within",
+        bodyWeightKg: null, squatKg: null, squatBodyWeightRatio: null, deadliftKg: null, deadliftBodyWeightRatio: null,
+        strengthDays: 1,
+      },
       sleep: { hours: 7.5, refreshed: 8 },
       nutrition: { plantPortions: 4, ultraProcessedFrequency: "rarely" },
     });
@@ -47,7 +51,26 @@ describe("Express summary", () => {
 
   test("keeps the chair-stand count visible before age 60 without a band", () => {
     const summary = buildExpressSummary({ sex_assigned_at_birth: "male", chair_stand_30s_count: 18 }, { ageYears: 45 });
-    expect(summary.strength).toEqual({ chairStandCount: 18, chairStandBand: null, strengthDays: null });
+    expect(summary.strength).toMatchObject({ chairStandCount: 18, chairStandBand: null, strengthDays: null });
+  });
+
+  test("shows optional lifts with their body-weight ratio rounded to two decimals", () => {
+    const summary = buildExpressSummary({ weight_kg: 80, squat_one_rep_max_kg: 123, deadlift_one_rep_max_kg: 181 }, { ageYears: 35 });
+    expect(summary.strength).toMatchObject({
+      bodyWeightKg: 80, squatKg: 123, squatBodyWeightRatio: 1.54, deadliftKg: 181, deadliftBodyWeightRatio: 2.26,
+    });
+  });
+
+  test("keeps a declared lift visible without a ratio when body weight is missing or invalid", () => {
+    expect(buildExpressSummary({ squat_one_rep_max_kg: 100 }).strength).toMatchObject({
+      bodyWeightKg: null, squatKg: 100, squatBodyWeightRatio: null, deadliftKg: null, deadliftBodyWeightRatio: null,
+    });
+    expect(buildExpressSummary({ weight_kg: 0, deadlift_one_rep_max_kg: 100 }).strength).toMatchObject({
+      bodyWeightKg: null, deadliftKg: 100, deadliftBodyWeightRatio: null,
+    });
+    expect(buildExpressSummary({ weight_kg: 80, squat_one_rep_max_kg: 0, deadlift_one_rep_max_kg: -5 }).strength).toMatchObject({
+      bodyWeightKg: 80, squatKg: null, squatBodyWeightRatio: null, deadliftKg: null, deadliftBodyWeightRatio: null,
+    });
   });
 
   test("defaults to no age, so no norm is applied", () => {
@@ -70,7 +93,11 @@ describe("Express summary", () => {
 
     expect(summary.sex).toBeNull();
     expect(summary.cardio).toEqual({ vo2Max: null, vo2Percentile: null, moderateMinutes: 0 });
-    expect(summary.strength).toEqual({ chairStandCount: null, chairStandBand: null, strengthDays: null });
+    expect(summary.strength).toEqual({
+      chairStandCount: null, chairStandBand: null,
+      bodyWeightKg: null, squatKg: null, squatBodyWeightRatio: null, deadliftKg: null, deadliftBodyWeightRatio: null,
+      strengthDays: null,
+    });
     expect(summary.sleep).toEqual({ hours: 0, refreshed: 0 });
     expect(summary.nutrition).toEqual({ plantPortions: 0, ultraProcessedFrequency: null });
   });

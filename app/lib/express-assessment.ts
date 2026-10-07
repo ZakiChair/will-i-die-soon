@@ -20,9 +20,18 @@ export type ExpressAxis = {
   score: number | null;
   availableComponents: number;
   totalComponents: number;
+  /** Composantes optionnelles renseignées et comptées dans la moyenne (sous-ensemble de availableComponents). */
+  optionalComponents: number;
   status: "support" | "improve" | "attention" | "missing";
   signals: ExpressSignalId[];
 };
+
+/**
+ * Une composante optionnelle n'est applicable que lorsqu'elle est renseignée :
+ * absente, elle ne bloque ni la complétude ni le minimum de composantes ;
+ * renseignée, elle entre dans la moyenne de l'axe comme les autres.
+ */
+export type ExpressComponent = Readonly<{ points: number | null; applicable: boolean; optional?: true }>;
 
 export type ExpressAssessment = {
   version: "express-index-v2";
@@ -110,6 +119,9 @@ export const CHAIR_STAND_NORMAL_RANGE: Readonly<Record<ExpressReferenceSex, read
  * comparés à des normes publiées par âge et sexe ; activité, jours de
  * renforcement, sommeil et alimentation suivent des recommandations
  * (OMS 2020, Life's Essential 8, OMS alimentation), pas des normes.
+ * Les 1RM squat et soulevé de terre (optionnels) sont lus en ratio au poids
+ * de corps face à une référence produit (1,0 × et 1,5 × le poids de corps) :
+ * ni norme d'âge ou de sexe, ni prédicteur de mortalité validé.
  */
 export const EXPRESS_INDEX_REFERENCE = {
   version: "express-index-v2",
@@ -128,6 +140,10 @@ export const EXPRESS_INDEX_REFERENCE = {
   chairStandReferenceFromAge: 60,
   chairStandReferenceToAge: 94,
   chairStandPoints: { below: 25, within: 65, above: 100 },
+  // Convention produit : charge / poids de corps rapportée à la référence, plafonnée à 100 points.
+  squatBodyWeight: 1,
+  deadliftBodyWeight: 1.5,
+  optionalStrengthLifts: ["squat_one_rep_max_kg", "deadlift_one_rep_max_kg"],
   strengthDaysPoints: { none: 0, one: 50, guideline: 100 },
   sleepShortHours: 6,
   sleepLongHours: 10,
@@ -274,12 +290,21 @@ function strengthDaysPoints(days: number | null): number | null {
   return days >= EXPRESS_INDEX_REFERENCE.strengthDays ? guideline : days >= 1 ? one : none;
 }
 
-type Component = Readonly<{ points: number | null; applicable: boolean }>;
+/** Points d'un 1RM : 100 × (charge / poids de corps) / référence, plafonné à 100. Sans poids de corps, aucun point. */
+export function liftPoints(loadKg: number | null, bodyWeightKg: number | null, bodyWeightReference: number): number | null {
+  return loadKg === null || bodyWeightKg === null ? null
+    : new Decimal(loadKg).div(bodyWeightKg).div(bodyWeightReference).times(100).clamp(0, 100).toNumber();
+}
 
-function buildAxis(id: ExpressAxisId, components: readonly Component[], signals: readonly ExpressSignalId[]): AxisDraft {
+function optionalComponent(points: number | null): ExpressComponent {
+  return { points, applicable: points !== null, optional: true };
+}
+
+function buildAxis(id: ExpressAxisId, components: readonly ExpressComponent[], signals: readonly ExpressSignalId[]): AxisDraft {
   const applicable = components.filter((component) => component.applicable);
   const rawScore = mean(applicable.map((component) => component.points));
   const availableComponents = applicable.filter((component) => component.points !== null).length;
+  const optionalComponents = applicable.filter((component) => component.optional && component.points !== null).length;
   const attention = signals.some((signal) => ATTENTION_SIGNALS.has(signal));
   const status: ExpressAxis["status"] = rawScore === null ? "missing" : attention ? "attention"
     : rawScore >= EXPRESS_INDEX_REFERENCE.axisSupport ? "support" : "improve";
@@ -290,7 +315,7 @@ function buildAxis(id: ExpressAxisId, components: readonly Component[], signals:
     rawScore,
     axis: {
       id, score: rawScore === null ? null : Math.round(rawScore),
-      availableComponents, totalComponents: applicable.length, status,
+      availableComponents, totalComponents: applicable.length, optionalComponents, status,
       signals: [...actionable, ...maintenance, ...context],
     },
   };
@@ -318,6 +343,9 @@ export function buildExpressAssessment(
   const vo2 = positive(answers.reported_vo2_max_ml_kg_min);
   const minutes = nonnegative(answers.weekly_moderate_activity_minutes);
   const stands = nonnegative(answers.chair_stand_30s_count);
+  const squat = positive(answers.squat_one_rep_max_kg);
+  const deadlift = positive(answers.deadlift_one_rep_max_kg);
+  const bodyWeight = positive(answers.weight_kg);
   const days = nonnegative(answers.movement_strength_days);
   const hours = nonnegative(answers.usual_sleep_hours, 24);
   const refreshed = nonnegative(answers.sleep_refreshed, 10);
@@ -362,6 +390,8 @@ export function buildExpressAssessment(
     ], cardioSignals),
     buildAxis("strength", [
       { points: band === null ? null : EXPRESS_INDEX_REFERENCE.chairStandPoints[band], applicable: sexApplicable && chairStandApplicable },
+      optionalComponent(liftPoints(squat, bodyWeight, EXPRESS_INDEX_REFERENCE.squatBodyWeight)),
+      optionalComponent(liftPoints(deadlift, bodyWeight, EXPRESS_INDEX_REFERENCE.deadliftBodyWeight)),
       { points: strengthDaysPoints(days), applicable: true },
     ], strengthSignals),
     buildAxis("sleep", [
@@ -395,7 +425,7 @@ export function buildExpressAssessment(
     version: "express-index-v2",
     kind: !sufficient ? "insufficient-inputs" : complete ? "complete-index" : "partial-index",
     score: rawScore === null ? null : Math.round(rawScore), axes,
-    answeredCount: [sex, vo2, minutes, stands, days, hours, refreshed, plants, processed]
+    answeredCount: [sex, vo2, minutes, stands, bodyWeight, squat, deadlift, days, hours, refreshed, plants, processed]
       .filter((value) => value !== null).length,
     interpretableComponentCount, applicableComponentCount, scoredAxisCount,
     profile: attention.length ? "attention" : !complete ? "incomplete"

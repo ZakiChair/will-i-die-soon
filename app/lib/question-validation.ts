@@ -16,6 +16,8 @@ const MAXIMUM_BY_QUESTION: Readonly<Record<string, number>> = {
   waist_circumference_cm: 250,
   neck_circumference_cm: 80,
   chair_stand_30s_count: 60,
+  squat_one_rep_max_kg: 600,
+  deadlift_one_rep_max_kg: 600,
   smoking_cigarettes_per_day: 100,
   smoking_years_total: 100,
   smoking_years_since_quit: 100,
@@ -27,6 +29,8 @@ const POSITIVE_MEASUREMENTS: ReadonlySet<string> = new Set([
   "weight_kg",
   "waist_circumference_cm",
   "neck_circumference_cm",
+  "squat_one_rep_max_kg",
+  "deadlift_one_rep_max_kg",
 ]);
 
 /** Bornes d'unité uniquement : aucune valeur « normale » médicale n'est imposée. */

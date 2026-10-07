@@ -56,7 +56,10 @@ export const DEFAULT_PILLAR_BY_DOMAIN = {
 export const QUESTION_PILLAR_OVERRIDES = {
   reported_vo2_max_ml_kg_min: "cardio-energy",
   chair_stand_30s_count: "strength-neural",
+  squat_one_rep_max_kg: "strength-neural",
+  deadlift_one_rep_max_kg: "strength-neural",
   falls_past_year: "strength-neural",
+  functional_difficulties: "strength-neural",
   erectile_difficulty: "cardio-energy",
   pregnancy_complication_history: "cardio-energy",
   family_diabetes: "nutrition-metabolic",
@@ -65,6 +68,7 @@ export const QUESTION_PILLAR_OVERRIDES = {
   diagnosed_high_cholesterol: "nutrition-metabolic",
   statin_current: "cardio-energy",
   education_years: "strength-neural",
+  education_highest_level: "strength-neural",
   neck_circumference_cm: "sleep-circadian",
   cancer_alarm_signs: "nutrition-metabolic",
   dementia_family_history: "strength-neural",

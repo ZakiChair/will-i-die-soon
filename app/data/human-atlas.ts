@@ -52,7 +52,8 @@ export const humanAtlasScenes = [
     titleKey: "landing.atlas.strength.title",
     descriptionKey: "landing.atlas.strength.description",
     inputLabelKey: "landing.atlas.strength.input",
-    questionIds: ["chair_stand_30s_count", "movement_strength_days"],
+    // Le poids de corps est le dénominateur des charges optionnelles ; il appartient donc à la scène Force.
+    questionIds: ["chair_stand_30s_count", "weight_kg", "squat_one_rep_max_kg", "deadlift_one_rep_max_kg", "movement_strength_days"],
   },
   {
     id: "energy",

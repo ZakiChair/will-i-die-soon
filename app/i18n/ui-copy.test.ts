@@ -168,7 +168,7 @@ describe("complete bilingual UI copy", () => {
   test("preserves canonical English result copy and natural calibrated French support wording", () => {
     expect(uiCopy.en["depth.express"]).toBe("Express");
     expect(uiCopy.en["depth.express.detail"]).toBe(
-      "9 targeted questions · under 1 minute",
+      "12 targeted questions · under 1 minute",
     );
     expect(uiCopy.en["depth.express.description"]).toBe(
       "VO₂ max, strength, sleep, and nutrition for adults.",
