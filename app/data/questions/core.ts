@@ -76,6 +76,33 @@ export const coreQuestions = defineQuestions([
     consumers: ["pathology-scores"],
   },
   {
+    id: "race_ethnicity",
+    domain: "demographics",
+    prompt: "Which of these groups best describes your race or ethnicity?",
+    why: "The PLCOm2012 lung-cancer model carries a race or ethnicity term fitted in the United States: compared with White participants, risk was higher in Black and in Native Hawaiian or Pacific Islander participants and lower in Hispanic and Asian participants. For any other group the term stays at its reference value.",
+    answerType: "single",
+    options: [
+      { value: "white", label: "White" },
+      { value: "black", label: "Black or of African descent" },
+      { value: "hispanic", label: "Hispanic or Latino" },
+      { value: "asian", label: "Asian" },
+      { value: "american_indian_alaska_native", label: "American Indian or Alaska Native" },
+      { value: "native_hawaiian_pacific_islander", label: "Native Hawaiian or other Pacific Islander" },
+      { value: "other_or_mixed", label: "Another group, or mixed heritage" },
+    ],
+    sensitive: true,
+    minAge: 50,
+    priority: 1.56,
+    tiers: ["detailed", "deep"],
+    condition: {
+      any: [
+        { questionId: "current_tobacco_nicotine", operator: "equals", value: true },
+        { questionId: "smoking_history_former", operator: "equals", value: true },
+      ],
+    },
+    consumers: ["pathology-scores"],
+  },
+  {
     id: "height_cm",
     domain: "measurements",
     prompt: "What is your current height in centimetres?",

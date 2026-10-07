@@ -1667,6 +1667,19 @@ const PLCO = {
   quitYears: -0.0308572,
   quitYearsCentre: 10,
 } as const;
+/**
+ * Race or ethnicity term of PLCOm2012 (Table 2 of the publication); White and American Indian
+ * or Alaska Native form the reference group. Any other answer is scored at the reference and flagged.
+ */
+const PLCO_RACE_TERM = {
+  white: 0,
+  american_indian_alaska_native: 0,
+  black: 0.3944778,
+  hispanic: -0.7434744,
+  asian: -0.466585,
+  native_hawaiian_pacific_islander: 1.027152,
+} as const;
+export type PlcoRace = keyof typeof PLCO_RACE_TERM;
 /** Six-year risk at which PLCO-based screening selection matched the USPSTF 2013 criteria. */
 const PLCO_SCREENING_THRESHOLD_PERCENT = 1.5;
 const PLCO_EDUCATION_LEVEL: Readonly<Record<string, number>> = {
@@ -1693,8 +1706,30 @@ function derivePlcoEducation(context: EvaluationContext): Derived<number> {
   return { value: PLCO_EDUCATION_LEVEL[level], inputs: [...inputs, { id: "education_highest_level", value: level }], missing: [] };
 }
 
+type PlcoRaceReading = Derived<PlcoRace> & { readonly atReference: boolean };
+
+/**
+ * Race or ethnicity for PLCOm2012. A modelled group applies its term; a group outside the
+ * five modelled ones, or a question deliberately skipped, is scored at the reference and
+ * flagged, as screening programmes do for unreported race. A question not yet answered stays missing.
+ */
+function derivePlcoRace(context: EvaluationContext): PlcoRaceReading {
+  const answer = readSingle(context.answers, "race_ethnicity");
+  if (answer !== undefined && answer in PLCO_RACE_TERM) {
+    return { value: answer as PlcoRace, inputs: [{ id: "race_ethnicity", value: answer }], missing: [], atReference: false };
+  }
+  if (answer !== undefined) {
+    return { value: "white", inputs: [{ id: "race_ethnicity", value: answer }], missing: [], atReference: true };
+  }
+  if (rawAnswer(context.answers, "race_ethnicity") === null) {
+    return { value: "white", inputs: [], missing: [], atReference: true };
+  }
+  return { value: undefined, inputs: [], missing: ["race_ethnicity"], atReference: false };
+}
+
 export function plcom2012SixYearRisk(input: Readonly<{
   age: number;
+  race: PlcoRace;
   educationLevel: number;
   bmi: number;
   copd: boolean;
@@ -1708,6 +1743,7 @@ export function plcom2012SixYearRisk(input: Readonly<{
   const linear =
     PLCO.intercept +
     PLCO.age * (input.age - PLCO.ageCentre) +
+    PLCO_RACE_TERM[input.race] +
     PLCO.education * (input.educationLevel - PLCO.educationCentre) +
     PLCO.bmi * (input.bmi - PLCO.bmiCentre) +
     (input.copd ? PLCO.copd : 0) +
@@ -1733,6 +1769,8 @@ function evaluatePlcom2012(context: EvaluationContext): PathologyScoreResult {
   collector.age();
   const smokedEver = collector.derived(everSmoked);
   const currentSmoker = collector.derived(context.currentSmoker);
+  const raceReading = derivePlcoRace(context);
+  const race = collector.derived(raceReading);
   const education = collector.derived(derivePlcoEducation(context));
   const bmi = collector.derived(context.bodyMassIndex);
   const conditions = context.diagnosedConditions;
@@ -1751,8 +1789,8 @@ function evaluatePlcom2012(context: EvaluationContext): PathologyScoreResult {
   }
 
   if (
-    smokedEver === undefined || currentSmoker === undefined || education === undefined || bmi === undefined ||
-    conditions === undefined || copd === undefined || familyLungCancer === undefined ||
+    smokedEver === undefined || currentSmoker === undefined || race === undefined || education === undefined ||
+    bmi === undefined || conditions === undefined || copd === undefined || familyLungCancer === undefined ||
     cigarettesPerDay === undefined || yearsSmoked === undefined || yearsSinceQuit === undefined
   ) {
     // Items hidden behind the smoking-history or education gates are counted there rather than asked directly.
@@ -1761,7 +1799,7 @@ function evaluatePlcom2012(context: EvaluationContext): PathologyScoreResult {
       (educationYears === undefined || educationYears === "ten_plus") &&
       readSingle(context.answers, "education_highest_level") === undefined;
     const conditional = [
-      ...(smokedEver === undefined ? ["smoking_cigarettes_per_day", "smoking_years_total", "family_lung_cancer"] : []),
+      ...(smokedEver === undefined ? ["race_ethnicity", "smoking_cigarettes_per_day", "smoking_years_total", "family_lung_cancer"] : []),
       ...(educationLevelPending && !collector.missing.includes("education_highest_level") ? ["education_highest_level"] : []),
       ...(currentSmoker === undefined ? ["smoking_years_since_quit"] : []),
       ...(conditions === undefined ? ["copd_diagnosed"] : []),
@@ -1772,6 +1810,7 @@ function evaluatePlcom2012(context: EvaluationContext): PathologyScoreResult {
   const riskPercent = Math.round(
     plcom2012SixYearRisk({
       age,
+      race,
       educationLevel: education,
       bmi,
       copd,
@@ -1784,9 +1823,11 @@ function evaluatePlcom2012(context: EvaluationContext): PathologyScoreResult {
     }) * 10,
   ) / 10;
   const screening = riskPercent >= PLCO_SCREENING_THRESHOLD_PERCENT;
-  // The race term is not collected and stays at its reference category; the
-  // PLCO cohort was aged 55–74.
-  const modifiers = ["plco-race-reference", ...(age < 55 || age > 74 ? ["plco-age-extrapolated"] : [])];
+  // The PLCO cohort was aged 55–74.
+  const modifiers = [
+    ...(raceReading.atReference ? ["plco-race-reference"] : []),
+    ...(age < 55 || age > 74 ? ["plco-age-extrapolated"] : []),
+  ];
   return complete(
     "plcom2012",
     PLCO_SOURCES,

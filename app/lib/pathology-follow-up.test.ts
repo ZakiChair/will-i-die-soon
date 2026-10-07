@@ -168,7 +168,7 @@ describe("follow-up plan", () => {
     const current = plan({}, profile, "plcom2012").find(
       (step) => step.kind === "question" && step.questionId === "current_tobacco_nicotine",
     );
-    expect(current).toMatchObject({ opens: ["family_lung_cancer", "smoking_cigarettes_per_day", "smoking_years_total"] });
+    expect(current).toMatchObject({ opens: ["race_ethnicity", "family_lung_cancer", "smoking_cigarettes_per_day", "smoking_years_total"] });
     const steps = plan({}, profile, "plcom2012");
     expect(steps.find((step) => step.kind === "question" && step.questionId === "education_years")).toMatchObject({ opens: ["education_highest_level"] });
     expect(steps.find((step) => step.kind === "question" && step.questionId === "smoking_history_former")).toMatchObject({ opens: ["smoking_years_since_quit"] });
@@ -177,7 +177,7 @@ describe("follow-up plan", () => {
     const former = plan({ current_tobacco_nicotine: false }, profile, "plcom2012").find(
       (step) => step.kind === "question" && step.questionId === "smoking_history_former",
     );
-    expect(former).toMatchObject({ opens: expect.arrayContaining(["smoking_cigarettes_per_day", "family_lung_cancer"]) });
+    expect(former).toMatchObject({ opens: expect.arrayContaining(["race_ethnicity", "smoking_cigarettes_per_day", "family_lung_cancer"]) });
     expect(questionIds(plan({ current_tobacco_nicotine: false }, profile, "plcom2012"))).not.toContain("current_tobacco_nicotine");
   });
 

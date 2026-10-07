@@ -25,8 +25,8 @@ describe("French question translations", () => {
     expect(localized.options?.map(({ value }) => value)).toEqual(["procedure", "none"]);
   });
 
-  it("covers the audited 157-question bank with every canonical option value", () => {
-    expect(questionBank).toHaveLength(157);
+  it("covers the audited 158-question bank with every canonical option value", () => {
+    expect(questionBank).toHaveLength(158);
     expect(Object.keys(frQuestionTranslations).sort()).toEqual(
       questionBank.map(({ id }) => id).sort(),
     );

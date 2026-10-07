@@ -831,6 +831,7 @@ describe("PLCOm2012", () => {
   const currentSmoker: AnswerMap = {
     education_years: "ten_plus",
     education_highest_level: "secondary_diploma",
+    race_ethnicity: "white",
     height_cm: 170,
     weight_kg: 70,
     diagnosed_conditions_core: ["none"],
@@ -843,24 +844,63 @@ describe("PLCOm2012", () => {
   const sixtyFive: ProfileContext = { age: 65, countryCode: "CH" };
 
   test("reproduces the logistic model at the centring values", () => {
-    const reference = { age: 62, educationLevel: 4, bmi: 27, copd: false, personalCancer: false, familyLungCancer: false, currentSmoker: true, cigarettesPerDay: 20, yearsSmoked: 27, yearsSinceQuit: 0 };
+    const reference = { age: 62, race: "white" as const, educationLevel: 4, bmi: 27, copd: false, personalCancer: false, familyLungCancer: false, currentSmoker: true, cigarettesPerDay: 20, yearsSmoked: 27, yearsSinceQuit: 0 };
     expect(plcom2012SixYearRisk(reference)).toBeCloseTo(1.563, 3);
     expect(plcom2012SixYearRisk({ ...reference, currentSmoker: false, yearsSinceQuit: 10 })).toBeCloseTo(0.892, 3);
+    // Worked example of an independent implementation: 66 years, education 4, BMI 26.5,
+    // family history, former smoker of 20 a day for 40 years who quit 5 years ago.
+    expect(plcom2012SixYearRisk({ age: 66, race: "white", educationLevel: 4, bmi: 26.5, copd: false, personalCancer: false, familyLungCancer: true, currentSmoker: false, cigarettesPerDay: 20, yearsSmoked: 40, yearsSinceQuit: 5 })).toBeCloseTo(3.7994, 4);
+  });
+
+  test("applies the published race or ethnicity terms at the centring values", () => {
+    const reference = { age: 62, race: "white" as const, educationLevel: 4, bmi: 27, copd: false, personalCancer: false, familyLungCancer: false, currentSmoker: true, cigarettesPerDay: 20, yearsSmoked: 27, yearsSinceQuit: 0 };
+    expect(plcom2012SixYearRisk({ ...reference, race: "american_indian_alaska_native" })).toBeCloseTo(1.563, 3);
+    expect(plcom2012SixYearRisk({ ...reference, race: "black" })).toBeCloseTo(2.302, 3);
+    expect(plcom2012SixYearRisk({ ...reference, race: "hispanic" })).toBeCloseTo(0.7495, 4);
+    expect(plcom2012SixYearRisk({ ...reference, race: "asian" })).toBeCloseTo(0.986, 3);
+    expect(plcom2012SixYearRisk({ ...reference, race: "native_hawaiian_pacific_islander" })).toBeCloseTo(4.248, 3);
   });
 
   test("scores a current smoker above the screening threshold", () => {
     const result = complete(score("plcom2012", currentSmoker, sixtyFive));
     expect(result).toMatchObject({ category: "screening-threshold-met", level: "high", riskPercent: 6.5, riskHorizonYears: 6 });
-    expect(result.modifiers).toEqual(["plco-race-reference"]);
+    expect(result.modifiers).toEqual([]);
+    expect(result.inputs).toContainEqual({ id: "race_ethnicity", value: "white" });
     expect(result.inputs).toContainEqual({ id: "smoking_years_since_quit", value: 0, derived: true });
     expect(result.gain).toMatchObject({ habits: ["no-smoking"], category: "screening-threshold-met", riskPercent: 5.1 });
+  });
+
+  test("reads the race or ethnicity answer and flags only what the model cannot place", () => {
+    expect(complete(score("plcom2012", { ...currentSmoker, race_ethnicity: "black" }, sixtyFive))).toMatchObject({ riskPercent: 9.3, modifiers: [] });
+    expect(complete(score("plcom2012", { ...currentSmoker, race_ethnicity: "hispanic" }, sixtyFive))).toMatchObject({ riskPercent: 3.2, modifiers: [] });
+    expect(complete(score("plcom2012", { ...currentSmoker, race_ethnicity: "asian" }, sixtyFive))).toMatchObject({ riskPercent: 4.2, modifiers: [] });
+    expect(complete(score("plcom2012", { ...currentSmoker, race_ethnicity: "native_hawaiian_pacific_islander" }, sixtyFive))).toMatchObject({ riskPercent: 16.2, modifiers: [] });
+    expect(complete(score("plcom2012", { ...currentSmoker, race_ethnicity: "american_indian_alaska_native" }, sixtyFive))).toMatchObject({ riskPercent: 6.5, modifiers: [] });
+
+    const other = complete(score("plcom2012", { ...currentSmoker, race_ethnicity: "other_or_mixed" }, sixtyFive));
+    expect(other).toMatchObject({ riskPercent: 6.5, modifiers: ["plco-race-reference"] });
+    expect(other.inputs).toContainEqual({ id: "race_ethnicity", value: "other_or_mixed" });
+
+    // A deliberate skip is scored at the reference and flagged, without inventing an answer.
+    const skipped = complete(score("plcom2012", { ...currentSmoker, race_ethnicity: null }, sixtyFive));
+    expect(skipped).toMatchObject({ riskPercent: 6.5, modifiers: ["plco-race-reference"] });
+    expect(skipped.inputs.map((input) => input.id)).not.toContain("race_ethnicity");
+
+    // A question not yet answered leaves the estimate open across the modelled groups.
+    const pending = incomplete(score("plcom2012", omit(currentSmoker, "race_ethnicity"), sixtyFive));
+    expect(pending.missingInputs).toEqual(["race_ethnicity"]);
+    expect(pending.range).toEqual({
+      low: { category: "screening-threshold-met", level: "high", riskPercent: 3.2 },
+      high: { category: "screening-threshold-met", level: "high", riskPercent: 16.2 },
+      riskHorizonYears: 6,
+    });
   });
 
   test("scores a light former smoker below the threshold using the three-band education answer", () => {
     const result = complete(
       score(
         "plcom2012",
-        { education_years: "seven_to_nine", height_cm: 170, weight_kg: 78, diagnosed_conditions_core: ["none"], current_tobacco_nicotine: false, smoking_history_former: true, family_lung_cancer: false, smoking_cigarettes_per_day: 10, smoking_years_total: 15, smoking_years_since_quit: 20 },
+        { education_years: "seven_to_nine", race_ethnicity: "white", height_cm: 170, weight_kg: 78, diagnosed_conditions_core: ["none"], current_tobacco_nicotine: false, smoking_history_former: true, family_lung_cancer: false, smoking_cigarettes_per_day: 10, smoking_years_total: 15, smoking_years_since_quit: 20 },
         { age: 58, countryCode: "CH" },
       ),
     );
@@ -872,7 +912,7 @@ describe("PLCOm2012", () => {
     const lung = { ...currentSmoker, diagnosed_conditions_core: ["lung"] };
     expect(incomplete(score("plcom2012", lung, sixtyFive)).missingInputs).toEqual(["copd_diagnosed"]);
     const asthmaOnly = complete(score("plcom2012", { ...lung, copd_diagnosed: false }, sixtyFive));
-    const copd = complete(score("plcom2012", { ...lung, copd_diagnosed: true }, { age: 52, countryCode: "CH" }));
+    const copd = complete(score("plcom2012", { ...lung, copd_diagnosed: true, race_ethnicity: "other_or_mixed" }, { age: 52, countryCode: "CH" }));
     expect(asthmaOnly.riskPercent).toBe(6.5);
     expect(copd.modifiers).toEqual(["plco-race-reference", "plco-age-extrapolated"]);
     expect(copd.inputs).toContainEqual({ id: "copd_diagnosed", value: true });
@@ -886,8 +926,8 @@ describe("PLCOm2012", () => {
   });
 
   test("names the smoking history and the education follow-up when missing", () => {
-    const missing = incomplete(score("plcom2012", omit(currentSmoker, "education_highest_level", "smoking_cigarettes_per_day", "family_lung_cancer"), sixtyFive));
-    expect(missing.missingInputs).toEqual(["education_highest_level", "family_lung_cancer", "smoking_cigarettes_per_day"]);
+    const missing = incomplete(score("plcom2012", omit(currentSmoker, "education_highest_level", "race_ethnicity", "smoking_cigarettes_per_day", "family_lung_cancer"), sixtyFive));
+    expect(missing.missingInputs).toEqual(["race_ethnicity", "education_highest_level", "family_lung_cancer", "smoking_cigarettes_per_day"]);
     const former = incomplete(score("plcom2012", { ...currentSmoker, current_tobacco_nicotine: false, smoking_history_former: true }, sixtyFive));
     expect(former.missingInputs).toEqual(["smoking_years_since_quit"]);
   });
