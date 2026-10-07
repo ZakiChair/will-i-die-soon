@@ -229,7 +229,7 @@ test("omits aria-describedby when a question has no presentation detail", () => 
 
 test.each([
   ["usual_sleep_hours", "100"],
-  ["movement_walking_days", "8"],
+  ["chair_stand_30s_count", "61"],
   ["movement_strength_days", "-1"],
   ["diet_legumes", "-1"],
   ["height_cm", "0"],
@@ -294,20 +294,17 @@ test("explains a missing answer and still permits an explicit skip", async () =>
   expect(onAnswer).toHaveBeenCalledExactlyOnceWith(null);
 });
 
-test.each(["squat_one_rep_max_kg", "deadlift_one_rep_max_kg"])(
-  "shows the no-new-maximal-lift instruction before answering %s",
-  async (id) => {
-    const user = userEvent.setup();
-    const onAnswer = renderControl(id);
-    await chooseFrench(user);
-    const guidance = screen.getByText(/Ne tentez pas de nouvelle charge maximale/);
-    expect(guidance).toBeVisible();
-    expect(guidance.closest("details")).toBeNull();
-    expect(screen.getByRole("spinbutton").getAttribute("aria-describedby")).toContain(guidance.id);
-    await user.click(screen.getByRole("button", { name: "Je ne connais pas cette mesure" }));
-    expect(onAnswer).toHaveBeenCalledExactlyOnceWith(null);
-  },
-);
+test("shows the chair-stand safety instruction before answering chair_stand_30s_count", async () => {
+  const user = userEvent.setup();
+  const onAnswer = renderControl("chair_stand_30s_count");
+  await chooseFrench(user);
+  const guidance = screen.getByText(/Ne tentez pas le test si vous vous sentez instable/);
+  expect(guidance).toBeVisible();
+  expect(guidance.closest("details")).toBeNull();
+  expect(screen.getByRole("spinbutton").getAttribute("aria-describedby")).toContain(guidance.id);
+  await user.click(screen.getByRole("button", { name: "Je ne connais pas cette mesure" }));
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith(null);
+});
 
 test("gives question-specific scale anchors and keeps the numeric selection through translation", async () => {
   const user = userEvent.setup();

@@ -57,6 +57,7 @@ const en = {
     declared_kidney: "A kidney condition was reported. ESC guidance places moderate or severe chronic kidney disease at high or very high risk regardless of this estimate, which assumes normal kidney function.",
     "diabetes-esc-classification": "Diabetes was reported. ESC guidance also classifies risk by its duration, organ damage and established atherosclerosis; the estimate alone does not settle that assessment.",
     "egfr-below-45": "An eGFR below 45 places clinical cardiovascular risk at high or very high regardless of the calculated SCORE2-Diabetes estimate. Discuss this with your diabetes care team.",
+    "findrisc-age-extrapolated": "FINDRISC was validated in 35–64-year-olds; outside that age range the same points apply, but the estimate is an extrapolation.",
   } as Readonly<Record<string, string>>,
   sourcesHeading: "Sources",
   levels: {
@@ -485,6 +486,7 @@ const fr = {
     declared_kidney: "Une maladie rénale a été déclarée. Les recommandations ESC classent l’insuffisance rénale chronique modérée ou sévère en risque élevé ou très élevé indépendamment de cette estimation, qui suppose une fonction rénale normale.",
     "diabetes-esc-classification": "Un diabète a été déclaré. Les recommandations ESC tiennent aussi compte de sa durée, de l’atteinte des organes et de l’athérosclérose établie\u00a0; l’estimation seule ne tranche pas cette évaluation.",
     "egfr-below-45": "Un DFG estimé inférieur à 45 place le risque cardiovasculaire clinique à un niveau élevé ou très élevé indépendamment du calcul SCORE2-Diabetes. Parlez-en à l’équipe qui suit votre diabète.",
+    "findrisc-age-extrapolated": "Le FINDRISC a été validé entre 35 et 64 ans ; en dehors de cette plage d’âge, les mêmes points s’appliquent mais l’estimation est une extrapolation.",
   } as Readonly<Record<string, string>>,
   sourcesHeading: "Sources",
   levels: {

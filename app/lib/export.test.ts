@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { createRedactedExport } from "./export";
 import { evaluatePathologyRisk } from "./pathology-risk";
 import { prototypePolicy, publicWellnessPolicy } from "./release-policy";
-import { buildActionPlan, calculatePurityScore } from "./scoring";
+import { buildActionPlan, calculateEssentialEight } from "./scoring";
 import type { ResultReport } from "./export";
 import type { AnswerMap, ReleasePolicy, RiskLeaf } from "./types";
 
@@ -36,10 +36,11 @@ const leaf: RiskLeaf = {
 const report: ResultReport & { readonly subjectAgeYears: number } = {
   subjectAgeYears: 35,
   assessmentDepth: "deep",
-  score: calculatePurityScore(
+  score: calculateEssentialEight(
     {
       current_tobacco_nicotine: false,
-      alcohol_frequency: "never",
+      smoking_history_former: false,
+      usual_sleep_hours: 7,
     },
     { ageYears: 35, assessmentDepth: "deep" },
   ),
@@ -83,30 +84,31 @@ const report: ResultReport & { readonly subjectAgeYears: number } = {
   },
 };
 
-const completeAdultScore = calculatePurityScore(
-  {
-    current_tobacco_nicotine: false,
-    alcohol_frequency: "never",
-    weekly_moderate_activity_minutes: 300,
-    movement_strength_days: 2,
-    movement_walking_days: 5,
-    sedentary_total_hours: 4,
-    plant_food_frequency: 5,
-    diet_whole_grains: "daily",
-    diet_legumes: 3,
-    diet_processed_meat: "never",
-    diet_sugary_drinks: 0,
-    usual_sleep_hours: 7,
-    sleep_refreshed: 9,
-    circadian_bedtime_variation: 1,
-    stress_recovery_practice: "daily",
-    preventive_followup_status: "not_due",
-    current_medications: false,
-  },
+const essentialEightAnswers: AnswerMap = {
+  plant_food_frequency: 5,
+  diet_whole_grains: "daily",
+  diet_legumes: 3,
+  diet_processed_meat: "never",
+  diet_sugary_drinks: 0,
+  weekly_moderate_activity_minutes: 150,
+  current_tobacco_nicotine: false,
+  smoking_history_former: false,
+  secondhand_smoke_home: false,
+  usual_sleep_hours: 7,
+  height_cm: 175,
+  weight_kg: 70,
+  diagnosed_conditions_core: ["none"],
+  blood_pressure_systolic: 115,
+  blood_pressure_diastolic: 75,
+  bp_medication_current: false,
+};
+
+const completeAdultScore = calculateEssentialEight(
+  essentialEightAnswers,
   { ageYears: 35, assessmentDepth: "deep" },
 );
 
-const quickAdultReflection = calculatePurityScore(
+const quickAdultReflection = calculateEssentialEight(
   report.answers,
   { ageYears: 35, assessmentDepth: "quick" },
 );
@@ -128,11 +130,12 @@ test("default JSON contains interpreted output and confirmed reviewed lab contex
 
   expect(blob.type).toBe("application/json");
   expect(json).toMatchObject({
-    schemaVersion: "health-risk-explorer-report-v5",
+    schemaVersion: "health-risk-explorer-report-v6",
     assessmentDepth: "deep",
     score: {
       kind: "insufficient-coverage",
-      coverage: 35,
+      reason: "answer-more-wellness-habits",
+      coverage: 25,
     },
     riskLeaves: [
       {
@@ -391,13 +394,13 @@ test("explicit raw opt-in includes only valid structured answers and still remov
 
 test("adult Express raw opt-in exports all nine structured answers without private metadata", async () => {
   const answers = {
-    reported_vo2_max_ml_kg_min: 48.5,
-    squat_one_rep_max_kg: 123,
-    deadlift_one_rep_max_kg: 181,
+    sex_assigned_at_birth: "female",
+    reported_vo2_max_ml_kg_min: 20,
+    weekly_moderate_activity_minutes: 150,
+    chair_stand_30s_count: 14,
+    movement_strength_days: 2,
     usual_sleep_hours: 7.5,
     sleep_refreshed: 8,
-    height_cm: 182,
-    weight_kg: 80,
     plant_food_frequency: 4,
     diet_ultra_processed: "rarely",
     exact_location: "SECRET STREET ADDRESS",
@@ -406,10 +409,10 @@ test("adult Express raw opt-in exports all nine structured answers without priva
     createRedactedExport(
       {
         ...report,
-        subjectAgeYears: 35,
+        subjectAgeYears: 67,
         assessmentDepth: "express",
-        score: calculatePurityScore(answers, {
-          ageYears: 35,
+        score: calculateEssentialEight(answers, {
+          ageYears: 67,
           assessmentDepth: "express",
         }),
         answers,
@@ -420,56 +423,74 @@ test("adult Express raw opt-in exports all nine structured answers without priva
 
   expect(json.assessmentDepth).toBe("express");
   expect(json.rawAnswers).toEqual({
-    deadlift_one_rep_max_kg: 181,
+    chair_stand_30s_count: 14,
     diet_ultra_processed: "rarely",
-    height_cm: 182,
+    movement_strength_days: 2,
     plant_food_frequency: 4,
-    reported_vo2_max_ml_kg_min: 48.5,
+    reported_vo2_max_ml_kg_min: 20,
+    sex_assigned_at_birth: "female",
     sleep_refreshed: 8,
-    squat_one_rep_max_kg: 123,
     usual_sleep_hours: 7.5,
-    weight_kg: 80,
+    weekly_moderate_activity_minutes: 150,
   });
   expect(JSON.stringify(json)).not.toMatch(/SECRET|STREET ADDRESS|exact_location/i);
   expect(json).not.toHaveProperty("expressSummary");
   expect(json.expressAssessment).toMatchObject({
-    version: "express-index-v1",
+    version: "express-index-v2",
     kind: "complete-index",
-    score: 92,
+    score: 82,
     answeredCount: 9,
-    interpretableComponentCount: 7,
+    interpretableComponentCount: 8,
+    applicableComponentCount: 8,
     scoredAxisCount: 4,
   });
 });
 
 test("Express exports its interpreted index separately without raw measurements by default", async () => {
   const answers = {
-    reported_vo2_max_ml_kg_min: 48.5,
-    squat_one_rep_max_kg: 123,
-    deadlift_one_rep_max_kg: 181,
+    sex_assigned_at_birth: "female",
+    reported_vo2_max_ml_kg_min: 20,
+    weekly_moderate_activity_minutes: 150,
+    chair_stand_30s_count: 14,
+    movement_strength_days: 2,
     usual_sleep_hours: 7.5,
     sleep_refreshed: 8,
-    height_cm: 182,
-    weight_kg: 80,
     plant_food_frequency: 4,
     diet_ultra_processed: "rarely",
     gender_identity_optional: "SECRET FREE TEXT",
   } as const;
   const json = await readJson(createRedactedExport({
     ...report,
+    subjectAgeYears: 67,
     assessmentDepth: "express",
     answers,
-    score: calculatePurityScore(answers, { ageYears: 35, assessmentDepth: "express" }),
+    score: calculateEssentialEight(answers, { ageYears: 67, assessmentDepth: "express" }),
   }));
   expect(json.score).toMatchObject({ kind: "insufficient-coverage", reason: "express-assessment" });
   expect(json.expressAssessment).toMatchObject({
+    version: "express-index-v2",
     kind: "complete-index",
-    score: 92,
+    score: 82,
     profile: "favorable",
-    interpretation: "heuristic-form-and-habits-index-not-a-health-diagnosis",
+    interpretation: "normed-fitness-and-guideline-habits-index-not-a-health-diagnosis",
+    reference: { version: "express-index-v2", axisSupport: 65, profileAxisMinimum: 50, activityMinutes: 150, strengthDays: 2 },
+    referencePopulation: {
+      vo2Max: { registry: "FRIEND", population: expect.stringMatching(/US adults aged 20-79 without cardiovascular disease/) },
+      chairStand: { reference: expect.stringMatching(/Rikli & Jones/), population: expect.stringMatching(/community-dwelling adults aged 60-94/) },
+    },
   });
+  const expressAssessment = json.expressAssessment as { sources: string[]; reference: { sources: { friend: { doi: string } } } };
+  expect(expressAssessment.sources).toEqual([
+    "https://doi.org/10.1016/j.mayocp.2015.07.026",
+    "https://doi.org/10.1123/japa.7.2.162",
+    "https://www.cdc.gov/steadi/media/pdfs/STEADI-Assessment-30Sec-508.pdf",
+    "https://www.who.int/publications/i/item/9789240015128",
+    "https://doi.org/10.1161/CIR.0000000000001078",
+    "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
+  ]);
+  expect(expressAssessment.reference.sources.friend.doi).toBe("10.1016/j.mayocp.2015.07.026");
   expect(json).not.toHaveProperty("rawAnswers");
-  expect(JSON.stringify(json.expressAssessment)).not.toMatch(/48\.5|123|181|182|SECRET|gender_identity_optional|rawAnswers|height_cm|weight_kg/);
+  expect(JSON.stringify(json.expressAssessment)).not.toMatch(/"female"|\b7\.5\b|SECRET|gender_identity_optional|rawAnswers|sex_assigned_at_birth|chair_stand_30s_count/);
 });
 
 test.each([17, 12, null, Number.NaN, 18.5, 121])("Express interpretation is not exported for unverified adult age %s", async (subjectAgeYears) => {
@@ -499,16 +520,16 @@ test.each([
   expect(json).not.toHaveProperty("subjectAgeYears");
 });
 
-test("merged adult barriers retain every reason and distinct source in structured export", async () => {
-  const answers = {
-    current_tobacco_nicotine: false,
-    alcohol_frequency: "never",
-    preventive_followup_status: "yes",
-    preventive_followup_action: "access_or_safety_barrier",
-    current_medications: true,
-    med_detail_prescriber_followup: "no_current_access",
-  } as const;
-  const score = calculatePurityScore(answers, {
+test("the action plan exports the three largest Life's Essential 8 deficits with their sources", async () => {
+  const answers: AnswerMap = {
+    ...essentialEightAnswers,
+    current_tobacco_nicotine: true,
+    tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
+    weekly_moderate_activity_minutes: 0,
+    usual_sleep_hours: 5,
+    blood_pressure_systolic: 125,
+  };
+  const score = calculateEssentialEight(answers, {
     ageYears: 35,
     assessmentDepth: "detailed",
   });
@@ -527,24 +548,32 @@ test("merged adult barriers retain every reason and distinct source in structure
   );
 
   expect(json.rawAnswers).toMatchObject({
-    preventive_followup_status: "yes",
-    preventive_followup_action: "access_or_safety_barrier",
-    current_medications: true,
-    med_detail_prescriber_followup: "no_current_access",
+    current_tobacco_nicotine: true,
+    tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
+    weekly_moderate_activity_minutes: 0,
   });
+  expect((json.actions as Array<Record<string, unknown>>).map((action) => action.id)).toEqual([
+    "habit-physical-activity",
+    "habit-nicotine",
+    "habit-sleep",
+  ]);
   expect(json.actions).toEqual([
     expect.objectContaining({
-      kind: "access-support",
-      reason: expect.stringMatching(/access or safety barrier/i),
+      kind: "habit",
+      categoryId: "physical-activity",
+      reason: "You reported no moderate or vigorous activity in a usual week.",
       sources: [
-        expect.objectContaining({ title: "Primary health care" }),
-        expect.objectContaining({ title: "Medication Without Harm" }),
+        expect.objectContaining({ publisher: "American Heart Association, Circulation 2022" }),
       ],
     }),
+    expect.objectContaining({ kind: "habit", categoryId: "nicotine" }),
+    expect.objectContaining({ kind: "habit", categoryId: "sleep" }),
   ]);
-  expect(JSON.stringify(json.actions)).toMatch(/no current access to prescriber follow-up/i);
-  expect((json.actions as Array<Record<string, unknown>>)[0]).not.toHaveProperty("source");
-  expect(json.schemaVersion).toBe("health-risk-explorer-report-v5");
+  for (const action of json.actions as Array<Record<string, unknown>>) {
+    expect(action).not.toHaveProperty("opportunity");
+    expect(action).not.toHaveProperty("source");
+  }
+  expect(json.schemaVersion).toBe("health-risk-explorer-report-v6");
 });
 
 test("raw opt-in is ignored when the trusted age guard is missing", async () => {
@@ -587,20 +616,20 @@ test("default JSON exports a curated action without its internal ranking sentine
       ...report,
       actions: [
         {
-          id: "access-medication-safety",
-          kind: "access-support",
-          categoryId: "medication-safety",
-          title: "Start with practical access and safety support",
-          reason: "No current access was reported.",
-          nextStep: "Choose a qualified local support route if you want one.",
+          id: "habit-blood-pressure",
+          kind: "habit",
+          categoryId: "blood-pressure",
+          title: "Have your blood pressure re-checked",
+          reason: "Your systolic reading is 120–129 mmHg with a diastolic under 80.",
+          nextStep: "A reading above 120/80 mmHg deserves repeat measurement.",
           sources: [
             {
-              title: "Medication Without Harm",
-              publisher: "World Health Organization",
-              url: "https://www.who.int/initiatives/medication-without-harm",
+              title: "Life's Essential 8",
+              publisher: "American Heart Association, Circulation 2022",
+              url: "https://doi.org/10.1161/CIR.0000000000001078",
             },
           ],
-          opportunity: Number.POSITIVE_INFINITY,
+          opportunity: 25,
         },
       ],
     }),
@@ -608,17 +637,17 @@ test("default JSON exports a curated action without its internal ranking sentine
 
   expect(json.actions).toEqual([
     {
-      id: "access-medication-safety",
-      kind: "access-support",
-      categoryId: "medication-safety",
-      title: "Start with practical access and safety support",
-      reason: "No current access was reported.",
-      nextStep: "Choose a qualified local support route if you want one.",
+      id: "habit-blood-pressure",
+      kind: "habit",
+      categoryId: "blood-pressure",
+      title: "Have your blood pressure re-checked",
+      reason: "Your systolic reading is 120–129 mmHg with a diastolic under 80.",
+      nextStep: "A reading above 120/80 mmHg deserves repeat measurement.",
       sources: [
         {
-          title: "Medication Without Harm",
-          publisher: "World Health Organization",
-          url: "https://www.who.int/initiatives/medication-without-harm",
+          title: "Life's Essential 8",
+          publisher: "American Heart Association, Circulation 2022",
+          url: "https://doi.org/10.1161/CIR.0000000000001078",
         },
       ],
     },

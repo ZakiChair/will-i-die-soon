@@ -1,9 +1,9 @@
 import { questionBank } from "../data/questions";
 import { buildExpressAssessment, EXPRESS_INDEX_REFERENCE } from "./express-assessment";
-import type { PresentedPurityScoreResult } from "../i18n/presentation";
+import type { PresentedEssentialEightResult } from "../i18n/presentation";
 import type { ConfirmedLabValue } from "./labs";
 import { pathologyOrientation } from "./pathology-orientation";
-import type { ActionItem, PurityScoreResult } from "./scoring";
+import type { ActionItem, EssentialEightResult } from "./scoring";
 import type {
   AnalysisDepth,
   AnswerMap,
@@ -15,12 +15,12 @@ import type {
   RiskLeaf,
 } from "./types";
 
-export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v5" as const;
+export const RESULT_REPORT_VERSION = "health-risk-explorer-report-v6" as const;
 
 export type ResultReport = {
   readonly subjectAgeYears: number | null;
   readonly assessmentDepth: AnalysisDepth;
-  readonly score: PurityScoreResult | PresentedPurityScoreResult;
+  readonly score: EssentialEightResult | PresentedEssentialEightResult;
   readonly riskLeaves: ReadonlyArray<RiskLeaf>;
   readonly actions: ReadonlyArray<ActionItem>;
   readonly confirmedLabs: ReadonlyArray<ConfirmedLabValue>;
@@ -217,13 +217,20 @@ export function createRedactedExport(
       ? {
           expressAssessment: {
             ...expressAssessment,
-            interpretation: "heuristic-form-and-habits-index-not-a-health-diagnosis",
+            interpretation: "normed-fitness-and-guideline-habits-index-not-a-health-diagnosis",
             reference: EXPRESS_INDEX_REFERENCE,
-            referencePopulation: null,
-            sources: [
-              "https://www.cdc.gov/sleep/about/index.html",
-              "https://www.who.int/news-room/fact-sheets/detail/healthy-diet",
-            ],
+            referencePopulation: {
+              vo2Max: {
+                registry: "FRIEND",
+                population: "US adults aged 20-79 without cardiovascular disease, treadmill cardiopulmonary exercise testing",
+                extrapolatedAges: "18-19 use the 20-29 band; 80+ use the 70-79 band",
+              },
+              chairStand: {
+                reference: "Rikli & Jones Senior Fitness Test",
+                population: "community-dwelling adults aged 60-94; no reference before age 60",
+              },
+            },
+            sources: Object.values(EXPRESS_INDEX_REFERENCE.sources).map(({ url }) => url),
           },
         }
       : {}),

@@ -66,8 +66,8 @@ const EXPRESS_ANSWERS: AnswerMap = {
   plant_food_frequency: 2,
   diet_ultra_processed: "weekly",
   reported_vo2_max_ml_kg_min: null,
-  squat_one_rep_max_kg: null,
-  deadlift_one_rep_max_kg: null,
+  chair_stand_30s_count: null,
+  weekly_moderate_activity_minutes: null,
 };
 
 function omit(answers: AnswerMap, ...ids: string[]): AnswerMap {
@@ -520,7 +520,7 @@ test("the JSON download reflects an answer added after the results, without its 
   await user.click(screen.getByRole("button", { name: /download json/i }));
 
   const updated = await readBlob(blobs[1]);
-  expect(updated.schemaVersion).toBe("health-risk-explorer-report-v5");
+  expect(updated.schemaVersion).toBe("health-risk-explorer-report-v6");
   expect(findrisc(updated)).toMatchObject({
     status: "complete",
     points: 15,

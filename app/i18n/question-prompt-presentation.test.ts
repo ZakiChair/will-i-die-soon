@@ -143,9 +143,9 @@ describe("question prompt presentation", () => {
     const refreshed = requiredQuestion("sleep_refreshed");
     const recovery = getQuestionPromptPresentation(refreshed.id, locale, localizeQuestion(refreshed, locale).prompt);
     expect(recovery.detail).toMatch(locale === "fr" ? /l'heure qui suit/ : /within an hour/);
-    const squat = requiredQuestion("squat_one_rep_max_kg");
-    const lifting = getQuestionPromptPresentation(squat.id, locale, localizeQuestion(squat, locale).prompt);
-    expect(lifting.detail).toMatch(locale === "fr" ? /déjà effectué.*kilogrammes/ : /already completed.*kilograms/);
+    const chairStand = requiredQuestion("chair_stand_30s_count");
+    const stands = getQuestionPromptPresentation(chairStand.id, locale, localizeQuestion(chairStand, locale).prompt);
+    expect(stands.detail).toMatch(locale === "fr" ? /30 secondes.*instable/ : /30 seconds.*unsteady/);
   });
 
   test.each(["en", "fr"] satisfies Locale[])("explains how to take each pathology measurement in %s", (locale) => {

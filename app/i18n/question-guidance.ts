@@ -29,13 +29,25 @@ const PRACTICAL_WHY = {
     en: "An existing VO₂ max value adds context to your cardiorespiratory fitness. Results vary by device and test method.",
     fr: "Une valeur de VO₂ max déjà connue complète votre profil de forme cardiorespiratoire. Elle peut varier selon l'appareil et la méthode de mesure.",
   },
-  squat_one_rep_max_kg: {
-    en: "An existing squat result adds context to your strength. It is optional and does not assess your overall health.",
-    fr: "Un résultat de squat déjà connu apporte un repère de force. Il est facultatif et n'évalue pas votre santé globale.",
+  chair_stand_30s_count: {
+    en: "The number of full stands from a chair in 30 seconds is a validated measure of leg strength and physical function, compared with age- and sex-specific reference ranges.",
+    fr: "Le nombre de levers complets d'une chaise en 30 secondes est une mesure validée de la force des jambes et de la fonction physique, comparée à des repères par âge et par sexe.",
   },
-  deadlift_one_rep_max_kg: {
-    en: "An existing deadlift result adds context to your strength. It is optional and does not assess your overall health.",
-    fr: "Un résultat de soulevé de terre déjà connu apporte un repère de force. Il est facultatif et n'évalue pas votre santé globale.",
+  weekly_vigorous_activity_minutes: {
+    en: "Vigorous minutes count double towards the weekly activity target, so separating them from moderate activity gives a fairer picture.",
+    fr: "Les minutes d'activité intense comptent double dans l'objectif hebdomadaire ; les séparer de l'activité modérée donne une image plus juste.",
+  },
+  smoking_cigarettes_per_day: {
+    en: "Cigarettes per day and years smoked are combined into an approximate pack-year total, which decides eligibility for lung cancer screening.",
+    fr: "Les cigarettes par jour et les années de tabagisme sont combinées en un total approximatif de paquets-années, qui détermine l'éligibilité au dépistage du cancer du poumon.",
+  },
+  smoking_years_total: {
+    en: "Count every year during which you smoked regularly, even with interruptions.",
+    fr: "Comptez toutes les années pendant lesquelles vous avez fumé régulièrement, même avec des interruptions.",
+  },
+  blood_pressure_diastolic: {
+    en: "The bottom number of the same reading completes the blood-pressure metric of Life's Essential 8.",
+    fr: "Le chiffre du bas de la même mesure complète la métrique de tension artérielle du Life's Essential 8.",
   },
   movement_strength_days: {
     en: "This describes how often strengthening activity is part of your week, alongside everyday movement.",
@@ -56,23 +68,75 @@ const PRACTICAL_WHY = {
 } as const;
 
 const UNKNOWN_MEASUREMENTS = new Set([
-  "reported_vo2_max_ml_kg_min", "squat_one_rep_max_kg", "deadlift_one_rep_max_kg",
+  "reported_vo2_max_ml_kg_min", "chair_stand_30s_count",
   "waist_circumference_cm", "neck_circumference_cm",
 ]);
 
-export function getQuestionGuidance(questionId: string, locale: Locale): Guidance {
+const ALCOHOL_DRINK_QUESTIONS = new Set([
+  "alcohol_detail_typical_amount",
+  "alcohol_detail_heavy_episode",
+]);
+
+type LocalizedText = { readonly en: string; readonly fr: string };
+
+/** Standard-drink definitions differ by country; the notice anchors the count to the local one. */
+const STANDARD_DRINK_NOTICES: Readonly<Record<string, LocalizedText>> = {
+  US: {
+    en: "In the United States, one standard drink is 14 g of pure alcohol: for example a 355 ml (12 fl oz) beer at 5 %, a 150 ml (5 fl oz) glass of wine at 12 %, or a 45 ml (1.5 fl oz) shot of spirits at 40 %.",
+    fr: "Aux États-Unis, un verre standard contient 14 g d'alcool pur : par exemple une bière de 355 ml (12 oz) à 5 %, un verre de vin de 150 ml (5 oz) à 12 % ou 45 ml (1,5 oz) de spiritueux à 40 %.",
+  },
+  CA: {
+    en: "In Canada, one standard drink is 13.6 g of pure alcohol: for example a 341 ml beer at 5 %, a 142 ml glass of wine at 12 %, or a 43 ml shot of spirits at 40 %.",
+    fr: "Au Canada, un verre standard contient 13,6 g d'alcool pur : par exemple une bière de 341 ml à 5 %, un verre de vin de 142 ml à 12 % ou 43 ml de spiritueux à 40 %.",
+  },
+  GB: {
+    en: "In the United Kingdom, count units: one unit is 8 g of pure alcohol, for example half a pint (284 ml) of beer at 3.6 % or a single 25 ml measure of spirits at 40 %. Treat one unit as one drink here.",
+    fr: "Au Royaume-Uni, comptez en unités : une unité correspond à 8 g d'alcool pur, par exemple une demi-pinte (284 ml) de bière à 3,6 % ou une mesure simple de 25 ml de spiritueux à 40 %. Comptez une unité comme un verre ici.",
+  },
+  "10g": {
+    en: "One standard drink here is about 10 g of pure alcohol: for example a 250 ml beer at 5 %, a 100 ml glass of wine at 12 %, or a 30 ml measure of spirits at 40 %.",
+    fr: "Un verre standard contient environ 10 g d'alcool pur : par exemple 25 cl de bière à 5 %, 10 cl de vin à 12 % ou 3 cl de spiritueux à 40 %.",
+  },
+  "10-12g": {
+    en: "One standard drink (Standardglas) here is about 10–12 g of pure alcohol: for example a 250–300 ml beer at 5 %, a 100 ml glass of wine at 12 %, or a 20–30 ml measure of spirits at 40 %.",
+    fr: "Un verre standard contient environ 10 à 12 g d'alcool pur : par exemple 25 à 30 cl de bière à 5 %, 10 cl de vin à 12 % ou 2 à 3 cl de spiritueux à 40 %.",
+  },
+  WHO: {
+    en: "A standard drink as defined by the WHO is about 10 g of pure alcohol: for example a 250 ml beer at 5 %, a 100 ml glass of wine at 12 %, or a 30 ml measure of spirits at 40 %.",
+    fr: "Un verre standard tel que défini par l'OMS contient environ 10 g d'alcool pur : par exemple 25 cl de bière à 5 %, 10 cl de vin à 12 % ou 3 cl de spiritueux à 40 %.",
+  },
+};
+
+function standardDrinkNotice(countryCode: string | undefined, locale: Locale): string {
+  const group =
+    countryCode === "US" || countryCode === "CA" || countryCode === "GB"
+      ? countryCode
+      : countryCode === "FR" || countryCode === "BE" || countryCode === "LU"
+        ? "10g"
+        : countryCode === "DE" || countryCode === "CH"
+          ? "10-12g"
+          : "WHO";
+  return STANDARD_DRINK_NOTICES[group][locale];
+}
+
+export function getQuestionGuidance(
+  questionId: string,
+  locale: Locale,
+  countryCode?: string,
+): Guidance {
   const scale = SCALE_ANCHORS[questionId as keyof typeof SCALE_ANCHORS]?.[locale];
   const why = PRACTICAL_WHY[questionId as keyof typeof PRACTICAL_WHY]?.[locale];
-  const maximalLift = questionId === "squat_one_rep_max_kg" || questionId === "deadlift_one_rep_max_kg";
-  const notice = maximalLift
+  const notice = questionId === "chair_stand_30s_count"
     ? locale === "fr"
-      ? "Utilisez uniquement un résultat déjà connu. Ne tentez pas de nouvelle charge maximale pour répondre."
-      : "Use only a result you already know. Do not attempt a new maximal lift to answer."
+      ? "Chaise stable sans accoudoirs, bras croisés sur la poitrine, 30 secondes. Ne tentez pas le test si vous vous sentez instable, avez une douleur ou êtes seul sans appui ; laissez alors la réponse vide."
+      : "Use a stable chair without armrests, arms crossed over the chest, for 30 seconds. Do not attempt the test if you feel unsteady, have pain, or are alone without support; leave the answer blank instead."
     : questionId === "reported_vo2_max_ml_kg_min"
       ? locale === "fr"
         ? "Utilisez une mesure ou une estimation déjà disponible sur votre appareil. Aucun test à réaliser."
         : "Use a measurement or device estimate you already have. No new test is needed."
-      : undefined;
+      : ALCOHOL_DRINK_QUESTIONS.has(questionId)
+        ? standardDrinkNotice(countryCode, locale)
+        : undefined;
   return {
     scale,
     why,

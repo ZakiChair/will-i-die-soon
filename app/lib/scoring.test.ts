@@ -1,734 +1,445 @@
 import { describe, expect, test } from "vitest";
 
 import { questionBank } from "../data/questions";
-import { prototypePolicy } from "./release-policy";
-import { evaluateRisks } from "./risk-engine";
+import { normalizeLabValue, type ConfirmedLabValue, type FastingStatus, type LabMarker } from "./labs";
 import {
-  buildAssessmentQueue,
-  getNextQuestion,
-  reconcileAssessmentState,
-} from "./questionnaire";
-import {
-  PURITY_SCORE_INPUT_IDS,
+  ESSENTIAL_EIGHT_INPUT_IDS,
+  ESSENTIAL_EIGHT_LABEL,
+  ESSENTIAL_EIGHT_MINIMUM_METRICS,
+  ESSENTIAL_EIGHT_VERSION,
+  SCORE_CATEGORY_IDS,
   buildActionPlan,
-  calculatePurityScore,
+  calculateEssentialEight,
+  type ScoreCategoryId,
 } from "./scoring";
-import type { AnalysisDepth, AnswerMap, QuestionnaireState } from "./types";
+import type { AnalysisDepth, AnswerMap } from "./types";
 
-const adultRouting = {
-  ageYears: 24,
-  assessmentDepth: "deep" as const,
-};
+const adultRouting = { ageYears: 45, assessmentDepth: "deep" as const };
 
-const F1_ANSWERS: AnswerMap = {
-  current_tobacco_nicotine: false,
-  alcohol_frequency: "never",
-  weekly_moderate_activity_minutes: 300,
-  movement_strength_days: 2,
-  movement_walking_days: 5,
-  sedentary_total_hours: 4,
+function lab(
+  marker: LabMarker,
+  value: number,
+  unit: string,
+  fastingStatus: FastingStatus = "not_stated",
+  collectionDate = "2026-07-30",
+): ConfirmedLabValue {
+  const normalized = normalizeLabValue({ marker, value, unit });
+  return {
+    source: null,
+    reviewed: { marker, valueText: String(value), value, unit, referenceRange: "", collectionDate, fastingStatus },
+    normalized: {
+      value: normalized.normalizedValue,
+      unit: normalized.normalizedUnit,
+      displayValue: normalized.displayValue,
+    },
+  };
+}
+
+/** Every metric at its top band: the published maximum of 100. */
+const IDEAL_ANSWERS: AnswerMap = {
   plant_food_frequency: 5,
   diet_whole_grains: "daily",
   diet_legumes: 3,
   diet_processed_meat: "never",
   diet_sugary_drinks: 0,
-  usual_sleep_hours: 7,
-  sleep_refreshed: 9,
-  circadian_bedtime_variation: 1,
-  stress_recovery_practice: "daily",
-  preventive_followup_status: "yes",
-  preventive_followup_action: "completed",
-  current_medications: true,
-  med_detail_prescriber_followup: "yes_all",
-  adherence_missed_doses: "never",
-  adherence_access_barriers: ["none"],
-  interaction_shared_list: true,
+  weekly_moderate_activity_minutes: 150,
+  weekly_vigorous_activity_minutes: 0,
+  current_tobacco_nicotine: false,
+  smoking_history_former: false,
+  secondhand_smoke_home: false,
+  usual_sleep_hours: 7.5,
+  height_cm: 175,
+  weight_kg: 70,
+  statin_current: false,
+  diagnosed_conditions_core: ["none"],
+  blood_pressure_systolic: 115,
+  blood_pressure_diastolic: 75,
+  bp_medication_current: false,
 };
+const IDEAL_LABS = [
+  lab("total_cholesterol", 180, "mg/dL"),
+  lab("hdl_cholesterol", 60, "mg/dL"),
+  lab("hba1c", 5.2, "%"),
+];
 
-const F2_ANSWERS: AnswerMap = {
-  current_tobacco_nicotine: true,
-  tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
-  alcohol_frequency: "two_to_three_weekly",
-  alcohol_detail_typical_amount: 3,
-  alcohol_detail_heavy_episode: "weekly",
-  weekly_moderate_activity_minutes: 100,
-  movement_strength_days: 1,
-  movement_walking_days: 2,
-  sedentary_total_hours: 8,
+/** A mixed profile used to check the mean, coverage, and action ordering. */
+const MIXED_ANSWERS: AnswerMap = {
+  ...IDEAL_ANSWERS,
   plant_food_frequency: 2,
   diet_whole_grains: "sometimes",
   diet_legumes: 1,
-  diet_processed_meat: "daily",
-  diet_sugary_drinks: 5,
+  diet_processed_meat: "often",
+  diet_sugary_drinks: 2,
+  weekly_moderate_activity_minutes: 60,
+  weekly_vigorous_activity_minutes: 15,
+  current_tobacco_nicotine: true,
+  tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
   usual_sleep_hours: 6.5,
-  sleep_refreshed: 5,
-  circadian_bedtime_variation: 2.5,
-  stress_recovery_practice: "sometimes",
-  preventive_followup_status: "yes",
-  preventive_followup_action: "not_yet",
-  current_medications: true,
-  med_detail_prescriber_followup: "yes_some",
-  adherence_missed_doses: "monthly",
-  adherence_access_barriers: ["none"],
-  interaction_shared_list: true,
+  weight_kg: 85,
+  blood_pressure_systolic: 134,
+  blood_pressure_diastolic: 84,
 };
 
-function adultScore(answers: AnswerMap = F1_ANSWERS) {
-  const result = calculatePurityScore(answers, adultRouting);
+function adultScore(answers: AnswerMap, labs: ReadonlyArray<ConfirmedLabValue> = IDEAL_LABS, routing = adultRouting) {
+  const result = calculateEssentialEight(answers, routing, labs);
   expect(result.kind).toBe("adult-score");
   if (result.kind !== "adult-score") throw new Error("Expected an adult score");
   return result;
 }
 
-function completeReachableAssessment(
-  depth: AnalysisDepth,
-  desiredAnswers: AnswerMap,
-): AnswerMap {
-  const profile = { age: 35, countryCode: "CH" };
-  let state: QuestionnaireState = {
-    queue: buildAssessmentQueue(depth, questionBank, profile, {}),
-    answers: {} as AnswerMap,
-  };
-
-  for (let step = 0; step < 220; step += 1) {
-    const question = getNextQuestion(state);
-    if (!question) return state.answers;
-    const answer = Object.prototype.hasOwnProperty.call(desiredAnswers, question.id)
-      ? desiredAnswers[question.id] ?? null
-      : null;
-    state = reconcileAssessmentState(depth, questionBank, profile, {
-      ...state.answers,
-      [question.id]: answer,
-    });
-  }
-
-  throw new Error(`${depth} did not complete within its 200-question cap`);
+function metric(answers: AnswerMap, id: ScoreCategoryId, labs: ReadonlyArray<ConfirmedLabValue> = IDEAL_LABS) {
+  const category = adultScore(answers, labs).categories.find((item) => item.id === id);
+  if (!category) throw new Error(`Missing category ${id}`);
+  return category;
 }
 
-describe("Purity Score v1 exact arithmetic", () => {
-  test("F1 publishes 100 only after all applicable adult components are assessed", () => {
-    const result = adultScore();
+function points(answers: AnswerMap, id: ScoreCategoryId, labs: ReadonlyArray<ConfirmedLabValue> = IDEAL_LABS) {
+  return metric(answers, id, labs).earnedPoints;
+}
 
-    expect(result).toMatchObject({
-      scoreVersion: "purity-score-v1",
-      assessmentDepth: "deep",
-      score: 100,
-      coverage: 100,
-      earnedPoints: 100,
-      assessedPoints: 100,
-      applicablePoints: 100,
-    });
-    expect(result.categories).toHaveLength(8);
-    expect(result.categories.map((category) => category.maxPoints)).toEqual([
-      20, 15, 18, 18, 12, 7, 5, 5,
+describe("Life's Essential 8 ledger", () => {
+  test("declares real question inputs and the eight published metrics", () => {
+    const ids = new Set(questionBank.map((question) => question.id));
+    for (const id of ESSENTIAL_EIGHT_INPUT_IDS) expect(ids.has(id), id).toBe(true);
+    expect(SCORE_CATEGORY_IDS).toEqual([
+      "diet",
+      "physical-activity",
+      "nicotine",
+      "sleep",
+      "body-mass-index",
+      "blood-lipids",
+      "blood-glucose",
+      "blood-pressure",
     ]);
-    expect(buildActionPlan([], result)).toEqual([]);
+    expect(ESSENTIAL_EIGHT_VERSION).toBe("essential-eight-v1");
+    expect(ESSENTIAL_EIGHT_LABEL).toMatch(/Life's Essential 8/);
   });
 
-  test("F2 uses decimal half-up rounding and the required category action order", () => {
-    const result = adultScore(F2_ANSWERS);
-    const leaves = evaluateRisks(
-      F2_ANSWERS,
-      { age: 46, countryCode: "CH" },
-      prototypePolicy,
-    );
-
-    expect(result).toMatchObject({
-      score: 31,
-      coverage: 100,
-      earnedPoints: 30.9,
-      assessedPoints: 100,
-      applicablePoints: 100,
-    });
-    expect(
-      result.categories.map(({ id, earnedPoints }) => [id, earnedPoints]),
-    ).toEqual([
-      ["tobacco-nicotine", 0],
-      ["alcohol", 4.4],
-      ["movement-sitting", 8.6],
-      ["nutrition", 5.4],
-      ["sleep", 6],
-      ["recovery", 3.5],
-      ["preventive-followup", 0],
-      ["medication-safety", 3],
-    ]);
-    expect(leaves.length).toBeGreaterThan(0);
-    expect(buildActionPlan(leaves, result).map((action) => action.categoryId)).toEqual([
-      "tobacco-nicotine",
-      "nutrition",
-      "alcohol",
-    ]);
-  });
-
-  test("F3 withholds the hidden favourable ratio at 35 percent coverage", () => {
-    const result = calculatePurityScore(
-      {
-        current_tobacco_nicotine: false,
-        alcohol_frequency: "never",
-      },
-      adultRouting,
-    );
-
-    expect(result).toMatchObject({
-      kind: "insufficient-coverage",
-      coverage: 35,
-    });
-    expect(result).not.toHaveProperty("score");
-    expect(result).not.toHaveProperty("earnedPoints");
-    expect(result).not.toHaveProperty("assessedPoints");
-    expect(result).not.toHaveProperty("applicablePoints");
-    expect(result).not.toHaveProperty("categories");
-  });
-
-  test("F4 excludes a medicine access barrier instead of turning it into a penalty", () => {
-    const withBarrier = adultScore({
-      ...F1_ANSWERS,
-      adherence_missed_doses: "weekly",
-      adherence_access_barriers: ["cost"],
-    });
-    const withoutBarrier = adultScore({
-      ...F1_ANSWERS,
-      adherence_missed_doses: "weekly",
-      adherence_access_barriers: ["none"],
-    });
-
-    expect(withBarrier).toMatchObject({
-      score: 100,
-      earnedPoints: 99,
-      assessedPoints: 99,
-      applicablePoints: 99,
-    });
-    expect(withoutBarrier).toMatchObject({
-      score: 99,
-      earnedPoints: 99.25,
-      assessedPoints: 100,
-      applicablePoints: 100,
-    });
-    expect(buildActionPlan([], withBarrier)[0]).toMatchObject({
-      kind: "access-support",
-      categoryId: "medication-safety",
-    });
-  });
-
-  test("F5 caps positive values and ignores every protected or contextual mutation", () => {
-    const atCaps = adultScore({
-      ...F2_ANSWERS,
-      weekly_moderate_activity_minutes: 300,
-      movement_strength_days: 2,
-      movement_walking_days: 5,
-      plant_food_frequency: 5,
-    });
-    const beyondCaps = adultScore({
-      ...F2_ANSWERS,
-      weekly_moderate_activity_minutes: 600,
-      movement_strength_days: 9,
-      movement_walking_days: 99,
-      plant_food_frequency: 99,
-    });
-    expect(beyondCaps).toEqual(atCaps);
-
-    const baseline = adultScore(F2_ANSWERS);
-    for (const mutation of [
-      { sex_assigned_at_birth: "female" },
-      { gender_identity_optional: "private text" },
-      { ancestry_optional: "private text" },
-      { diagnosed_conditions_core: ["diabetes"] },
-      { movement_limiting_condition: true },
-      { disability_context: "private" },
-      { family_early_cvd: true },
-      { pregnancy_relevant: true },
-      { environment_secondhand_smoke: true },
-      { height_cm: 190, weight_kg: 90, bmi: 24.9 },
-      { circadian_shift_work: true, stress_current_level: 10 },
-      { country: "US", lab_value_glucose: "100 mg/dL", urgent_chest_discomfort_now: true },
-    ]) {
-      expect(adultScore({ ...F2_ANSWERS, ...mutation })).toEqual(baseline);
+  test("scores an ideal profile at 100 with full coverage and one source per metric", () => {
+    const result = adultScore(IDEAL_ANSWERS);
+    expect(result.score).toBe(100);
+    expect(result.coverage).toBe(100);
+    expect(result.answeredCategoryCount).toBe(8);
+    expect(result.categories.map((item) => item.id)).toEqual(SCORE_CATEGORY_IDS);
+    for (const category of result.categories) {
+      expect(category.maxPoints).toBe(100);
+      expect(category.components).toHaveLength(1);
+      expect(category.components[0].status).toBe("answered");
+      expect(category.source.url).toBe("https://doi.org/10.1161/CIR.0000000000001078");
     }
-    expect(
-      calculatePurityScore(F2_ANSWERS, {
-        ageYears: 90,
-        assessmentDepth: "deep",
-      }),
-    ).toEqual(baseline);
-
-    const profile = { age: 46, countryCode: "CH" };
-    const baselineLeaves = evaluateRisks(F2_ANSWERS, profile, prototypePolicy);
-    const contextAnswers = {
-      ...F2_ANSWERS,
-      pregnancy_relevant: true,
-      pregnancy_new_concern: true,
-    };
-    const contextLeaves = evaluateRisks(contextAnswers, profile, prototypePolicy);
-    expect(contextLeaves).not.toEqual(baselineLeaves);
-    expect(
-      buildActionPlan(contextLeaves, adultScore(contextAnswers)),
-    ).toEqual(buildActionPlan(baselineLeaves, baseline));
   });
 
-  test.each([17, 13, 12, 0, -1, Number.NaN, Number.POSITIVE_INFINITY, null])(
-    "F6 exposes no score-shaped result for age %s",
-    (ageYears) => {
-      expect(
-        calculatePurityScore(F1_ANSWERS, {
-          ageYears,
-          assessmentDepth: "deep",
-        }),
-      ).toEqual({
+  test("returns the unweighted mean of the eight metrics, rounded half up", () => {
+    const result = adultScore(MIXED_ANSWERS);
+    const byId = Object.fromEntries(result.categories.map((item) => [item.id, item.earnedPoints]));
+    expect(byId).toEqual({
+      diet: 25,
+      "physical-activity": 80,
+      nicotine: 0,
+      sleep: 70,
+      "body-mass-index": 70,
+      "blood-lipids": 100,
+      "blood-glucose": 100,
+      "blood-pressure": 50,
+    });
+    expect(result.score).toBe(62);
+    expect(result.earnedPoints).toBe(495);
+    expect(result.assessedPoints).toBe(800);
+  });
+
+  test("is unavailable under 18 or without a verified integer age", () => {
+    for (const ageYears of [null, 17, 17.5, Number.NaN]) {
+      expect(calculateEssentialEight(IDEAL_ANSWERS, { ageYears, assessmentDepth: "deep" }, IDEAL_LABS)).toEqual({
         kind: "not-available",
         reason: "under-18-or-age-unverified",
       });
-    },
-  );
-});
+    }
+  });
 
-describe("eligibility, exclusions, and missingness", () => {
-  test("Quick always returns a reflection state without a number", () => {
-    const result = calculatePurityScore(F1_ANSWERS, {
-      ageYears: 35,
-      assessmentDepth: "quick",
-    });
-
-    expect(result).toMatchObject({
-      kind: "insufficient-coverage",
-      reason: "quick-assessment",
+  test.each([
+    ["express", "express-assessment"],
+    ["quick", "quick-assessment"],
+  ] as const)("withholds the mean for a %s assessment even with full answers", (depth: AnalysisDepth, reason) => {
+    const result = calculateEssentialEight(IDEAL_ANSWERS, { ageYears: 45, assessmentDepth: depth }, IDEAL_LABS);
+    expect(result).toMatchObject({ kind: "insufficient-coverage", reason, coverage: 100, answeredCategoryCount: 8 });
+    if (result.kind !== "insufficient-coverage") throw new Error("Expected insufficient coverage");
+    expect(result.answeredCategories).toHaveLength(8);
+    expect(result.answeredCategories[0]).toEqual({
+      id: "diet",
+      label: "Diet",
       coverage: 100,
+      answeredComponents: 1,
+      missingComponents: 0,
     });
-    expect(result).not.toHaveProperty("score");
   });
 
-  test("Express always returns its no-score summary state", () => {
-    const result = calculatePurityScore(F1_ANSWERS, {
-      ageYears: 35,
-      assessmentDepth: "express",
-    });
-
-    expect(result).toMatchObject({
+  test("needs at least five assessed metrics before a partial mean is shown", () => {
+    expect(ESSENTIAL_EIGHT_MINIMUM_METRICS).toBe(5);
+    const fourMetrics: AnswerMap = {
+      weekly_moderate_activity_minutes: 150,
+      current_tobacco_nicotine: false,
+      smoking_history_former: false,
+      usual_sleep_hours: 8,
+      height_cm: 170,
+      weight_kg: 65,
+    };
+    const partial = calculateEssentialEight(fourMetrics, adultRouting);
+    expect(partial).toMatchObject({
       kind: "insufficient-coverage",
-      reason: "express-assessment",
-    });
-    expect(result).not.toHaveProperty("score");
-  });
-
-  test("skipping an answer preserves other earned points and reduces assessed coverage", () => {
-    const complete = adultScore();
-    const skipped = calculatePurityScore(
-      { ...F1_ANSWERS, diet_legumes: null },
-      adultRouting,
-    );
-    expect(skipped.kind).toBe("adult-score");
-    if (skipped.kind !== "adult-score") return;
-
-    expect(skipped.earnedPoints).toBe(complete.earnedPoints - 3);
-    expect(skipped.assessedPoints).toBe(complete.assessedPoints - 3);
-    expect(skipped.applicablePoints).toBe(100);
-    expect(skipped.coverage).toBe(97);
-    expect(skipped.score).toBe(100);
-  });
-
-  test("uses raw D over T for the 70 percent gate before rounding display coverage", () => {
-    const result = calculatePurityScore(
-      {
-        ...F1_ANSWERS,
-        adherence_access_barriers: ["cost"],
-        plant_food_frequency: null,
-        diet_whole_grains: null,
-        diet_legumes: null,
-        diet_processed_meat: null,
-        diet_sugary_drinks: null,
-        usual_sleep_hours: null,
-        sleep_refreshed: null,
-        circadian_bedtime_variation: null,
-      },
-      adultRouting,
-    );
-
-    expect(result).toMatchObject({
-      kind: "insufficient-coverage",
-      coverage: 70,
       reason: "answer-more-wellness-habits",
-    });
-    expect(result).not.toHaveProperty("score");
-  });
-
-  test("prescribed nicotine replacement excludes the component and unresolved nicotine withholds a number", () => {
-    const nrt = adultScore({
-      ...F1_ANSWERS,
-      current_tobacco_nicotine: true,
-      tobacco_nicotine_context: "only_prescribed_nrt_quit_plan",
-    });
-    expect(nrt).toMatchObject({
-      score: 100,
-      earnedPoints: 80,
-      assessedPoints: 80,
-      applicablePoints: 80,
-    });
-    expect(nrt.categories[0].components[0].status).toBe("excluded");
-
-    for (const tobacco_nicotine_context of [undefined, "unsure"] as const) {
-      const result = calculatePurityScore(
-        {
-          ...F1_ANSWERS,
-          current_tobacco_nicotine: true,
-          tobacco_nicotine_context,
-        },
-        adultRouting,
-      );
-      expect(result.kind).toBe("insufficient-coverage");
-      expect(result).not.toHaveProperty("score");
-    }
-  });
-
-  test("preventive not-due and safety barriers exclude only the chosen component", () => {
-    const notDue = adultScore({
-      ...F1_ANSWERS,
-      preventive_followup_status: "not_due",
-      preventive_followup_action: undefined,
-    });
-    const barrier = adultScore({
-      ...F1_ANSWERS,
-      preventive_followup_status: "yes",
-      preventive_followup_action: "access_or_safety_barrier",
+      coverage: 50,
+      answeredCategoryCount: 4,
     });
 
-    for (const result of [notDue, barrier]) {
-      expect(result).toMatchObject({
-        score: 100,
-        earnedPoints: 95,
-        assessedPoints: 95,
-        applicablePoints: 95,
-      });
-    }
-    const notDueComponent = notDue.categories
-      .flatMap((category) => category.components)
-      .find((component) => component.questionId === "preventive_followup_action");
-    expect(notDueComponent?.explanation).toBe(
-      "You reported that no routine follow-up was personally due.",
-    );
-    expect(notDueComponent?.explanation).not.toMatch(/access|accessible/i);
-    expect(buildActionPlan([], notDue)).toEqual([]);
-    expect(buildActionPlan([], barrier)[0].kind).toBe("access-support");
-  });
-
-  test("a not-yet preventive action does not infer that the due follow-up was accessible", () => {
-    const result = adultScore({
-      ...F1_ANSWERS,
-      preventive_followup_status: "yes",
-      preventive_followup_action: "not_yet",
-    });
-    const component = result.categories
-      .flatMap((category) => category.components)
-      .find((candidate) => candidate.questionId === "preventive_followup_action");
-
-    expect(component?.explanation).toBe(
-      "You reported not yet acting on a personally due follow-up.",
-    );
-    expect(component?.explanation).not.toMatch(/access|accessible/i);
-  });
-
-  test("no current prescriber access excludes three points and creates support", () => {
-    const result = adultScore({
-      ...F1_ANSWERS,
-      med_detail_prescriber_followup: "no_current_access",
-    });
-    expect(result).toMatchObject({
-      score: 100,
-      earnedPoints: 97,
-      assessedPoints: 97,
-      applicablePoints: 97,
-    });
-    expect(buildActionPlan([], result)[0]).toMatchObject({
-      kind: "access-support",
-      categoryId: "medication-safety",
-    });
-  });
-
-  test.each([
-    [
-      "preventive barrier",
-      {
-        preventive_followup_status: "yes",
-        preventive_followup_action: "access_or_safety_barrier",
-      },
-      "preventive-followup",
-    ],
-    [
-      "no prescriber access",
-      {
-        current_medications: true,
-        med_detail_prescriber_followup: "no_current_access",
-      },
-      "medication-safety",
-    ],
-    [
-      "medicine-use barrier",
-      {
-        current_medications: true,
-        adherence_missed_doses: "weekly",
-        adherence_access_barriers: ["cost"],
-      },
-      "medication-safety",
-    ],
-  ] as const)("surfaces %s support even below the numeric coverage gate", (_name, barrierAnswers, categoryId) => {
-    const result = calculatePurityScore(
-      {
-        current_tobacco_nicotine: false,
-        alcohol_frequency: "never",
-        ...barrierAnswers,
-      },
-      adultRouting,
-    );
-
-    expect(result.kind).toBe("insufficient-coverage");
-    expect(result).not.toHaveProperty("earnedPoints");
-    expect(result).not.toHaveProperty("assessedPoints");
-    expect(result).not.toHaveProperty("applicablePoints");
-    expect(buildActionPlan([], result)[0]).toMatchObject({
-      kind: "access-support",
-      categoryId,
-    });
-  });
-
-  test("negative, non-finite, and fractional day or portion counts are missing rather than rounded", () => {
-    for (const [id, value] of [
-      ["plant_food_frequency", 2.5],
-      ["diet_legumes", -1],
-      ["movement_strength_days", 1.5],
-      ["movement_walking_days", Number.POSITIVE_INFINITY],
-      ["diet_sugary_drinks", Number.NaN],
-    ] as const) {
-      const result = adultScore({ ...F1_ANSWERS, [id]: value });
-      const component = result.categories
-        .flatMap((category) => category.components)
-        .find((candidate) => candidate.questionId === id);
-      expect(component?.status).toBe("missing");
-    }
-  });
-
-  test("one category contributes at most one initial action", () => {
-    const score = adultScore({
-      ...F1_ANSWERS,
-      diet_whole_grains: "never",
-      diet_legumes: 0,
-      diet_processed_meat: "daily",
-      diet_sugary_drinks: 9,
-    });
-    const actions = buildActionPlan([], score);
-
-    expect(actions.filter((action) => action.categoryId === "nutrition")).toHaveLength(1);
-    expect(actions).toHaveLength(1);
-  });
-
-  test("one medicine support action preserves every simultaneous barrier reason", () => {
-    const score = adultScore({
-      ...F1_ANSWERS,
-      med_detail_prescriber_followup: "no_current_access",
-      adherence_missed_doses: "weekly",
-      adherence_access_barriers: ["cost"],
-    });
-    const actions = buildActionPlan([], score);
-
-    expect(score.supportContexts).toHaveLength(2);
-    expect(actions.filter((action) => action.kind === "access-support")).toHaveLength(1);
-    expect(actions[0]).toMatchObject({
-      kind: "access-support",
-      categoryId: "medication-safety",
-      sources: [
-        {
-          title: "Medication Without Harm",
-          publisher: "World Health Organization",
-          url: "https://www.who.int/initiatives/medication-without-harm",
-        },
-      ],
-    });
-    expect(actions[0].reason).toMatch(/no current access to prescriber follow-up/i);
-    expect(actions[0].reason).toMatch(/medicine access or use barrier/i);
-  });
-
-  test("related preventive and medicine barriers share one practical-support action", () => {
-    const score = adultScore({
-      ...F1_ANSWERS,
-      preventive_followup_action: "access_or_safety_barrier",
-      med_detail_prescriber_followup: "no_current_access",
-    });
-    const actions = buildActionPlan([], score);
-
-    expect(actions.filter((action) => action.kind === "access-support")).toHaveLength(1);
-    expect(actions[0].reason).toMatch(/access or safety barrier/i);
-    expect(actions[0].reason).toMatch(/no current access to prescriber follow-up/i);
-    expect(actions[0].sources).toEqual([
-      {
-        title: "Primary health care",
-        publisher: "World Health Organization",
-        url: "https://www.who.int/health-topics/primary-health-care",
-      },
-      {
-        title: "Medication Without Harm",
-        publisher: "World Health Organization",
-        url: "https://www.who.int/initiatives/medication-without-harm",
-      },
-    ]);
-    expect(new Set(actions[0].sources.map((source) => source.url)).size).toBe(2);
-  });
-
-  test("an already planned follow-up wins an equal deficit tie and suggests follow-through", () => {
-    const score = adultScore({
-      ...F1_ANSWERS,
-      preventive_followup_action: "booked_or_contacted",
-      usual_sleep_hours: 6.5,
-    });
-    const actions = buildActionPlan([], score);
-
-    expect(actions.map((action) => action.categoryId)).toEqual([
-      "preventive-followup",
-      "sleep",
-    ]);
-    expect(actions[0].nextStep).toMatch(/already booked or contacted/i);
-    expect(actions[0].nextStep).not.toMatch(/contact the relevant service|make a booking/i);
-  });
-
-  test("equal deficits use the declared evidence-direction fallback rather than category spelling", () => {
-    const score = adultScore({
-      ...F1_ANSWERS,
-      usual_sleep_hours: 5,
-      sleep_refreshed: 5,
-      stress_recovery_practice: "never",
-    });
-
-    expect(buildActionPlan([], score).map((action) => action.categoryId)).toEqual([
-      "sleep",
-      "recovery",
+    const fiveMetrics = { ...fourMetrics, blood_pressure_systolic: 118, blood_pressure_diastolic: 76 };
+    const shown = adultScore(fiveMetrics, []);
+    expect(shown.answeredCategoryCount).toBe(5);
+    expect(shown.coverage).toBe(63);
+    expect(shown.score).toBe(100);
+    expect(shown.categories.filter((item) => item.components[0].status === "missing").map((item) => item.id)).toEqual([
+      "diet",
+      "blood-lipids",
+      "blood-glucose",
     ]);
   });
 
-  test("recovery uses the verified WHO stress guide and only its brief supported practices", () => {
-    const score = adultScore({
-      ...F1_ANSWERS,
-      stress_recovery_practice: "never",
-    });
-    const recovery = score.categories.find((category) => category.id === "recovery");
-    const action = buildActionPlan([], score).find(
-      (candidate) => candidate.categoryId === "recovery",
-    );
-
-    expect(recovery?.source).toEqual({
-      title: "Doing What Matters in Times of Stress: An Illustrated Guide",
-      publisher: "World Health Organization",
-      url: "https://www.who.int/publications/i/item/9789240003927",
-    });
-    expect(action).toMatchObject({
-      title: "Try one brief stress-management practice",
-      nextStep:
-        "Choose grounding, unhooking, acting on your values, being kind, or making room, and practise it for a few minutes today.",
-      sources: [recovery?.source],
-    });
-    expect(`${action?.title} ${action?.nextStep}`).not.toMatch(
-      /enjoyable activity|generic recovery/i,
-    );
+  test("never lets a missing metric contribute zero points to the mean", () => {
+    const withoutLabs = adultScore(IDEAL_ANSWERS, []);
+    expect(withoutLabs.score).toBe(100);
+    expect(withoutLabs.coverage).toBe(75);
+    const lipids = withoutLabs.categories.find((item) => item.id === "blood-lipids")!;
+    expect(lipids).toMatchObject({ earnedPoints: 0, assessedPoints: 0, applicablePoints: 100, coverage: 0 });
   });
 });
 
-describe("question-bank contract and reachable coverage", () => {
-  test("the explicit score allow-list matches only declared score and exclusion consumers", () => {
-    expect(PURITY_SCORE_INPUT_IDS).toEqual([
-      "current_tobacco_nicotine",
-      "tobacco_nicotine_context",
-      "alcohol_frequency",
-      "alcohol_detail_typical_amount",
-      "alcohol_detail_heavy_episode",
-      "weekly_moderate_activity_minutes",
-      "movement_strength_days",
-      "movement_walking_days",
-      "sedentary_total_hours",
-      "plant_food_frequency",
-      "diet_whole_grains",
-      "diet_legumes",
-      "diet_processed_meat",
-      "diet_sugary_drinks",
-      "usual_sleep_hours",
-      "sleep_refreshed",
-      "circadian_bedtime_variation",
-      "stress_recovery_practice",
-      "preventive_followup_status",
-      "preventive_followup_action",
-      "current_medications",
-      "med_detail_prescriber_followup",
-      "adherence_missed_doses",
-      "adherence_access_barriers",
-      "interaction_shared_list",
-    ]);
-    const bankIds = questionBank
-      .filter((question) =>
-        question.consumers.some((consumer) =>
-          ["purity-score", "purity-score-exclusion-support"].includes(consumer),
-        ),
-      )
-      .map((question) => question.id)
-      .sort();
-
-    expect([...PURITY_SCORE_INPUT_IDS].sort()).toEqual(bankIds);
-    expect(bankIds).not.toContain("stress_current_level");
-    expect(bankIds).not.toContain("preventive_visit_recency");
+describe("diet metric", () => {
+  test.each([
+    [{ plant_food_frequency: 5, diet_whole_grains: "daily", diet_legumes: 3, diet_processed_meat: "never", diet_sugary_drinks: 0 }, 100],
+    [{ plant_food_frequency: 4, diet_whole_grains: "often", diet_legumes: 3, diet_processed_meat: "rarely", diet_sugary_drinks: 0 }, 80],
+    [{ plant_food_frequency: 3, diet_whole_grains: "sometimes", diet_legumes: 2, diet_processed_meat: "sometimes", diet_sugary_drinks: 2 }, 50],
+    [{ plant_food_frequency: 2, diet_whole_grains: "sometimes", diet_legumes: 1, diet_processed_meat: "often", diet_sugary_drinks: 2 }, 25],
+    [{ plant_food_frequency: 0, diet_whole_grains: "never", diet_legumes: 0, diet_processed_meat: "daily", diet_sugary_drinks: 4 }, 0],
+  ])("scales five items to the 16-point screener band %#", (items, expected) => {
+    expect(points({ ...IDEAL_ANSWERS, ...items }, "diet")).toBe(expected);
   });
 
-  test.each(["quick", "detailed", "deep"] as const)(
-    "the nicotine context branch is reachable in %s without breaking queue caps",
-    (depth) => {
-      const queue = buildAssessmentQueue(
-        depth,
-        questionBank,
-        { age: 35, countryCode: "CH" },
-        { current_tobacco_nicotine: true },
-      );
-      expect(queue.map((question) => question.id)).toContain("tobacco_nicotine_context");
-      if (depth === "quick") expect(queue).toHaveLength(20);
-      else if (depth === "detailed") expect(queue).toHaveLength(50);
-      else {
-        expect(queue.length).toBeGreaterThanOrEqual(80);
-        expect(queue.length).toBeLessThanOrEqual(200);
-      }
-    },
-  );
+  test("needs all five items before placing the pattern", () => {
+    const { diet_legumes: _legumes, ...rest } = IDEAL_ANSWERS;
+    void _legumes;
+    const category = metric(rest, "diet");
+    expect(category.components[0]).toMatchObject({ status: "missing", questionId: "diet_pattern" });
+  });
+});
+
+describe("physical-activity metric", () => {
+  test.each([
+    [150, 0, 100],
+    [120, 0, 90],
+    [60, 30, 90],
+    [90, 0, 80],
+    [60, 0, 60],
+    [30, 0, 40],
+    [10, 0, 20],
+    [0, 0, 0],
+    [0, 75, 100],
+  ])("scores %i moderate + %i vigorous minutes as %i", (moderate, vigorous, expected) => {
+    expect(
+      points({ ...IDEAL_ANSWERS, weekly_moderate_activity_minutes: moderate, weekly_vigorous_activity_minutes: vigorous }, "physical-activity"),
+    ).toBe(expected);
+  });
+
+  test("treats unanswered vigorous minutes as zero but needs moderate minutes", () => {
+    const { weekly_vigorous_activity_minutes: _vigorous, ...noVigorous } = IDEAL_ANSWERS;
+    void _vigorous;
+    expect(points({ ...noVigorous, weekly_moderate_activity_minutes: 100 }, "physical-activity")).toBe(80);
+    const { weekly_moderate_activity_minutes: _moderate, ...noModerate } = IDEAL_ANSWERS;
+    void _moderate;
+    expect(metric(noModerate, "physical-activity").components[0].status).toBe("missing");
+  });
+});
+
+describe("nicotine metric", () => {
+  test.each([
+    [{ current_tobacco_nicotine: false, smoking_history_former: false }, 100],
+    [{ current_tobacco_nicotine: false, smoking_history_former: true, smoking_years_since_quit: 5 }, 75],
+    [{ current_tobacco_nicotine: false, smoking_history_former: true, smoking_years_since_quit: 2 }, 50],
+    [{ current_tobacco_nicotine: false, smoking_history_former: true, smoking_years_since_quit: 0.5 }, 25],
+    [{ current_tobacco_nicotine: true, tobacco_nicotine_context: "only_prescribed_nrt_quit_plan" }, 25],
+    [{ current_tobacco_nicotine: true, tobacco_nicotine_context: "tobacco_vape_or_other_nicotine" }, 0],
+    [{ current_tobacco_nicotine: true, tobacco_nicotine_context: "both" }, 0],
+  ])("scores nicotine status %# as %i", (status, expected) => {
+    expect(points({ ...IDEAL_ANSWERS, ...status }, "nicotine")).toBe(expected);
+  });
+
+  test("removes twenty points for indoor second-hand smoke and explains it", () => {
+    const category = metric({ ...IDEAL_ANSWERS, secondhand_smoke_home: true }, "nicotine");
+    expect(category.earnedPoints).toBe(80);
+    expect(category.components[0].explanation).toMatch(/Twenty points are removed because someone smokes indoors/);
+    expect(points({ ...IDEAL_ANSWERS, current_tobacco_nicotine: true, tobacco_nicotine_context: "both", secondhand_smoke_home: true }, "nicotine")).toBe(0);
+  });
+
+  test("marks nicotine missing when the context or quit timing is unresolved", () => {
+    expect(metric({ ...IDEAL_ANSWERS, current_tobacco_nicotine: true, tobacco_nicotine_context: "unsure" }, "nicotine").components[0]).toMatchObject({
+      status: "missing",
+      explanation: "The current nicotine context was not resolved.",
+    });
+    expect(metric({ ...IDEAL_ANSWERS, smoking_history_former: true }, "nicotine").components[0].status).toBe("missing");
+  });
+});
+
+describe("sleep metric", () => {
+  test.each([
+    [7, 100],
+    [8.9, 100],
+    [9, 90],
+    [6, 70],
+    [5, 40],
+    [10, 40],
+    [4, 20],
+    [3.5, 0],
+  ])("scores %s hours as %i", (hours, expected) => {
+    expect(points({ ...IDEAL_ANSWERS, usual_sleep_hours: hours }, "sleep")).toBe(expected);
+  });
+
+  test("rejects an impossible duration as missing", () => {
+    expect(metric({ ...IDEAL_ANSWERS, usual_sleep_hours: 25 }, "sleep").components[0].status).toBe("missing");
+  });
+});
+
+describe("body-mass index metric", () => {
+  test.each([
+    [70, 100],
+    [77, 70],
+    [92, 30],
+    [108, 15],
+    [125, 0],
+  ])("scores %i kg at 175 cm as %i", (weight, expected) => {
+    expect(points({ ...IDEAL_ANSWERS, height_cm: 175, weight_kg: weight }, "body-mass-index")).toBe(expected);
+  });
+
+  test("needs both height and weight", () => {
+    const { weight_kg: _weight, ...rest } = IDEAL_ANSWERS;
+    void _weight;
+    expect(metric(rest, "body-mass-index").components[0]).toMatchObject({ status: "missing", questionId: "body_mass_index" });
+  });
+});
+
+describe("blood-lipids metric", () => {
+  test.each([
+    [189, 60, 100],
+    [200, 50, 60],
+    [230, 50, 40],
+    [260, 50, 20],
+    [290, 50, 0],
+  ])("scores total %i and HDL %i mg/dL as %i", (total, hdl, expected) => {
+    expect(points(IDEAL_ANSWERS, "blood-lipids", [lab("total_cholesterol", total, "mg/dL"), lab("hdl_cholesterol", hdl, "mg/dL")])).toBe(expected);
+  });
+
+  test("converts mmol/L results and removes twenty points on a statin", () => {
+    const mmol = [lab("total_cholesterol", 4.6, "mmol/L"), lab("hdl_cholesterol", 1.5, "mmol/L")];
+    expect(points(IDEAL_ANSWERS, "blood-lipids", mmol)).toBe(100);
+    const treated = metric({ ...IDEAL_ANSWERS, statin_current: true }, "blood-lipids", mmol);
+    expect(treated.earnedPoints).toBe(80);
+    expect(treated.components[0].explanation).toMatch(/Twenty points are removed because you take a statin/);
+  });
+
+  test("uses the most recent result and needs total above HDL", () => {
+    const labs = [
+      lab("total_cholesterol", 260, "mg/dL", "not_stated", "2025-01-01"),
+      lab("total_cholesterol", 180, "mg/dL", "not_stated", "2026-01-01"),
+      lab("hdl_cholesterol", 60, "mg/dL"),
+    ];
+    expect(points(IDEAL_ANSWERS, "blood-lipids", labs)).toBe(100);
+    expect(metric(IDEAL_ANSWERS, "blood-lipids", [lab("total_cholesterol", 50, "mg/dL"), lab("hdl_cholesterol", 60, "mg/dL")]).components[0].status).toBe("missing");
+  });
+});
+
+describe("blood-glucose metric", () => {
+  test.each([
+    [5.6, 100],
+    [5.7, 60],
+    [6.4, 60],
+    [6.5, 40],
+  ])("scores HbA1c %s %% without diabetes as %i", (hba1c, expected) => {
+    expect(points(IDEAL_ANSWERS, "blood-glucose", [lab("hba1c", hba1c, "%")])).toBe(expected);
+  });
 
   test.each([
-    ["quick", "insufficient-coverage"],
-    ["detailed", "adult-score"],
-    ["deep", "adult-score"],
-  ] as const)("a realistic %s route reaches the intended score state", (depth, kind) => {
-    const answers = completeReachableAssessment(depth, {
-      ...F1_ANSWERS,
-      current_medications: false,
-      preventive_followup_status: "not_due",
-    });
-    const result = calculatePurityScore(answers, {
-      ageYears: 35,
-      assessmentDepth: depth,
-    });
+    [6.8, 40],
+    [7.5, 30],
+    [8.5, 20],
+    [9.5, 10],
+    [10, 0],
+  ])("scores HbA1c %s %% with diagnosed diabetes as %i", (hba1c, expected) => {
+    const diabetes = { ...IDEAL_ANSWERS, diagnosed_conditions_core: ["diabetes"] };
+    const category = metric(diabetes, "blood-glucose", [lab("hba1c", hba1c, "%")]);
+    expect(category.earnedPoints).toBe(expected);
+    expect(category.components[0].explanation).toMatch(/^You reported diagnosed diabetes/);
+  });
 
-    expect(result.kind).toBe(kind);
-    if (depth === "quick") expect(result).not.toHaveProperty("score");
-    else if (result.kind !== "adult-score") {
-      throw new Error(`Expected an adult score for ${depth}`);
-    } else if (depth === "detailed") {
-      expect(result.coverage).toBeGreaterThanOrEqual(70);
-    } else {
-      expect(result).toMatchObject({ score: 100, coverage: 100 });
+  test("falls back to fasting glucose only when it is confirmed fasting", () => {
+    expect(points(IDEAL_ANSWERS, "blood-glucose", [lab("glucose", 95, "mg/dL", "fasting")])).toBe(100);
+    expect(points(IDEAL_ANSWERS, "blood-glucose", [lab("glucose", 6.0, "mmol/L", "fasting")])).toBe(60);
+    expect(points(IDEAL_ANSWERS, "blood-glucose", [lab("glucose", 130, "mg/dL", "fasting")])).toBe(40);
+    expect(metric(IDEAL_ANSWERS, "blood-glucose", [lab("glucose", 95, "mg/dL", "not_fasting")]).components[0].status).toBe("missing");
+  });
+
+  test("needs HbA1c with diabetes and diagnosed conditions at all", () => {
+    expect(metric({ ...IDEAL_ANSWERS, diagnosed_conditions_core: ["diabetes"] }, "blood-glucose", [lab("glucose", 95, "mg/dL", "fasting")]).components[0].status).toBe("missing");
+    const { diagnosed_conditions_core: _conditions, ...rest } = IDEAL_ANSWERS;
+    void _conditions;
+    expect(metric(rest, "blood-glucose").components[0].explanation).toMatch(/diabetes status is unknown/);
+  });
+});
+
+describe("blood-pressure metric", () => {
+  test.each([
+    [115, 75, 100],
+    [125, 75, 75],
+    [125, 82, 50],
+    [135, 70, 50],
+    [145, 70, 25],
+    [120, 95, 25],
+    [165, 70, 0],
+    [120, 100, 0],
+  ])("scores %i/%i mmHg as %i", (systolic, diastolic, expected) => {
+    expect(points({ ...IDEAL_ANSWERS, blood_pressure_systolic: systolic, blood_pressure_diastolic: diastolic }, "blood-pressure")).toBe(expected);
+  });
+
+  test("removes twenty points on treatment and needs both numbers", () => {
+    const treated = metric({ ...IDEAL_ANSWERS, bp_medication_current: true }, "blood-pressure");
+    expect(treated.earnedPoints).toBe(80);
+    expect(treated.components[0].explanation).toMatch(/Twenty points are removed because you take blood-pressure medicine/);
+    const { blood_pressure_diastolic: _diastolic, ...rest } = IDEAL_ANSWERS;
+    void _diastolic;
+    expect(metric(rest, "blood-pressure").components[0].status).toBe("missing");
+    expect(metric({ ...IDEAL_ANSWERS, blood_pressure_systolic: 80, blood_pressure_diastolic: 90 }, "blood-pressure").components[0].status).toBe("missing");
+  });
+});
+
+describe("action plan", () => {
+  test("returns the three largest metric deficits as habit actions", () => {
+    const plan = buildActionPlan([], adultScore(MIXED_ANSWERS));
+    expect(plan.map((item) => [item.categoryId, item.opportunity])).toEqual([
+      ["nicotine", 100],
+      ["diet", 75],
+      ["blood-pressure", 50],
+    ]);
+    for (const item of plan) {
+      expect(item.kind).toBe("habit");
+      expect(item.id).toBe(`habit-${item.categoryId}`);
+      expect(item.sources[0].url).toBe("https://doi.org/10.1161/CIR.0000000000001078");
+      expect(item.nextStep).not.toMatch(/\d+(?:\.\d+)?\s*%/);
     }
   });
 
-  test("a realistic Detailed medicine route remains score-eligible without penalizing no access", () => {
-    const answers = completeReachableAssessment("detailed", {
-      ...F1_ANSWERS,
-      preventive_followup_status: "not_due",
-      current_medications: true,
-      med_detail_prescriber_followup: "no_current_access",
-      adherence_access_barriers: ["none"],
-    });
-    const result = calculatePurityScore(answers, {
-      ageYears: 35,
-      assessmentDepth: "detailed",
-    });
+  test("breaks ties in published metric order and skips perfect or missing metrics", () => {
+    const plan = buildActionPlan([], adultScore({ ...IDEAL_ANSWERS, usual_sleep_hours: 6, weight_kg: 77 }, []));
+    expect(plan.map((item) => item.categoryId)).toEqual(["sleep", "body-mass-index"]);
+  });
 
-    expect(result.kind).toBe("adult-score");
-    if (result.kind === "adult-score") expect(result.coverage).toBeGreaterThanOrEqual(70);
+  test("returns nothing without an adult score", () => {
+    expect(buildActionPlan([], calculateEssentialEight(IDEAL_ANSWERS, { ageYears: 17, assessmentDepth: "deep" }))).toEqual([]);
+    expect(buildActionPlan([], calculateEssentialEight(IDEAL_ANSWERS, { ageYears: 45, assessmentDepth: "quick" }, IDEAL_LABS))).toEqual([]);
   });
 });

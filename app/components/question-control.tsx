@@ -17,6 +17,7 @@ export type QuestionControlProps = {
   questionDescriptionId?: string;
   skipLabelKey?: UiCopyKey;
   subjectAgeYears?: number;
+  countryCode?: string;
 };
 
 function initialValue(question: Question, answer: AnswerValue | undefined) {
@@ -42,6 +43,7 @@ export function QuestionControl({
   questionDescriptionId,
   skipLabelKey,
   subjectAgeYears,
+  countryCode,
 }: QuestionControlProps) {
   const { locale, t } = useI18n();
   const formRef = useRef<HTMLFormElement>(null);
@@ -91,7 +93,7 @@ export function QuestionControl({
   }
 
   const unitKey = numericUnitKey(question.id);
-  const guidance = getQuestionGuidance(question.id, locale);
+  const guidance = getQuestionGuidance(question.id, locale, countryCode);
   const error = attempted ? validateQuestionAnswer(question, committedValue(), subjectAgeYears) : null;
   const errorId = `${question.id}-error`;
   const guidanceId = `${question.id}-guidance`;

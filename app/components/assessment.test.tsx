@@ -164,7 +164,7 @@ test.each(["quick", "deep"] as const)("termine le parcours %s masculin sans ques
   const answers = onComplete.mock.calls[0][0];
   expect(answers.sex_assigned_at_birth).toBe("male");
   expect(answers).not.toHaveProperty("pregnancy_relevant");
-  expect(Object.keys(answers)).toHaveLength(depth === "quick" ? 20 : 91);
+  expect(Object.keys(answers)).toHaveLength(depth === "quick" ? 20 : 92);
 }, 20000);
 
 test("remounts the question sheet in a motion screen keyed by the active question ID", async () => {
@@ -317,7 +317,7 @@ test("offers Detailed instead of silently downgrading an unavailable child Deep 
   await user.click(screen.getByRole("button", { name: /start detailed/i }));
   await continuePastIntermission(user);
 
-  expect(screen.getByText("Question 1 of 42")).toBeVisible();
+  expect(screen.getByText("Question 1 of 41")).toBeVisible();
 });
 
 test("starts the full Deep queue with every eligible adult question", async () => {
@@ -326,7 +326,7 @@ test("starts the full Deep queue with every eligible adult question", async () =
   await user.click(screen.getByRole("button", { name: /start deep/i }));
   await continuePastIntermission(user);
 
-  expect(screen.getByText("Question 1 of 92")).toBeVisible();
+  expect(screen.getByText("Question 1 of 93")).toBeVisible();
 });
 
 test("interrupts immediately for a confirmed red flag and lets the user correct it", async () => {
@@ -344,7 +344,7 @@ test("interrupts immediately for a confirmed red flag and lets the user correct 
   expect(urgentHeading).toHaveFocus();
   expect(screen.getByText(/144/)).toBeVisible();
   expect(screen.getByText(/cannot contact emergency services/i)).toBeVisible();
-  expect(screen.queryByText(/purity score|risk tree/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/life's essential 8|risk tree/i)).not.toBeInTheDocument();
   expect(onComplete).not.toHaveBeenCalled();
 
   await user.click(screen.getByRole("button", { name: /change my answer/i }));
@@ -587,7 +587,7 @@ test("runs nine Express questions without an intermission", async () => {
 test.each([
   ["quick", 20, 4, null],
   ["detailed", 50, 4, 1],
-  ["deep", 96, 4, 1],
+  ["deep", 99, 4, 1],
 ] as const)(
   "%s adaptation completes %i questions with %i intermissions and %s medication follow-ups",
   async (depth, questionCount, expectedIntermissions, expectedFollowUps) => {

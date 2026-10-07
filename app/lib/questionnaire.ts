@@ -10,13 +10,13 @@ import type {
 import { groupQuestionsByPillar } from "./health-pillars";
 
 export const EXPRESS_QUESTION_IDS = [
+  "sex_assigned_at_birth",
   "reported_vo2_max_ml_kg_min",
-  "squat_one_rep_max_kg",
-  "deadlift_one_rep_max_kg",
+  "weekly_moderate_activity_minutes",
+  "chair_stand_30s_count",
+  "movement_strength_days",
   "usual_sleep_hours",
   "sleep_refreshed",
-  "height_cm",
-  "weight_kg",
   "plant_food_frequency",
   "diet_ultra_processed",
 ] as const;

@@ -91,29 +91,25 @@ function riskLeaf(
   };
 }
 
+// Top-band Life's Essential 8 answers: without labs 6 of 8 metrics are assessed
+// (score 100, 75% coverage), so an adult Detailed/Deep route renders the score sheet.
 const F1_ANSWERS: AnswerMap = {
-  current_tobacco_nicotine: false,
-  alcohol_frequency: "never",
-  weekly_moderate_activity_minutes: 300,
-  movement_strength_days: 2,
-  movement_walking_days: 5,
-  sedentary_total_hours: 4,
   plant_food_frequency: 5,
   diet_whole_grains: "daily",
   diet_legumes: 3,
   diet_processed_meat: "never",
   diet_sugary_drinks: 0,
-  usual_sleep_hours: 7,
-  sleep_refreshed: 9,
-  circadian_bedtime_variation: 1,
-  stress_recovery_practice: "daily",
-  preventive_followup_status: "yes",
-  preventive_followup_action: "completed",
-  current_medications: true,
-  med_detail_prescriber_followup: "yes_all",
-  adherence_missed_doses: "never",
-  adherence_access_barriers: ["none"],
-  interaction_shared_list: true,
+  weekly_moderate_activity_minutes: 150,
+  current_tobacco_nicotine: false,
+  smoking_history_former: false,
+  secondhand_smoke_home: false,
+  usual_sleep_hours: 7.5,
+  height_cm: 175,
+  weight_kg: 70,
+  diagnosed_conditions_core: ["none"],
+  blood_pressure_systolic: 115,
+  blood_pressure_diastolic: 75,
+  bp_medication_current: false,
 };
 
 test("marks result reading units as non-nested sibling roots without changing heading order", () => {
@@ -155,7 +151,7 @@ test("marks result reading units as non-nested sibling roots without changing he
   const roots = [...(results?.querySelectorAll<HTMLElement>("[data-reveal]") ?? [])];
   for (const root of roots) expect(root.querySelector("[data-reveal]")).toBeNull();
 
-  const scoreReadout = screen.getByText(/100 \/ 100 · 100% answer coverage/i);
+  const scoreReadout = screen.getByText("94 / 100 · 88% of metrics assessed");
   expect(scoreReadout).toHaveAttribute("data-reveal-item");
   expect(scoreReadout).not.toHaveAttribute("data-count-from");
 
@@ -169,14 +165,15 @@ test("marks result reading units as non-nested sibling roots without changing he
 test("Express results show their own index and navigation while keeping shared tools", () => {
   const { container } = render(
     <Results
+      // VO₂ max at the FRIEND 30–39 male median; chair stand shown but not scored before 60.
       answers={{
-        reported_vo2_max_ml_kg_min: 48.5,
-        squat_one_rep_max_kg: 123,
-        deadlift_one_rep_max_kg: 181,
+        sex_assigned_at_birth: "male",
+        reported_vo2_max_ml_kg_min: 42.4,
+        weekly_moderate_activity_minutes: 150,
+        chair_stand_30s_count: 20,
+        movement_strength_days: 2,
         usual_sleep_hours: 7.5,
         sleep_refreshed: 8,
-        height_cm: 182,
-        weight_kg: 80,
         plant_food_frequency: 4,
         diet_ultra_processed: "rarely",
       }}
@@ -188,7 +185,7 @@ test("Express results show their own index and navigation while keeping shared t
   );
 
   expect(screen.getByRole("heading", { name: "Your Express profile" })).toBeVisible();
-  expect(container.querySelector(".express-profile__score")).toHaveTextContent("92");
+  expect(container.querySelector(".express-profile__score")).toHaveTextContent("86 / 100");
   expect(container.querySelector("#score-distribution")).toBeNull();
   const navigation = screen.getByRole("navigation", { name: "Explore your results" });
   expect(within(navigation).getByRole("link", { name: "Priorities" })).toHaveAttribute("href", "#express-priorities");
@@ -199,7 +196,11 @@ test("Express results show their own index and navigation while keeping shared t
   expect(screen.getByRole("heading", { name: /keep or clear these results/i })).toBeVisible();
   expect(screen.queryByText("Health signal pillars")).not.toBeInTheDocument();
   expect(screen.queryByText(/Purity Score/i)).not.toBeInTheDocument();
-  expect(screen.queryByText(/wellness habits reflection/i)).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", {
+      name: /Life's Essential 8 needs a Detailed or Deep assessment/i,
+    }),
+  ).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: /actions you can choose/i })).not.toBeInTheDocument();
   const express = container.querySelector(".results .express-results");
   expect(express).not.toHaveAttribute("data-reveal");
@@ -418,7 +419,7 @@ test("an answer left blank is named as skipped rather than missing from another 
   expect(dementia).toHaveTextContent("left unanswered or marked not sure");
 });
 
-test("adolescents never see screening scores and adult downloads carry them in schema v4", async () => {
+test("adolescents never see screening scores and adult downloads carry them in schema v6", async () => {
   const user = userEvent.setup();
   const blobs: Blob[] = [];
   Object.defineProperty(URL, "createObjectURL", {
@@ -455,7 +456,7 @@ test("adolescents never see screening scores and adult downloads carry them in s
   expect(screen.getByRole("region", { name: "Most probable conditions to discuss" })).toBeVisible();
   await user.click(screen.getByRole("button", { name: /download json/i }));
   const json = await readBlob(blobs[0]);
-  expect(json.schemaVersion).toBe("health-risk-explorer-report-v5");
+  expect(json.schemaVersion).toBe("health-risk-explorer-report-v6");
   const pathologyRisk = json.pathologyRisk as {
     scores: Array<{
       instrument: string;
@@ -516,7 +517,7 @@ test("the health signal pillars are complete semantic navigation with an adjacen
   );
 });
 
-test("urgent findings render before the adult habits score without changing its arithmetic", () => {
+test("urgent findings render before the adult Life's Essential 8 score without changing its arithmetic", () => {
   render(
     <Results
       answers={{ ...F1_ANSWERS, urgent_chest_discomfort_now: true }}
@@ -529,13 +530,13 @@ test("urgent findings render before the adult habits score without changing its 
 
   const urgent = screen.getByRole("alert");
   const scoreHeading = screen.getByRole("heading", {
-    name: "Purity Score — wellness habits, not a health verdict.",
+    name: "Life's Essential 8 — cardiovascular health score, not a mortality verdict.",
   });
   expect(urgent).toHaveTextContent(/call 144 now/i);
   expect(
     urgent.compareDocumentPosition(scoreHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
-  expect(screen.getByText(/100 \/ 100 · 100% answer coverage/i)).toBeVisible();
+  expect(screen.getByText("100 / 100 · 75% of metrics assessed")).toBeVisible();
   expect(document.body.textContent).not.toMatch(/your disease probability|\byou will (?:live|die)\b/i);
 });
 
@@ -568,36 +569,21 @@ test("urgent-chest remains in the urgent summary and Cardio with its canonical e
   );
 });
 
-test("a merged support action renders every applicable reason and source link", () => {
+test("habit actions name the three largest metric deficits with their reason and source link", () => {
   const { container } = render(
     <Results
       answers={{
         ...F1_ANSWERS,
-        preventive_followup_action: "access_or_safety_barrier",
-        med_detail_prescriber_followup: "no_current_access",
+        weekly_moderate_activity_minutes: 0,
+        usual_sleep_hours: 4,
+        blood_pressure_systolic: 150,
+        blood_pressure_diastolic: 95,
       }}
       assessmentDepth="deep"
       confirmedLabs={[]}
       profile={{ age: 35, countryCode: "CH" }}
       onRestart={vi.fn()}
     />,
-  );
-
-  const action = screen
-    .getByRole("heading", { name: /practical access and safety support/i })
-    .closest("li");
-  expect(action).not.toBeNull();
-  if (!action) return;
-  expect(action).toHaveTextContent(/access or safety barrier/i);
-  expect(action).toHaveTextContent(/no current access to prescriber follow-up/i);
-  expect(
-    within(action).getByRole("link", { name: /primary health care/i }),
-  ).toHaveAttribute("href", "https://www.who.int/health-topics/primary-health-care");
-  expect(
-    within(action).getByRole("link", { name: /medication without harm/i }),
-  ).toHaveAttribute(
-    "href",
-    "https://www.who.int/initiatives/medication-without-harm",
   );
 
   const section = container.querySelector<HTMLElement>(".action-plan");
@@ -608,10 +594,37 @@ test("a merged support action renders every applicable reason and source link", 
   expect(list).toHaveAttribute("data-reveal", "group");
   expect(heading?.parentElement).toBe(section);
   expect(list?.parentElement).toBe(section);
-  expect(list?.querySelectorAll(":scope > [data-reveal-item]").length).toBeGreaterThan(0);
+
+  // Deficits: activity 100, sleep 80, blood pressure 75; the other assessed metrics are at 100.
+  const items = [...(list?.querySelectorAll(":scope > li[data-reveal-item]") ?? [])];
+  expect(items.map((item) => item.querySelector("h3")?.textContent)).toEqual([
+    "Choose one feasible movement step",
+    "Choose one sleep-routine step",
+    "Have your blood pressure re-checked",
+  ]);
+
+  const activity = screen
+    .getByRole("heading", { name: "Choose one feasible movement step" })
+    .closest("li");
+  expect(activity).toHaveTextContent("You reported no moderate or vigorous activity in a usual week.");
+  const sleep = screen
+    .getByRole("heading", { name: "Choose one sleep-routine step" })
+    .closest("li");
+  expect(sleep).toHaveTextContent("You reported four to under five hours of usual sleep.");
+  const pressure = screen
+    .getByRole("heading", { name: "Have your blood pressure re-checked" })
+    .closest("li");
+  expect(pressure).toHaveTextContent("Your reading is in the 140–159 systolic or 90–99 diastolic range.");
+
+  for (const action of [activity, sleep, pressure]) {
+    expect(action).not.toBeNull();
+    expect(
+      within(action as HTMLElement).getByRole("link", { name: /Life's Essential 8/i }),
+    ).toHaveAttribute("href", "https://doi.org/10.1161/CIR.0000000000001078");
+  }
 });
 
-test("Quick shows a habits reflection and coverage but never a numeric score", () => {
+test("Quick shows a Life's Essential 8 reflection and coverage but never a numeric score", () => {
   render(
     <Results
       answers={F1_ANSWERS}
@@ -622,13 +635,19 @@ test("Quick shows a habits reflection and coverage but never a numeric score", (
     />,
   );
 
-  expect(screen.getByRole("heading", { name: /wellness habits reflection/i })).toBeVisible();
-  expect(screen.getByText(/Quick does not calculate a number/i)).toBeVisible();
-  const reflection = screen.getByRole("region", { name: /wellness habits reflection/i });
-  expect(within(reflection).getByText(/100% answer coverage/i)).toBeVisible();
+  expect(
+    screen.getByRole("heading", {
+      name: "Life's Essential 8 needs a Detailed or Deep assessment",
+    }),
+  ).toBeVisible();
+  expect(screen.getByText(/Quick does not calculate a score/i)).toBeVisible();
+  const reflection = screen.getByRole("region", {
+    name: "Life's Essential 8 needs a Detailed or Deep assessment",
+  });
+  expect(within(reflection).getByText("75% of metrics assessed")).toBeVisible();
   expect(document.body.textContent).not.toMatch(/\b\d+\s*\/\s*100\b/);
   expect(
-    screen.queryByText(/Purity Score — wellness habits, not a health verdict/i),
+    screen.queryByText(/cardiovascular health score, not a mortality verdict/i),
   ).not.toBeInTheDocument();
 });
 
@@ -644,14 +663,20 @@ test("the adult ledger distinguishes assessed points and exposes every component
     />,
   );
 
+  expect(screen.getByText("100 / 100 · 63% of metrics assessed")).toBeVisible();
+  const ledger = screen.getByRole("region", {
+    name: "Life's Essential 8 — cardiovascular health score, not a mortality verdict.",
+  });
   expect(
-    screen.getByText("15 / 15 assessed · 83% component coverage"),
-  ).toBeVisible();
-  const ledger = screen.getByRole("region", { name: /Purity Score — wellness habits/i });
-  await user.click(within(ledger).getByText("Nutrition pattern"));
-  expect(screen.getByText("Legume meals").closest("li")).toHaveTextContent(
-    "Missing; 3 possible points affect coverage only",
-  );
+    within(ledger).getAllByText("100 / 100 assessed · 100% metric coverage"),
+  ).toHaveLength(5);
+  expect(
+    within(ledger).getAllByText("0 / 0 assessed · 0% metric coverage"),
+  ).toHaveLength(3);
+  await user.click(within(ledger).getByText("Diet"));
+  expect(
+    screen.getByText("Diet pattern (Mediterranean-style screener)").closest("li"),
+  ).toHaveTextContent("Missing; 100 possible points affect coverage only");
 });
 
 test("ages 13 to 17 receive a non-ranked My Health Habits Map", () => {
@@ -679,7 +704,7 @@ test("ages 13 to 17 receive a non-ranked My Health Habits Map", () => {
   expect(document.body.textContent).not.toMatch(/recovery or enjoyable activity/i);
   expect(screen.getByText(/parent, guardian, or another trusted adult/i)).toBeVisible();
   expect(document.body.textContent).not.toMatch(
-    /purity score|\b\d+\s*\/\s*100\b|\bpoints?\b|\bgrade\b|adult comparison/i,
+    /purity score|life's essential 8|\b\d+\s*\/\s*100\b|\bpoints?\b|\bgrade\b|adult comparison/i,
   );
   expect(
     screen.queryByRole("checkbox", { name: /include structured raw answers/i }),
@@ -747,7 +772,7 @@ test("children under 13 receive general information and guardian routing only", 
   ).toBeVisible();
   expect(screen.getByText(/parent, guardian, or trusted adult/i)).toBeVisible();
   expect(document.body.textContent).not.toMatch(
-    /purity score|my health habits map|\b\d+\s*\/\s*100\b|\bpoints?\b|\bgrade\b/i,
+    /purity score|life's essential 8|my health habits map|\b\d+\s*\/\s*100\b|\bpoints?\b|\bgrade\b/i,
   );
   expect(screen.queryByRole("navigation", { name: /health signal pillars/i })).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: /confirmed lab context/i })).not.toBeInTheDocument();
@@ -851,11 +876,19 @@ test("page completion hands depth into Results and restart clears the in-memory 
     );
   }
 
-  expect(screen.getByRole("heading", { name: /wellness habits reflection/i })).toBeVisible();
+  expect(
+    screen.getByRole("heading", {
+      name: "Life's Essential 8 needs a Detailed or Deep assessment",
+    }),
+  ).toBeVisible();
   expect(screen.getByText(/Quick assessment/i)).toBeVisible();
   await user.click(screen.getByRole("button", { name: /restart from the beginning/i }));
   expect(screen.getByRole("heading", { level: 1 })).toHaveAttribute("id", "landing-title");
-  expect(screen.queryByRole("region", { name: /wellness habits reflection/i })).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("region", {
+      name: "Life's Essential 8 needs a Detailed or Deep assessment",
+    }),
+  ).not.toBeInTheDocument();
 });
 
 test("renders the complete adult result presentation in French while preserving clinical machine data", async () => {
@@ -864,8 +897,6 @@ test("renders the complete adult result presentation in French while preserving 
     answers: {
       ...F1_ANSWERS,
       urgent_chest_discomfort_now: true,
-      preventive_followup_action: "access_or_safety_barrier",
-      med_detail_prescriber_followup: "no_current_access",
     },
     assessmentDepth: "deep",
     confirmedLabs: [confirmedLab],
@@ -881,20 +912,25 @@ test("renders the complete adult result presentation in French while preserving 
   ).toBeVisible();
   expect(
     screen.getByRole("heading", {
-      name: "Purity Score — habitudes de bien-être, pas un verdict sur la santé.",
+      name: "Life's Essential 8 — score de santé cardiovasculaire, pas un verdict de mortalité.",
     }),
   ).toBeVisible();
-  expect(within(screen.getByRole("region", { name: "Vos habitudes, domaine par domaine" }))
-    .getByText("Habitudes alimentaires")).toBeVisible();
+  expect(
+    within(
+      screen.getByRole("region", {
+        name: "Life's Essential 8 — score de santé cardiovasculaire, pas un verdict de mortalité.",
+      }),
+    ).getByText("Alimentation"),
+  ).toBeVisible();
   const scoreReadout = screen.getByText(/\d+ \/ 100 ·/);
   expect(scoreReadout).toBeVisible();
   expect(scoreReadout.textContent).toMatch(
-    /^\d+ \/ 100 · \d+\u202f% de couverture des réponses$/,
+    /^\d+ \/ 100 · \d+\u202f% des métriques évaluées$/,
   );
   const categoryReadouts = screen.getAllByText(/\d+ points sur \d+ évalués/);
   expect(
     categoryReadouts.some((readout) =>
-      /\d+ points sur \d+ évalués · \d+\u202f% des composantes couvertes/.test(
+      /\d+ points sur \d+ évalués · \d+\u202f% de la métrique couverte/.test(
         readout.textContent ?? "",
       ),
     ),
@@ -912,7 +948,7 @@ test("renders the complete adult result presentation in French while preserving 
   expect(screen.getByRole("button", { name: "Télécharger le JSON" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Recommencer depuis le début" })).toBeVisible();
   expect(document.body.textContent).not.toMatch(
-    /Your personal summary|Versioned habit ledger|Actions you can choose|Confirmed lab context|Keep or clear these results/i,
+    /Your personal summary|cardiovascular health score, not a mortality verdict|of metrics assessed|Actions you can choose|Confirmed lab context|Keep or clear these results/i,
   );
 });
 
@@ -942,8 +978,6 @@ test("keeps the selected evidence leaf and raw-answer choice while exporting equ
       ...F1_ANSWERS,
       urgent_chest_discomfort_now: true,
       urgent_breathing_now: true,
-      preventive_followup_action: "access_or_safety_barrier",
-      med_detail_prescriber_followup: "no_current_access",
     },
     assessmentDepth: "deep",
     confirmedLabs: [confirmedLab],
@@ -986,7 +1020,7 @@ test("keeps the selected evidence leaf and raw-answer choice while exporting equ
       kind: (english.score as Record<string, unknown>).kind,
       score: (english.score as Record<string, unknown>).score,
       coverage: (english.score as Record<string, unknown>).coverage,
-      label: "Purity Score — habitudes de bien-être, pas un verdict sur la santé.",
+      label: "Life's Essential 8 — score de santé cardiovasculaire, pas un verdict de mortalité.",
     },
     rawAnswers: english.rawAnswers,
   });
@@ -1017,7 +1051,7 @@ test("localizes adolescent, assisted-handoff, and child result routes without ex
   await user.click(screen.getByRole("button", { name: "Français" }));
   expect(screen.getByRole("heading", { name: "Ma carte des habitudes de santé" })).toBeVisible();
   expect(screen.getByText(/trouver un service concernant la nicotine ou le tabac/i)).toBeVisible();
-  expect(document.body.textContent).not.toMatch(/Purity Score|mapped points|adult comparison/i);
+  expect(document.body.textContent).not.toMatch(/Purity Score|Life's Essential 8|mapped points|adult comparison/i);
   adolescent.unmount();
 
   const assisted = renderLocalizedResults({
@@ -1046,7 +1080,7 @@ test("localizes adolescent, assisted-handoff, and child result routes without ex
     screen.getByRole("heading", { name: "Un guide pour vous et l'adulte qui vous accompagne" }),
   ).toBeVisible();
   expect(screen.getByRole("button", { name: "Recommencer et effacer" })).toBeVisible();
-  expect(document.body.textContent).not.toMatch(/Purity Score|Ma carte des habitudes de santé/);
+  expect(document.body.textContent).not.toMatch(/Purity Score|Life's Essential 8|Ma carte des habitudes de santé/);
 });
 
 test.each([
@@ -1098,7 +1132,7 @@ test.each([
 test("does not rerun risk, score, or action engines when only the result locale changes", async () => {
   const user = userEvent.setup();
   const evaluate = vi.spyOn(riskEngineModule, "evaluateRisks");
-  const calculate = vi.spyOn(scoringModule, "calculatePurityScore");
+  const calculate = vi.spyOn(scoringModule, "calculateEssentialEight");
   const buildActions = vi.spyOn(scoringModule, "buildActionPlan");
   renderLocalizedResults({
     answers: { ...F1_ANSWERS, urgent_chest_discomfort_now: true },
@@ -1139,7 +1173,7 @@ test("puts urgent instructions before the overview with its score, followed by p
   const orderedSections = [
     screen.getByRole("alert", { name: "Act on these immediate signals now" }),
     screen.getByRole("region", { name: "Your results at a glance" }),
-    screen.getByRole("region", { name: "Your habits score" }),
+    screen.getByRole("region", { name: "Your Life's Essential 8 score" }),
     screen.getByRole("heading", { name: /actions you can choose/i }).closest("section")!,
     screen.getByRole("region", { name: "Four health pillars you can inspect." }),
   ];
@@ -1165,14 +1199,16 @@ test("focuses the result title on arrival and only links to accessible report se
   await user.click(screen.getByRole("button", { name: "Français" }));
   expect(screen.getByRole("button", { name: "Français" })).toHaveFocus();
   expect(screen.getByRole("navigation", { name: "Explorer vos résultats" })).toHaveTextContent("Synthèse");
-  expect(screen.getByRole("region", { name: "Votre score d’habitudes" })).toHaveTextContent("Cette échelle ne vous compare pas à une population");
+  expect(
+    screen.getByRole("region", { name: "Votre score Life’s Essential 8" }),
+  ).toHaveTextContent(/score moyen est d’environ 65/);
 });
 
 test("Quick explains the unavailable reference without assigning a score or drawing a population curve", () => {
   render(<Results answers={F1_ANSWERS} assessmentDepth="quick" confirmedLabs={[]}
     profile={{ age: 35, countryCode: "CH" }} onRestart={vi.fn()} />);
-  const reference = screen.getByRole("region", { name: "Your habits score" });
-  expect(reference).toHaveTextContent(/Quick does not calculate a global habits score/i);
+  const reference = screen.getByRole("region", { name: "Your Life's Essential 8 score" });
+  expect(reference).toHaveTextContent(/Quick does not calculate Life's Essential 8/i);
   expect(within(reference).queryByRole("img")).not.toBeInTheDocument();
   expect(within(reference).queryByText("Your score")).not.toBeInTheDocument();
 });
@@ -1183,8 +1219,8 @@ test("private adolescent handoff reveals no adult overview, reference, or inacce
     profile={{ age: 15, countryCode: "CH", assistedMinor: true }} onRestart={vi.fn()} />);
   expect(screen.queryByRole("navigation", { name: "Explore your results" })).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Your results at a glance" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("region", { name: "Your habits score" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Your Life's Essential 8 score" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: /show my private results/i }));
-  expect(screen.queryByRole("region", { name: "Your habits score" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("region", { name: "Your Life's Essential 8 score" })).not.toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Four health pillars you can inspect." })).toHaveFocus();
 });

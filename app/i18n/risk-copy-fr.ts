@@ -165,11 +165,6 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
     copy:
       "Des symptômes cardiovasculaires signalés pendant l'utilisation de minoxidil oral méritent une évaluation clinique rapide.",
   },
-  "topical-minoxidil-scalp-review": {
-    title: "Contexte des cheveux et du cuir chevelu pour le minoxidil topique",
-    copy:
-      "Une chute de cheveux soudaine, localisée ou inexpliquée, ou un cuir chevelu inflammé, mérite un examen clinique avant de compter sur un produit topique pour le cuir chevelu.",
-  },
   "topical-minoxidil-symptom-review": {
     title: "Examen de symptômes pendant l'utilisation de minoxidil topique",
     copy:
@@ -290,6 +285,56 @@ export const riskRuleCopyFr: Readonly<Record<string, RiskRuleCopyTranslation>> =
     copy:
       "Une activité aérobie ou de renforcement hebdomadaire plus faible peut être associée à une moins bonne santé à long terme\u00a0; les limites personnelles et les options sûres méritent d'être discutées.",
   },
+  "pregnancy-complication-cardiovascular-context": {
+    title: "Antécédents de grossesse comme facteur aggravant cardiovasculaire",
+    copy:
+      "Une pré-éclampsie ou une hypertension pendant une grossesse, un diabète gestationnel ou un accouchement prématuré doublent environ le risque cardiovasculaire ultérieur et sont considérés comme des facteurs aggravants dans les recommandations de prévention\u00a0; ils méritent d'être mentionnés lors des contrôles de tension, de glycémie et de cholestérol, même de nombreuses années plus tard.",
+  },
+  "early-menopause-cardiovascular-context": {
+    title: "Ménopause précoce comme facteur aggravant cardiovasculaire",
+    copy:
+      "Une ménopause avant 45 ans est associée à un risque cardiovasculaire ultérieur plus élevé et figure parmi les facteurs aggravants des recommandations de prévention\u00a0; elle mérite d'être mentionnée lors du bilan de tension, de cholestérol et de glycémie.",
+  },
+  "erectile-difficulty-vascular-review": {
+    title: "Difficulté érectile persistante comme signal vasculaire",
+    copy:
+      "Une difficulté érectile présente la plupart du temps précède souvent de plusieurs années les symptômes coronariens\u00a0; le consensus recommande une évaluation du risque cardiovasculaire plutôt qu'un traitement isolé, et le sujet mérite d'être abordé avec un professionnel de santé.",
+  },
+  "lung-cancer-screening-eligibility": {
+    title: "Éligibilité possible au dépistage du cancer du poumon",
+    copy:
+      "Un tabagisme important d'environ 20 paquets-années ou plus, en cours ou arrêté depuis moins de 15 ans, correspond au profil pour lequel un scanner thoracique faible dose annuel est recommandé entre 50 et 80 ans. L'éligibilité et la disponibilité locale méritent d'être vérifiées avec un professionnel de santé\u00a0; le total de paquets-années est ici approximé à partir des cigarettes par jour et des années de tabagisme.",
+  },
+  "secondhand-smoke-exposure": {
+    title: "Tabagisme passif régulier au domicile",
+    copy:
+      "Une exposition régulière à la fumée de tabac d'autres personnes au domicile est associée à davantage de maladies cardiaques, d'AVC, de cancers du poumon et d'affections respiratoires\u00a0; il n'existe pas de seuil sans risque, et un domicile entièrement sans fumée est la mesure de protection recommandée par l'OMS.",
+  },
+  "slow-walking-pace-review": {
+    title: "Allure de marche habituelle lente",
+    copy:
+      "Une allure de marche habituelle jugée lente est l'un des prédicteurs simples les plus forts de la mortalité toutes causes et cardiovasculaire dans les grandes cohortes, indépendamment du poids et des minutes d'activité\u00a0; améliorer en sécurité la vitesse de marche et la force, et rechercher une cause traitable comme un essoufflement, une douleur ou un trouble de l'équilibre, méritent d'être discutés.",
+  },
+  "falls-risk-review": {
+    title: "Dépistage du risque de chute positif",
+    copy:
+      "Une chute dans l'année écoulée, une sensation d'instabilité ou la peur de tomber sont les trois questions de dépistage qui signalent un risque accru de nouvelles chutes et de blessures après 60 ans. Les recommandations préconisent un bilan de la marche, de la force et de l'équilibre, une revue des médicaments et un contrôle de la vue et des dangers du domicile\u00a0; ils méritent d'être demandés à un professionnel de santé.",
+  },
+  "polypharmacy-review": {
+    title: "Cinq médicaments réguliers ou plus",
+    copy:
+      "Prendre cinq médicaments réguliers ou plus est associé à davantage d'effets indésirables, de chutes et d'hospitalisations, et le risque augmente encore à partir de dix. Une revue structurée des médicaments avec un professionnel de santé ou un pharmacien, vérifiant à quoi sert encore chaque médicament et si certains peuvent être simplifiés ou arrêtés, mérite d'être demandée au moins une fois par an.",
+  },
+  "high-risk-medication-review": {
+    title: "Classe de médicaments à fort taux d'effets graves",
+    copy:
+      "Les anticoagulants, l'insuline et les sulfamides hypoglycémiants, les antalgiques opioïdes et les sédatifs-hypnotiques représentent la majorité des admissions aux urgences pour effets indésirables médicamenteux, principalement par saignement, hypoglycémie, sédation excessive et chutes. Une surveillance régulière, un plan clair en cas de dose oubliée ou doublée et une liste de médicaments partagée et à jour méritent d'être confirmés avec le prescripteur ou le pharmacien.",
+  },
+  "financial-strain-support": {
+    title: "Difficultés financières pesant sur la santé",
+    copy:
+      "Avoir souvent du mal à couvrir ses besoins de base est l'un des déterminants sociaux de la santé les plus puissants et est associé à des soins retardés, à un moins bon contrôle des maladies chroniques et à une mortalité plus élevée. Les travailleurs sociaux, les services de santé communautaires et les dispositifs d'aide aux frais de médicaments ou aux prestations peuvent aider\u00a0; un professionnel de santé ou un pharmacien peut aussi adapter le suivi et le traitement à ce qui est abordable.",
+  },
 };
 
 export const riskFactorLabelsFr: Readonly<Record<string, string>> = {
@@ -394,8 +439,6 @@ export const riskFactorLabelsFr: Readonly<Record<string, string>> = {
   "Cardiovascular symptoms reported while using it":
     "Symptômes cardiovasculaires signalés pendant son utilisation",
   "Topical scalp route reported": "Application topique sur le cuir chevelu signalée",
-  "One or more hair-loss or scalp concerns reported":
-    "Une ou plusieurs préoccupations liées à la chute des cheveux ou au cuir chevelu signalées",
   "Current or recently stopped systemic corticosteroid use":
     "Utilisation actuelle ou arrêt récent d'un corticostéroïde systémique",
   "Illness, infection, exposure, surgery, or injury context reported":
@@ -458,4 +501,34 @@ export const riskFactorLabelsFr: Readonly<Record<string, string>> = {
     "Moins de 150 minutes d'activité modérée ou intense déclarées par semaine",
   "Reports muscle-strengthening activity on fewer than 2 days per week":
     "Activité de renforcement musculaire déclarée moins de 2 jours par semaine",
+  "Pre-eclampsia or high blood pressure during a pregnancy":
+    "Pré-éclampsie ou hypertension pendant une grossesse",
+  "Gestational diabetes": "Diabète gestationnel",
+  "Delivery before 37 weeks": "Accouchement avant 37 semaines",
+  "Menopause before age 45": "Ménopause avant 45 ans",
+  "Erectile difficulty often or always": "Difficulté érectile souvent ou toujours",
+  "Cigarettes per day and years smoked approximate 20 pack-years or more":
+    "Les cigarettes par jour et les années de tabagisme approchent 20 paquets-années ou plus",
+  "Years smoked contribute to the approximate pack-year total":
+    "Les années de tabagisme contribuent au total approximatif de paquets-années",
+  "Currently uses tobacco or nicotine": "Consomme actuellement du tabac ou de la nicotine",
+  "Former smoker": "Ancien fumeur ou ancienne fumeuse",
+  "Quit less than 15 years ago": "Arrêt depuis moins de 15 ans",
+  "Regularly exposed to other people's smoke at home":
+    "Régulièrement exposé à la fumée d'autres personnes au domicile",
+  "Self-rated slow usual walking pace": "Allure de marche habituelle jugée lente",
+  "Fell in the past year": "A chuté au cours de l'année écoulée",
+  "Feels unsteady when standing or walking":
+    "Se sent instable debout ou en marchant",
+  "Worries about falling": "S'inquiète de tomber",
+  "Takes regular prescription medicines": "Prend des médicaments sur ordonnance régulièrement",
+  "Takes five to nine regular medicines": "Prend cinq à neuf médicaments réguliers",
+  "Takes ten or more regular medicines": "Prend dix médicaments réguliers ou plus",
+  "Takes an anticoagulant": "Prend un anticoagulant",
+  "Takes insulin or a sulfonylurea": "Prend de l'insuline ou un sulfamide hypoglycémiant",
+  "Takes an opioid painkiller": "Prend un antalgique opioïde",
+  "Takes a sleeping tablet or benzodiazepine":
+    "Prend un somnifère ou une benzodiazépine",
+  "Often or always struggles to cover basic needs":
+    "A souvent ou toujours du mal à couvrir ses besoins de base",
 };

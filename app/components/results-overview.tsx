@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "../i18n/context";
-import type { PresentedPurityScoreResult } from "../i18n/presentation";
+import type { PresentedEssentialEightResult } from "../i18n/presentation";
 import { resultsExplorerCopy } from "../i18n/results-explorer-copy";
 import { resultsSummaryCopy } from "../i18n/results-summary-copy";
 import type { RiskLeaf } from "../lib/types";
@@ -10,7 +10,7 @@ import { ScoreDistribution } from "./score-distribution";
 type ResultsOverviewProps = Readonly<{
   leaves: ReadonlyArray<RiskLeaf>;
   protectiveRoots: ReadonlyArray<string>;
-  score: PresentedPurityScoreResult;
+  score: PresentedEssentialEightResult;
 }>;
 
 export function ResultsOverview({ leaves, protectiveRoots, score }: ResultsOverviewProps) {

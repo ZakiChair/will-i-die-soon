@@ -48,6 +48,21 @@ function lessThan(
   return { questionId, operator: "less-than", value, validMin, validMax };
 }
 
+function atLeast(
+  questionId: string,
+  value: number,
+  validMin: number,
+  validMax: number,
+): RiskCondition {
+  return {
+    questionId,
+    operator: "greater-than-or-equal",
+    value,
+    validMin,
+    validMax,
+  };
+}
+
 function factor(
   questionId: string,
   label: string,
@@ -203,6 +218,62 @@ const lowMood: RiskCondition = {
 };
 const lowActivity = lessThan("weekly_moderate_activity_minutes", 150, 0, 10080);
 const lowStrength = lessThan("movement_strength_days", 2, 0, 7);
+const adversePregnancyOutcome = includesAny("pregnancy_complication_history", [
+  "preeclampsia_or_hypertension",
+  "gestational_diabetes",
+  "preterm_delivery",
+]);
+// The condition language cannot multiply two answers, so a 20 pack-year
+// history is approximated by three conservative cigarettes-per-day × years
+// corners that each sit on or above the 20 pack-year curve.
+const heavySmokingHistory: RiskCondition = {
+  any: [
+    {
+      all: [
+        atLeast("smoking_cigarettes_per_day", 20, 0, 100),
+        atLeast("smoking_years_total", 20, 0, 100),
+      ],
+    },
+    {
+      all: [
+        atLeast("smoking_cigarettes_per_day", 10, 0, 100),
+        atLeast("smoking_years_total", 40, 0, 100),
+      ],
+    },
+    {
+      all: [
+        atLeast("smoking_cigarettes_per_day", 40, 0, 100),
+        atLeast("smoking_years_total", 10, 0, 100),
+      ],
+    },
+  ],
+};
+const currentOrRecentSmoker: RiskCondition = {
+  any: [
+    equals("current_tobacco_nicotine", true),
+    {
+      all: [
+        equals("smoking_history_former", true),
+        lessThan("smoking_years_since_quit", 15, 0, 100),
+      ],
+    },
+  ],
+};
+const lungScreeningEligibility: RiskCondition = {
+  all: [heavySmokingHistory, currentOrRecentSmoker],
+};
+const fallsRiskSignal = includesAny("falls_past_year", [
+  "fallen",
+  "unsteady",
+  "worried",
+]);
+const polypharmacy = equalsAny("medication_count", ["five_to_nine", "ten_or_more"]);
+const highRiskMedicationClass = includesAny("high_risk_medication_classes", [
+  "anticoagulant",
+  "insulin_or_sulfonylurea",
+  "opioid",
+  "sedative_hypnotic",
+]);
 
 const cardiovascularRules: RiskRule[] = [
   {
@@ -317,6 +388,79 @@ const cardiovascularRules: RiskRule[] = [
     ],
     applicability: adults,
   },
+  {
+    id: "pregnancy-complication-cardiovascular-context",
+    group: "cardiovascular",
+    title: "Pregnancy history as a cardiovascular risk enhancer",
+    copy:
+      "Pre-eclampsia or high blood pressure in pregnancy, gestational diabetes, or a preterm delivery roughly double later cardiovascular risk and are treated as risk enhancers in prevention guidelines; they are worth mentioning at routine blood-pressure, glucose, and cholesterol checks even many years later.",
+    inputs: ["pregnancy_complication_history"],
+    sourceIds: ["ahaAdversePregnancyOutcomes2021", "escPrevention2021"],
+    evidenceTier: "guideline-action",
+    urgency: "long-term",
+    signal: "worth-attention",
+    condition: adversePregnancyOutcome,
+    factors: [
+      factor(
+        "pregnancy_complication_history",
+        "Pre-eclampsia or high blood pressure during a pregnancy",
+        includes("pregnancy_complication_history", "preeclampsia_or_hypertension"),
+      ),
+      factor(
+        "pregnancy_complication_history",
+        "Gestational diabetes",
+        includes("pregnancy_complication_history", "gestational_diabetes"),
+      ),
+      factor(
+        "pregnancy_complication_history",
+        "Delivery before 37 weeks",
+        includes("pregnancy_complication_history", "preterm_delivery"),
+      ),
+    ],
+    applicability: adults,
+  },
+  {
+    id: "early-menopause-cardiovascular-context",
+    group: "cardiovascular",
+    title: "Early menopause as a cardiovascular risk enhancer",
+    copy:
+      "Menopause before age 45 is associated with higher later cardiovascular risk and is listed as a risk enhancer in prevention guidelines; it is worth mentioning when blood pressure, cholesterol, and glucose are reviewed.",
+    inputs: ["menopause_before_45"],
+    sourceIds: ["ahaMenopauseTransition2020", "escPrevention2021"],
+    evidenceTier: "guideline-action",
+    urgency: "long-term",
+    signal: "worth-attention",
+    condition: equals("menopause_before_45", true),
+    factors: [
+      factor(
+        "menopause_before_45",
+        "Menopause before age 45",
+        equals("menopause_before_45", true),
+      ),
+    ],
+    applicability: { minAge: 40, countries: "all" },
+  },
+  {
+    id: "erectile-difficulty-vascular-review",
+    group: "cardiovascular",
+    title: "Persistent erectile difficulty as a vascular signal",
+    copy:
+      "Erectile difficulty that is present most of the time often precedes coronary symptoms by several years, so consensus guidance recommends a cardiovascular risk assessment rather than treating it in isolation; it is worth raising with a clinician.",
+    inputs: ["erectile_difficulty"],
+    sourceIds: ["princetonConsensus2012", "nhsErectileDysfunction"],
+    evidenceTier: "guideline-action",
+    urgency: "long-term",
+    signal: "worth-attention",
+    condition: equals("erectile_difficulty", "often_or_always"),
+    factors: [
+      factor(
+        "erectile_difficulty",
+        "Erectile difficulty often or always",
+        equals("erectile_difficulty", "often_or_always"),
+      ),
+    ],
+    applicability: { minAge: 40, countries: "all" },
+  },
 ];
 
 const sleepRules: RiskRule[] = [
@@ -397,6 +541,74 @@ const respiratoryRules: RiskRule[] = [
     ],
     applicability: adults,
     dedupeKey: "cardiopulmonary-emergency",
+  },
+  {
+    id: "lung-cancer-screening-eligibility",
+    group: "respiratory",
+    title: "Possible eligibility for lung cancer screening",
+    copy:
+      "A heavy smoking history of roughly 20 pack-years or more, while still smoking or within 15 years of quitting, matches the profile for which annual low-dose CT screening is recommended between ages 50 and 80. Eligibility and local availability are worth checking with a clinician; the pack-year total here is approximated from cigarettes per day and years smoked.",
+    inputs: [
+      "current_tobacco_nicotine",
+      "smoking_history_former",
+      "smoking_cigarettes_per_day",
+      "smoking_years_total",
+      "smoking_years_since_quit",
+    ],
+    sourceIds: ["uspstfLungCancerScreening2021", "euCouncilCancerScreening2022"],
+    evidenceTier: "guideline-action",
+    urgency: "long-term",
+    signal: "high-signal",
+    condition: lungScreeningEligibility,
+    factors: [
+      factor(
+        "smoking_cigarettes_per_day",
+        "Cigarettes per day and years smoked approximate 20 pack-years or more",
+        heavySmokingHistory,
+      ),
+      factor(
+        "smoking_years_total",
+        "Years smoked contribute to the approximate pack-year total",
+        heavySmokingHistory,
+      ),
+      factor(
+        "current_tobacco_nicotine",
+        "Currently uses tobacco or nicotine",
+        equals("current_tobacco_nicotine", true),
+      ),
+      factor(
+        "smoking_history_former",
+        "Former smoker",
+        equals("smoking_history_former", true),
+      ),
+      factor(
+        "smoking_years_since_quit",
+        "Quit less than 15 years ago",
+        lessThan("smoking_years_since_quit", 15, 0, 100),
+      ),
+    ],
+    applicability: { minAge: 50, maxAge: 80, countries: "all" },
+  },
+  {
+    id: "secondhand-smoke-exposure",
+    group: "respiratory",
+    title: "Regular second-hand smoke at home",
+    copy:
+      "Regular exposure to other people's tobacco smoke at home is associated with higher rates of heart disease, stroke, lung cancer, and respiratory illness; there is no safe level, and a fully smoke-free home is the protective step recommended by the WHO.",
+    inputs: ["secondhand_smoke_home"],
+    sourceIds: ["whoTobacco"],
+    evidenceTier: "guideline-action",
+    urgency: "long-term",
+    signal: "worth-attention",
+    condition: equals("secondhand_smoke_home", true),
+    factors: [
+      factor(
+        "secondhand_smoke_home",
+        "Regularly exposed to other people's smoke at home",
+        equals("secondhand_smoke_home", true),
+      ),
+    ],
+    applicability: adults,
   },
 ];
 
@@ -823,13 +1035,6 @@ const topicalMinoxidil: RiskCondition = equalsAny("minoxidil_detail_route_produc
   "topical",
   "both",
 ]);
-const topicalMinoxidilScalpReview: RiskCondition = {
-  all: [
-    equals("uses_minoxidil", true),
-    topicalMinoxidil,
-    equals("minoxidil_detail_hair_scalp_context", "one_or_more"),
-  ],
-};
 const topicalMinoxidilSymptomReview: RiskCondition = {
   all: [equals("uses_minoxidil", true), topicalMinoxidil, minoxidilCardiacSymptoms],
 };
@@ -1207,37 +1412,6 @@ const medicationReviewRules: RiskRule[] = [
     ],
     applicability: adults,
     dedupeKey: "cardiopulmonary-emergency",
-  },
-  {
-    id: "topical-minoxidil-scalp-review",
-    group: "medication-substance-review",
-    title: "Topical minoxidil hair and scalp context",
-    copy:
-      "Sudden, patchy, unexplained hair loss or an inflamed scalp is worth clinical review before relying on a topical scalp product.",
-    inputs: [
-      "uses_minoxidil",
-      "minoxidil_detail_route_product",
-      "minoxidil_detail_hair_scalp_context",
-    ],
-    sourceIds: ["fdaTopicalMinoxidil"],
-    evidenceTier: "authoritative-safety",
-    urgency: "prompt-review",
-    signal: "worth-attention",
-    condition: topicalMinoxidilScalpReview,
-    factors: [
-      factor("uses_minoxidil", "Current minoxidil use", equals("uses_minoxidil", true)),
-      factor(
-        "minoxidil_detail_route_product",
-        "Topical scalp route reported",
-        topicalMinoxidil,
-      ),
-      factor(
-        "minoxidil_detail_hair_scalp_context",
-        "One or more hair-loss or scalp concerns reported",
-        equals("minoxidil_detail_hair_scalp_context", "one_or_more"),
-      ),
-    ],
-    applicability: adults,
   },
   {
     id: "topical-minoxidil-symptom-review",
@@ -1690,6 +1864,80 @@ const medicationReviewRules: RiskRule[] = [
     ],
     applicability: adults,
   },
+  {
+    id: "polypharmacy-review",
+    group: "medication-substance-review",
+    title: "Five or more regular medicines",
+    copy:
+      "Taking five or more regular medicines is associated with more adverse drug events, falls, and hospital admissions, and the risk rises further from ten. A structured medicines review with a clinician or pharmacist, checking what each medicine is still for and whether any can be simplified or stopped, is worth requesting at least once a year.",
+    inputs: ["current_medications", "medication_count"],
+    sourceIds: ["whoMedicationWithoutHarm", "niceMultimorbidity"],
+    evidenceTier: "guideline-action",
+    urgency: "long-term",
+    signal: "worth-attention",
+    condition: { all: [equals("current_medications", true), polypharmacy] },
+    factors: [
+      factor(
+        "current_medications",
+        "Takes regular prescription medicines",
+        equals("current_medications", true),
+      ),
+      factor(
+        "medication_count",
+        "Takes five to nine regular medicines",
+        equals("medication_count", "five_to_nine"),
+      ),
+      factor(
+        "medication_count",
+        "Takes ten or more regular medicines",
+        equals("medication_count", "ten_or_more"),
+      ),
+    ],
+    applicability: adults,
+  },
+  {
+    id: "high-risk-medication-review",
+    group: "medication-substance-review",
+    title: "Medicine class with a high rate of serious harm",
+    copy:
+      "Blood thinners, insulin and sulfonylureas, opioid painkillers, and sedative-hypnotics account for most emergency admissions for medicine-related harm, mainly through bleeding, low blood sugar, over-sedation, and falls. Regular monitoring, a clear plan for missed or extra doses, and an up-to-date shared medicine list are worth confirming with the prescriber or pharmacist.",
+    inputs: ["current_medications", "high_risk_medication_classes"],
+    sourceIds: ["whoMedicationWithoutHarm", "budnitzAdverseDrugEvents2011"],
+    evidenceTier: "guideline-action",
+    urgency: "long-term",
+    signal: "worth-attention",
+    condition: {
+      all: [equals("current_medications", true), highRiskMedicationClass],
+    },
+    factors: [
+      factor(
+        "current_medications",
+        "Takes regular prescription medicines",
+        equals("current_medications", true),
+      ),
+      factor(
+        "high_risk_medication_classes",
+        "Takes an anticoagulant",
+        includes("high_risk_medication_classes", "anticoagulant"),
+      ),
+      factor(
+        "high_risk_medication_classes",
+        "Takes insulin or a sulfonylurea",
+        includes("high_risk_medication_classes", "insulin_or_sulfonylurea"),
+      ),
+      factor(
+        "high_risk_medication_classes",
+        "Takes an opioid painkiller",
+        includes("high_risk_medication_classes", "opioid"),
+      ),
+      factor(
+        "high_risk_medication_classes",
+        "Takes a sleeping tablet or benzodiazepine",
+        includes("high_risk_medication_classes", "sedative_hypnotic"),
+      ),
+    ],
+    applicability: adults,
+  },
 ];
 
 const anabolicLiverSymptoms: RiskCondition = {
@@ -1940,6 +2188,58 @@ const musculoskeletalRules: RiskRule[] = [
     ],
     applicability: adults,
   },
+  {
+    id: "slow-walking-pace-review",
+    group: "musculoskeletal",
+    title: "Slow usual walking pace",
+    copy:
+      "A self-rated slow usual walking pace is one of the strongest simple predictors of all-cause and cardiovascular mortality in large cohorts, independent of weight and activity minutes; building walking speed and strength safely, and checking for a treatable cause such as breathlessness, pain, or balance problems, are worth discussing.",
+    inputs: ["walking_pace"],
+    sourceIds: ["ukBiobankWalkingPace2017", "whoPhysicalActivity"],
+    evidenceTier: "evidence-limited-association",
+    urgency: "long-term",
+    signal: "worth-attention",
+    condition: equals("walking_pace", "slow"),
+    factors: [
+      factor(
+        "walking_pace",
+        "Self-rated slow usual walking pace",
+        equals("walking_pace", "slow"),
+      ),
+    ],
+    applicability: adults,
+  },
+  {
+    id: "falls-risk-review",
+    group: "musculoskeletal",
+    title: "Falls risk screen is positive",
+    copy:
+      "A fall in the past year, feeling unsteady, or worrying about falling are the three screening questions that indicate a higher risk of further falls and injury after 60. Falls guidelines recommend a gait, strength, and balance check, a medicines review, and a vision and home-hazard review; these are worth requesting from a clinician.",
+    inputs: ["falls_past_year"],
+    sourceIds: ["worldFallsGuidelines2022", "cdcSteadi"],
+    evidenceTier: "guideline-action",
+    urgency: "long-term",
+    signal: "high-signal",
+    condition: fallsRiskSignal,
+    factors: [
+      factor(
+        "falls_past_year",
+        "Fell in the past year",
+        includes("falls_past_year", "fallen"),
+      ),
+      factor(
+        "falls_past_year",
+        "Feels unsteady when standing or walking",
+        includes("falls_past_year", "unsteady"),
+      ),
+      factor(
+        "falls_past_year",
+        "Worries about falling",
+        includes("falls_past_year", "worried"),
+      ),
+    ],
+    applicability: { minAge: 60, countries: "all" },
+  },
 ];
 
 const preventiveRules: RiskRule[] = [
@@ -2019,6 +2319,27 @@ const preventiveRules: RiskRule[] = [
         "cancer_alarm_signs",
         "Bleeding after menopause or other unusual bleeding",
         includes("cancer_alarm_signs", "postmenopausal_or_unusual_bleeding"),
+      ),
+    ],
+    applicability: adults,
+  },
+  {
+    id: "financial-strain-support",
+    group: "preventive-follow-up",
+    title: "Financial strain affecting health",
+    copy:
+      "Often struggling to cover basic needs is one of the strongest social determinants of health and is associated with delayed care, poorer control of long-term conditions, and higher mortality. Social workers, community health services, and medicine-cost or benefit schemes can help; a clinician or pharmacist can also adapt follow-up and treatment to what is affordable.",
+    inputs: ["financial_strain"],
+    sourceIds: ["whoSocialDeterminants"],
+    evidenceTier: "evidence-limited-association",
+    urgency: "support",
+    signal: "worth-attention",
+    condition: equals("financial_strain", "often"),
+    factors: [
+      factor(
+        "financial_strain",
+        "Often or always struggles to cover basic needs",
+        equals("financial_strain", "often"),
       ),
     ],
     applicability: adults,

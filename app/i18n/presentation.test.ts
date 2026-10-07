@@ -3,18 +3,25 @@ import { describe, expect, it } from "vitest";
 import { evidenceSources } from "../data/evidence";
 import { riskRules } from "../data/rules";
 import { createRedactedExport } from "../lib/export";
+import {
+  normalizeLabValue,
+  type ConfirmedLabValue,
+  type FastingStatus,
+  type LabMarker,
+} from "../lib/labs";
 import { prototypePolicy, RISK_RULESET_VERSION } from "../lib/release-policy";
 import { evaluateRisks } from "../lib/risk-engine";
 import {
-  PURITY_SCORE_LABEL,
+  ESSENTIAL_EIGHT_LABEL,
+  SCORE_CATEGORY_IDS,
   buildActionPlan,
-  calculatePurityScore,
+  calculateEssentialEight,
 } from "../lib/scoring";
 import type {
   ActionItem,
-  AdultPurityScoreResult,
+  AdultEssentialEightResult,
+  ScoreCategoryId,
   ScoreComponent,
-  ScoreComponent as CanonicalScoreComponent,
 } from "../lib/scoring";
 import type {
   AnswerMap,
@@ -28,482 +35,387 @@ import {
   riskRuleCopyFr,
 } from "./risk-copy-fr";
 import {
-  PURITY_SCORE_LABEL_FR,
-  accessSupportCopyFr,
-  accessSupportReasonClausesFr,
+  ESSENTIAL_EIGHT_LABEL_FR,
   actionCopyFr,
-  bookedPreventiveActionCopyFr,
   protectiveRootLabelsFr,
   scoreCategoryLabelsFr,
   scoreComponentExplanationsFr,
   scoreComponentLabelsFr,
+  scoreExplanationSuffixesFr,
   scoreLedgerExplanationsFr,
 } from "./score-copy-fr";
 import {
   localizeActions,
   localizeProtectiveRoots,
-  localizePurityScore,
+  localizeEssentialEight,
   localizeRiskLeaves,
 } from "./presentation";
 
 const adultProfile: ProfileContext = { age: 35, countryCode: "CH" };
 
+function lab(
+  marker: LabMarker,
+  value: number,
+  unit: string,
+  fastingStatus: FastingStatus = "not_stated",
+  collectionDate = "2026-07-30",
+): ConfirmedLabValue {
+  const normalized = normalizeLabValue({ marker, value, unit });
+  return {
+    source: null,
+    reviewed: {
+      marker,
+      valueText: String(value),
+      value,
+      unit,
+      referenceRange: "",
+      collectionDate,
+      fastingStatus,
+    },
+    normalized: {
+      value: normalized.normalizedValue,
+      unit: normalized.normalizedUnit,
+      displayValue: normalized.displayValue,
+    },
+  };
+}
+
+/** Every Life's Essential 8 metric at its top band. */
 const COMPLETE_ANSWERS: AnswerMap = {
-  current_tobacco_nicotine: false,
-  alcohol_frequency: "never",
-  weekly_moderate_activity_minutes: 300,
-  movement_strength_days: 2,
-  movement_walking_days: 5,
-  sedentary_total_hours: 4,
   plant_food_frequency: 5,
   diet_whole_grains: "daily",
   diet_legumes: 3,
   diet_processed_meat: "never",
   diet_sugary_drinks: 0,
-  usual_sleep_hours: 7,
-  sleep_refreshed: 9,
-  circadian_bedtime_variation: 1,
-  stress_recovery_practice: "daily",
-  preventive_followup_status: "yes",
-  preventive_followup_action: "completed",
-  current_medications: true,
-  med_detail_prescriber_followup: "yes_all",
-  adherence_missed_doses: "never",
-  adherence_access_barriers: ["none"],
-  interaction_shared_list: true,
+  weekly_moderate_activity_minutes: 150,
+  weekly_vigorous_activity_minutes: 0,
+  current_tobacco_nicotine: false,
+  smoking_history_former: false,
+  secondhand_smoke_home: false,
+  usual_sleep_hours: 7.5,
+  height_cm: 175,
+  weight_kg: 70,
+  statin_current: false,
+  diagnosed_conditions_core: ["none"],
+  blood_pressure_systolic: 115,
+  blood_pressure_diastolic: 75,
+  bp_medication_current: false,
 };
+const COMPLETE_LABS: ReadonlyArray<ConfirmedLabValue> = [
+  lab("total_cholesterol", 180, "mg/dL"),
+  lab("hdl_cholesterol", 60, "mg/dL"),
+  lab("hba1c", 5.2, "%"),
+];
+const NO_LABS: ReadonlyArray<ConfirmedLabValue> = [];
+
+/** A mixed profile with every penalty suffix and a deficit on every metric. */
+const MIXED_ANSWERS: AnswerMap = {
+  ...COMPLETE_ANSWERS,
+  plant_food_frequency: 2,
+  diet_whole_grains: "sometimes",
+  diet_legumes: 1,
+  diet_processed_meat: "often",
+  diet_sugary_drinks: 2,
+  weekly_moderate_activity_minutes: 60,
+  weekly_vigorous_activity_minutes: 15,
+  current_tobacco_nicotine: true,
+  tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
+  secondhand_smoke_home: true,
+  usual_sleep_hours: 6.5,
+  weight_kg: 85,
+  statin_current: true,
+  blood_pressure_systolic: 134,
+  blood_pressure_diastolic: 84,
+  bp_medication_current: true,
+};
+const MIXED_LABS: ReadonlyArray<ConfirmedLabValue> = [
+  lab("total_cholesterol", 230, "mg/dL"),
+  lab("hdl_cholesterol", 45, "mg/dL"),
+  lab("hba1c", 6.0, "%"),
+];
 
 type ComponentCase = {
-  readonly questionId: CanonicalScoreComponent["questionId"];
+  readonly questionId: ScoreComponent["questionId"];
   readonly answers: AnswerMap;
-  readonly status: CanonicalScoreComponent["status"];
+  readonly labs: ReadonlyArray<ConfirmedLabValue>;
+  readonly status: ScoreComponent["status"];
   readonly explanation: string;
-  readonly exclusionReason?: CanonicalScoreComponent["exclusionReason"];
 };
 
 function answered(
   questionId: ComponentCase["questionId"],
   answers: AnswerMap,
   explanation: string,
+  labs: ReadonlyArray<ConfirmedLabValue> = COMPLETE_LABS,
 ): ComponentCase {
-  return { questionId, answers, status: "answered", explanation };
+  return { questionId, answers, labs, status: "answered", explanation };
 }
 
 function missing(
   questionId: ComponentCase["questionId"],
   answers: AnswerMap,
   explanation: string,
+  labs: ReadonlyArray<ConfirmedLabValue> = COMPLETE_LABS,
 ): ComponentCase {
-  return { questionId, answers, status: "missing", explanation };
+  return { questionId, answers, labs, status: "missing", explanation };
 }
 
-function excluded(
-  questionId: ComponentCase["questionId"],
-  answers: AnswerMap,
-  explanation: string,
-  exclusionReason: NonNullable<ComponentCase["exclusionReason"]>,
-): ComponentCase {
-  return {
-    questionId,
-    answers,
-    status: "excluded",
-    explanation,
-    exclusionReason,
-  };
-}
-
-const invalidNumber = "This component was not answered with a valid value.";
-const invalidOption = "This component was not answered with a mapped option.";
-
-const tobaccoCases: ReadonlyArray<ComponentCase> = [
+const dietCases: ReadonlyArray<ComponentCase> = [
+  missing("diet_pattern", { diet_legumes: null }, "All five diet items are needed to place the diet pattern."),
+  answered("diet_pattern", {}, "Your diet items place you in the top band of the Mediterranean-style screener (15–16 of 16)."),
   answered(
-    "current_tobacco_nicotine",
-    { current_tobacco_nicotine: false },
-    "You reported no current tobacco or nicotine use.",
-  ),
-  excluded(
-    "current_tobacco_nicotine",
-    {
-      current_tobacco_nicotine: true,
-      tobacco_nicotine_context: "only_prescribed_nrt_quit_plan",
-    },
-    "Prescribed nicotine replacement in a quit plan is excluded from this component.",
-    "prescribed-nrt-quit-plan",
+    "diet_pattern",
+    { diet_sugary_drinks: 2, diet_legumes: 2 },
+    "Your diet items place you in the second band of the Mediterranean-style screener (12–14 of 16).",
   ),
   answered(
+    "diet_pattern",
+    { plant_food_frequency: 3, diet_whole_grains: "often", diet_legumes: 2, diet_processed_meat: "sometimes", diet_sugary_drinks: 1 },
+    "Your diet items place you in the middle band of the Mediterranean-style screener (8–11 of 16).",
+  ),
+  answered(
+    "diet_pattern",
+    { plant_food_frequency: 2, diet_whole_grains: "rarely", diet_legumes: 1, diet_processed_meat: "often", diet_sugary_drinks: 2 },
+    "Your diet items place you in the fourth band of the Mediterranean-style screener (4–7 of 16).",
+  ),
+  answered(
+    "diet_pattern",
+    { plant_food_frequency: 0, diet_whole_grains: "never", diet_legumes: 0, diet_processed_meat: "daily", diet_sugary_drinks: 4 },
+    "Your diet items place you in the lowest band of the Mediterranean-style screener (0–3 of 16).",
+  ),
+];
+
+const activityCases: ReadonlyArray<ComponentCase> = [
+  missing(
+    "weekly_moderate_activity_minutes",
+    { weekly_moderate_activity_minutes: null },
+    "Weekly moderate activity minutes were not answered with a valid value.",
+  ),
+  answered(
+    "weekly_moderate_activity_minutes",
+    { weekly_moderate_activity_minutes: 60, weekly_vigorous_activity_minutes: 45 },
+    "You reported at least 150 moderate-equivalent minutes a week (vigorous minutes count double).",
+  ),
+  answered("weekly_moderate_activity_minutes", { weekly_moderate_activity_minutes: 120 }, "You reported 120–149 moderate-equivalent minutes a week."),
+  answered("weekly_moderate_activity_minutes", { weekly_moderate_activity_minutes: 90 }, "You reported 90–119 moderate-equivalent minutes a week."),
+  answered("weekly_moderate_activity_minutes", { weekly_moderate_activity_minutes: 60 }, "You reported 60–89 moderate-equivalent minutes a week."),
+  answered("weekly_moderate_activity_minutes", { weekly_moderate_activity_minutes: 30 }, "You reported 30–59 moderate-equivalent minutes a week."),
+  answered("weekly_moderate_activity_minutes", { weekly_moderate_activity_minutes: 10 }, "You reported 1–29 moderate-equivalent minutes a week."),
+  answered("weekly_moderate_activity_minutes", { weekly_moderate_activity_minutes: 0 }, "You reported no moderate or vigorous activity in a usual week."),
+];
+
+const nicotineCases: ReadonlyArray<ComponentCase> = [
+  answered(
     "current_tobacco_nicotine",
-    {
-      current_tobacco_nicotine: true,
-      tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
-    },
+    { current_tobacco_nicotine: true, tobacco_nicotine_context: "only_prescribed_nrt_quit_plan" },
+    "You reported using only prescribed nicotine replacement in a quit plan, scored like a quit under one year ago.",
+  ),
+  answered(
+    "current_tobacco_nicotine",
+    { current_tobacco_nicotine: true, tobacco_nicotine_context: "tobacco_vape_or_other_nicotine" },
     "You reported current tobacco, vaping, or other nicotine use.",
   ),
-];
-
-const drinkingContext: AnswerMap = {
-  alcohol_frequency: "monthly_or_less",
-  alcohol_detail_typical_amount: 1,
-  alcohol_detail_heavy_episode: "never",
-};
-
-const alcoholCases: ReadonlyArray<ComponentCase> = [
-  ...[
-    ["never", "You reported no alcohol use."],
-    ["monthly_or_less", "You reported alcohol use monthly or less."],
-    ["two_to_four_monthly", "You reported alcohol use two to four times a month."],
-    ["two_to_three_weekly", "You reported alcohol use two to three times a week."],
-    ["four_plus_weekly", "You reported alcohol use four or more times a week."],
-  ].map(([frequency, explanation]) =>
-    answered(
-      "alcohol_frequency",
-      frequency === "never"
-        ? { alcohol_frequency: frequency }
-        : { ...drinkingContext, alcohol_frequency: frequency },
-      explanation,
-    ),
+  answered("current_tobacco_nicotine", {}, "You reported never smoking regularly and no current nicotine use."),
+  answered(
+    "current_tobacco_nicotine",
+    { smoking_history_former: true, smoking_years_since_quit: 6 },
+    "You reported stopping smoking five or more years ago.",
   ),
   answered(
-    "alcohol_detail_typical_amount",
-    { alcohol_frequency: "never" },
-    "Typical amount is fully assessed because no alcohol use was reported.",
-  ),
-  ...[
-    [1, "You reported up to one standard drink on a usual drinking day."],
-    [1.5, "You reported more than one and up to two standard drinks."],
-    [2.5, "You reported more than two and up to three standard drinks."],
-    [4, "You reported more than three standard drinks."],
-  ].map(([amount, explanation]) =>
-    answered(
-      "alcohol_detail_typical_amount",
-      { ...drinkingContext, alcohol_detail_typical_amount: amount },
-      String(explanation),
-    ),
-  ),
-  missing(
-    "alcohol_detail_typical_amount",
-    { ...drinkingContext, alcohol_detail_typical_amount: null },
-    invalidNumber,
+    "current_tobacco_nicotine",
+    { smoking_history_former: true, smoking_years_since_quit: 2 },
+    "You reported stopping smoking one to under five years ago.",
   ),
   answered(
-    "alcohol_detail_heavy_episode",
-    { alcohol_frequency: "never" },
-    "Heavy episodes are fully assessed because no alcohol use was reported.",
+    "current_tobacco_nicotine",
+    { smoking_history_former: true, smoking_years_since_quit: 0 },
+    "You reported stopping smoking under one year ago.",
   ),
-  ...[
-    ["never", "You reported no heavy drinking episodes."],
-    ["less_monthly", "You reported a heavy episode less than monthly."],
-    ["monthly", "You reported a heavy episode monthly."],
-    ["weekly", "You reported a heavy episode weekly."],
-    ["daily", "You reported a heavy episode daily or almost daily."],
-  ].map(([frequency, explanation]) =>
-    answered(
-      "alcohol_detail_heavy_episode",
-      { ...drinkingContext, alcohol_detail_heavy_episode: frequency },
-      explanation,
-    ),
+  answered(
+    "current_tobacco_nicotine",
+    { secondhand_smoke_home: true },
+    "You reported never smoking regularly and no current nicotine use. Twenty points are removed because someone smokes indoors at your home.",
   ),
   missing(
-    "alcohol_detail_heavy_episode",
-    { ...drinkingContext, alcohol_detail_heavy_episode: null },
-    invalidOption,
+    "current_tobacco_nicotine",
+    { current_tobacco_nicotine: true, tobacco_nicotine_context: null },
+    "The current nicotine context was not resolved.",
+  ),
+  missing(
+    "current_tobacco_nicotine",
+    { smoking_history_former: true, smoking_years_since_quit: null },
+    "Past smoking history, or the time since quitting, was not answered.",
+  ),
+  missing(
+    "current_tobacco_nicotine",
+    { current_tobacco_nicotine: null },
+    "Current tobacco or nicotine use was not answered.",
   ),
 ];
 
-function numericCases(
-  questionId: ComponentCase["questionId"],
-  rows: ReadonlyArray<readonly [number, string]>,
-): ReadonlyArray<ComponentCase> {
+const sleepCases: ReadonlyArray<ComponentCase> = [
+  missing("usual_sleep_hours", { usual_sleep_hours: null }, "Usual sleep hours were not answered with a valid value."),
+  answered("usual_sleep_hours", { usual_sleep_hours: 8 }, "You reported seven to under nine hours of usual sleep."),
+  answered("usual_sleep_hours", { usual_sleep_hours: 9 }, "You reported nine to under ten hours of usual sleep."),
+  answered("usual_sleep_hours", { usual_sleep_hours: 6.5 }, "You reported six to under seven hours of usual sleep."),
+  answered("usual_sleep_hours", { usual_sleep_hours: 10 }, "You reported ten or more hours of usual sleep."),
+  answered("usual_sleep_hours", { usual_sleep_hours: 5.5 }, "You reported five to under six hours of usual sleep."),
+  answered("usual_sleep_hours", { usual_sleep_hours: 4.5 }, "You reported four to under five hours of usual sleep."),
+  answered("usual_sleep_hours", { usual_sleep_hours: 3 }, "You reported under four hours of usual sleep."),
+];
+
+const bmiCases: ReadonlyArray<ComponentCase> = [
+  missing("body_mass_index", { weight_kg: null }, "Height and weight are both needed to compute body-mass index."),
+  answered("body_mass_index", {}, "Your body-mass index is under 25 kg/m²."),
+  answered("body_mass_index", { weight_kg: 85 }, "Your body-mass index is between 25 and 29.9 kg/m²."),
+  answered("body_mass_index", { weight_kg: 100 }, "Your body-mass index is between 30 and 34.9 kg/m²."),
+  answered("body_mass_index", { weight_kg: 115 }, "Your body-mass index is between 35 and 39.9 kg/m²."),
+  answered("body_mass_index", { weight_kg: 130 }, "Your body-mass index is 40 kg/m² or more."),
+];
+
+function lipids(total: number, hdl: number): ReadonlyArray<ConfirmedLabValue> {
+  return [lab("total_cholesterol", total, "mg/dL"), lab("hdl_cholesterol", hdl, "mg/dL"), lab("hba1c", 5.2, "%")];
+}
+
+const lipidCases: ReadonlyArray<ComponentCase> = [
+  missing(
+    "lab:non_hdl_cholesterol",
+    {},
+    "Confirmed total and HDL cholesterol results are needed to compute non-HDL cholesterol.",
+    NO_LABS,
+  ),
+  answered("lab:non_hdl_cholesterol", {}, "Your non-HDL cholesterol is under 130 mg/dL (3.4 mmol/L).", lipids(180, 60)),
+  answered("lab:non_hdl_cholesterol", {}, "Your non-HDL cholesterol is 130–159 mg/dL (3.4–4.1 mmol/L).", lipids(200, 55)),
+  answered("lab:non_hdl_cholesterol", {}, "Your non-HDL cholesterol is 160–189 mg/dL (4.1–4.9 mmol/L).", lipids(230, 55)),
+  answered("lab:non_hdl_cholesterol", {}, "Your non-HDL cholesterol is 190–219 mg/dL (4.9–5.7 mmol/L).", lipids(250, 50)),
+  answered("lab:non_hdl_cholesterol", {}, "Your non-HDL cholesterol is 220 mg/dL (5.7 mmol/L) or more.", lipids(280, 50)),
+  answered(
+    "lab:non_hdl_cholesterol",
+    { statin_current: true },
+    "Your non-HDL cholesterol is under 130 mg/dL (3.4 mmol/L). Twenty points are removed because you take a statin.",
+    lipids(180, 60),
+  ),
+];
+
+function glucoseLabs(
+  hba1c: number | null,
+  fastingGlucose: number | null = null,
+  fastingStatus: FastingStatus = "fasting",
+): ReadonlyArray<ConfirmedLabValue> {
   return [
-    ...rows.map(([value, explanation]) =>
-      answered(questionId, { [questionId]: value }, explanation),
-    ),
-    missing(questionId, { [questionId]: null }, invalidNumber),
+    lab("total_cholesterol", 180, "mg/dL"),
+    lab("hdl_cholesterol", 60, "mg/dL"),
+    ...(hba1c === null ? [] : [lab("hba1c", hba1c, "%")]),
+    ...(fastingGlucose === null ? [] : [lab("glucose", fastingGlucose, "mg/dL", fastingStatus)]),
   ];
 }
 
-function optionCases(
-  questionId: ComponentCase["questionId"],
-  rows: ReadonlyArray<readonly [string, string]>,
-): ReadonlyArray<ComponentCase> {
-  return [
-    ...rows.map(([value, explanation]) =>
-      answered(questionId, { [questionId]: value }, explanation),
-    ),
-    missing(questionId, { [questionId]: null }, invalidOption),
-  ];
-}
+const diabetes: AnswerMap = { diagnosed_conditions_core: ["diabetes"] };
 
-const movementCases: ReadonlyArray<ComponentCase> = [
-  ...numericCases("weekly_moderate_activity_minutes", [
-    [0, "You reported no moderate or vigorous activity in a usual week."],
-    [50, "You reported 1–74 minutes of weekly activity."],
-    [100, "You reported 75–149 minutes of weekly activity."],
-    [150, "You reported at least 150 minutes of weekly activity."],
-  ]),
-  ...numericCases("movement_strength_days", [
-    [0, "You reported no strength-activity days."],
-    [1, "You reported one strength-activity day."],
-    [2, "You reported at least two strength-activity days."],
-  ]),
-  ...numericCases("movement_walking_days", [
-    [0, "You reported no brisk-walking days."],
-    [1, "You reported one or two brisk-walking days."],
-    [3, "You reported three or four brisk-walking days."],
-    [5, "You reported at least five brisk-walking days."],
-  ]),
-  ...numericCases("sedentary_total_hours", [
-    [4, "You reported up to four waking hours sitting or reclining."],
-    [5, "You reported more than four and under seven sedentary hours."],
-    [8, "You reported seven to under ten sedentary hours."],
-    [10, "You reported ten or more sedentary hours."],
-  ]),
-];
-
-const nutritionCases: ReadonlyArray<ComponentCase> = [
-  ...numericCases("plant_food_frequency", [
-    [0, "You reported no vegetable or fruit portions on a typical day."],
-    [1, "You reported one or two vegetable or fruit portions."],
-    [3, "You reported three or four vegetable or fruit portions."],
-    [5, "You reported at least five vegetable or fruit portions."],
-  ]),
-  ...optionCases("diet_whole_grains", [
-    ["never", "You reported never choosing whole grains."],
-    ["rarely", "You reported rarely choosing whole grains."],
-    ["sometimes", "You reported sometimes choosing whole grains."],
-    ["often", "You reported often choosing whole grains."],
-    ["daily", "You reported choosing whole grains daily or almost daily."],
-  ]),
-  ...numericCases("diet_legumes", [
-    [0, "You reported no legume meals in a usual week."],
-    [1, "You reported one legume meal in a usual week."],
-    [2, "You reported two legume meals in a usual week."],
-    [3, "You reported at least three legume meals in a usual week."],
-  ]),
-  ...optionCases("diet_processed_meat", [
-    ["never", "You reported never eating processed meat."],
-    ["rarely", "You reported rarely eating processed meat."],
-    ["sometimes", "You reported sometimes eating processed meat."],
-    ["often", "You reported often eating processed meat."],
-    ["daily", "You reported eating processed meat daily or almost daily."],
-  ]),
-  ...numericCases("diet_sugary_drinks", [
-    [0, "You reported no sugary drinks in a usual week."],
-    [1, "You reported one sugary drink in a usual week."],
-    [2, "You reported two or three sugary drinks in a usual week."],
-    [4, "You reported four to six sugary drinks in a usual week."],
-    [7, "You reported seven or more sugary drinks in a usual week."],
-  ]),
-];
-
-const sleepAndRecoveryCases: ReadonlyArray<ComponentCase> = [
-  ...numericCases("usual_sleep_hours", [
-    [5, "You reported under six hours of usual sleep."],
-    [6.5, "You reported six to under seven hours of usual sleep."],
-    [7, "You reported at least seven hours of usual sleep."],
-  ]),
-  ...numericCases("sleep_refreshed", [
-    [2, "You placed refreshed sleep in the 0–2 band."],
-    [4, "You placed refreshed sleep in the 3–4 band."],
-    [6, "You placed refreshed sleep in the 5–6 band."],
-    [8, "You placed refreshed sleep in the 7–8 band."],
-    [9, "You placed refreshed sleep in the 9–10 band."],
-  ]),
-  ...numericCases("circadian_bedtime_variation", [
-    [1, "You reported up to one hour of bedtime variation."],
-    [2, "You reported more than one and up to two hours of bedtime variation."],
-    [3, "You reported more than two and up to three hours of bedtime variation."],
-    [4, "You reported more than three hours of bedtime variation."],
-  ]),
-  ...optionCases("stress_recovery_practice", [
-    ["never", "You reported never practising a brief stress-management skill."],
-    ["rarely", "You reported rarely practising a brief stress-management skill."],
-    ["sometimes", "You reported sometimes practising a brief stress-management skill."],
-    ["often", "You reported often practising a brief stress-management skill."],
-    ["daily", "You reported practising a brief stress-management skill daily or almost daily."],
-  ]),
-];
-
-const preventiveCases: ReadonlyArray<ComponentCase> = [
-  excluded(
-    "preventive_followup_action",
-    { preventive_followup_status: "not_due", preventive_followup_action: null },
-    "You reported that no routine follow-up was personally due.",
-    "not-due",
-  ),
-  excluded(
-    "preventive_followup_action",
-    {
-      preventive_followup_status: "yes",
-      preventive_followup_action: "access_or_safety_barrier",
-    },
-    "You reported an access or safety barrier to a personally chosen follow-up.",
-    "access-or-safety-barrier",
+const glucoseCases: ReadonlyArray<ComponentCase> = [
+  missing(
+    "lab:glycaemic_status",
+    { diagnosed_conditions_core: undefined },
+    "Diagnosed conditions were not answered, so diabetes status is unknown.",
   ),
   missing(
-    "preventive_followup_action",
-    { preventive_followup_status: "yes", preventive_followup_action: null },
-    "The chosen follow-up action was not answered.",
+    "lab:glycaemic_status",
+    diabetes,
+    "A confirmed HbA1c result is needed to score glucose with diagnosed diabetes.",
+    glucoseLabs(null),
+  ),
+  answered("lab:glycaemic_status", diabetes, "You reported diagnosed diabetes with an HbA1c under 7 %.", glucoseLabs(6.8)),
+  answered("lab:glycaemic_status", diabetes, "You reported diagnosed diabetes with an HbA1c of 7–7.9 %.", glucoseLabs(7.5)),
+  answered("lab:glycaemic_status", diabetes, "You reported diagnosed diabetes with an HbA1c of 8–8.9 %.", glucoseLabs(8.5)),
+  answered("lab:glycaemic_status", diabetes, "You reported diagnosed diabetes with an HbA1c of 9–9.9 %.", glucoseLabs(9.5)),
+  answered("lab:glycaemic_status", diabetes, "You reported diagnosed diabetes with an HbA1c of 10 % or more.", glucoseLabs(10.5)),
+  answered("lab:glycaemic_status", {}, "No diagnosed diabetes and an HbA1c under 5.7 %.", glucoseLabs(5.2)),
+  answered("lab:glycaemic_status", {}, "No diagnosed diabetes and an HbA1c of 5.7–6.4 %, the prediabetes range.", glucoseLabs(6.0)),
+  answered(
+    "lab:glycaemic_status",
+    {},
+    "No diagnosed diabetes but an HbA1c of 6.5 % or more, which is in the diabetes range and deserves clinical confirmation.",
+    glucoseLabs(6.8),
   ),
   answered(
-    "preventive_followup_action",
-    {
-      preventive_followup_status: "yes",
-      preventive_followup_action: "completed",
-    },
-    "You reported completing a personally due follow-up.",
+    "lab:glycaemic_status",
+    {},
+    "No diagnosed diabetes and a fasting glucose under 100 mg/dL (5.6 mmol/L).",
+    glucoseLabs(null, 90),
   ),
   answered(
-    "preventive_followup_action",
-    {
-      preventive_followup_status: "yes",
-      preventive_followup_action: "booked_or_contacted",
-    },
-    "You reported booking or contacting a service about a personally due follow-up.",
+    "lab:glycaemic_status",
+    {},
+    "No diagnosed diabetes and a fasting glucose of 100–125 mg/dL (5.6–6.9 mmol/L), the prediabetes range.",
+    glucoseLabs(null, 110),
   ),
   answered(
-    "preventive_followup_action",
-    {
-      preventive_followup_status: "yes",
-      preventive_followup_action: "not_yet",
-    },
-    "You reported not yet acting on a personally due follow-up.",
+    "lab:glycaemic_status",
+    {},
+    "No diagnosed diabetes but a fasting glucose of 126 mg/dL (7.0 mmol/L) or more, which is in the diabetes range and deserves clinical confirmation.",
+    glucoseLabs(null, 140),
   ),
   missing(
-    "preventive_followup_action",
-    { preventive_followup_status: null, preventive_followup_action: null },
-    "Whether a chosen preventive follow-up applies is unresolved.",
+    "lab:glycaemic_status",
+    {},
+    "A confirmed HbA1c or fasting glucose result is needed to score glucose.",
+    glucoseLabs(null, 90, "not_fasting"),
   ),
 ];
 
-const noCurrentMedicine =
-  "This component does not apply because you reported no current prescription medicines.";
-const unresolvedCurrentMedicine = "Current prescription-medicine use is unresolved.";
-
-const medicationCases: ReadonlyArray<ComponentCase> = [
-  excluded(
-    "med_detail_prescriber_followup",
-    { current_medications: false },
-    noCurrentMedicine,
-    "medication-not-applicable",
-  ),
+const bloodPressureCases: ReadonlyArray<ComponentCase> = [
   missing(
-    "med_detail_prescriber_followup",
-    { current_medications: null },
-    unresolvedCurrentMedicine,
+    "blood_pressure_systolic",
+    { blood_pressure_diastolic: null },
+    "A recent systolic and diastolic reading are both needed to score blood pressure.",
   ),
-  excluded(
-    "med_detail_prescriber_followup",
-    {
-      current_medications: true,
-      med_detail_prescriber_followup: "no_current_access",
-    },
-    "You reported no current access to prescriber follow-up.",
-    "no-current-access",
-  ),
-  ...[
-    ["yes_all", "You reported prescriber follow-up for all current medicines."],
-    ["yes_some", "You reported prescriber follow-up for some current medicines."],
-    ["no", "You reported no prescriber follow-up for current medicines."],
-  ].map(([value, explanation]) =>
-    answered(
-      "med_detail_prescriber_followup",
-      { current_medications: true, med_detail_prescriber_followup: value },
-      explanation,
-    ),
-  ),
-  missing(
-    "med_detail_prescriber_followup",
-    { current_medications: true, med_detail_prescriber_followup: null },
-    invalidOption,
-  ),
-  excluded(
-    "adherence_missed_doses",
-    { current_medications: false },
-    noCurrentMedicine,
-    "medication-not-applicable",
-  ),
-  missing(
-    "adherence_missed_doses",
-    { current_medications: null },
-    unresolvedCurrentMedicine,
-  ),
-  excluded(
-    "adherence_missed_doses",
-    {
-      current_medications: true,
-      adherence_missed_doses: "weekly",
-      adherence_access_barriers: ["cost"],
-    },
-    "A medicine access or use barrier was reported, so dose-taking is excluded.",
-    "access-or-safety-barrier",
-  ),
-  ...[
-    ["never", "You reported never missing, delaying, or repeating a dose."],
-    ["rarely", "You reported rarely missing, delaying, or repeating a dose."],
-    ["monthly", "You reported this happening a few times a month."],
-    ["weekly", "You reported this happening at least weekly."],
-  ].map(([value, explanation]) =>
-    answered(
-      "adherence_missed_doses",
-      {
-        current_medications: true,
-        adherence_missed_doses: value,
-        adherence_access_barriers: ["none"],
-      },
-      explanation,
-    ),
-  ),
-  missing(
-    "adherence_missed_doses",
-    {
-      current_medications: true,
-      adherence_missed_doses: null,
-      adherence_access_barriers: ["none"],
-    },
-    invalidOption,
-  ),
-  excluded(
-    "interaction_shared_list",
-    { current_medications: false },
-    noCurrentMedicine,
-    "medication-not-applicable",
-  ),
-  missing(
-    "interaction_shared_list",
-    { current_medications: null },
-    unresolvedCurrentMedicine,
+  answered("blood_pressure_systolic", {}, "Your reading is under 120/80 mmHg."),
+  answered(
+    "blood_pressure_systolic",
+    { blood_pressure_systolic: 125 },
+    "Your systolic reading is 120–129 mmHg with a diastolic under 80.",
   ),
   answered(
-    "interaction_shared_list",
-    { current_medications: true, interaction_shared_list: true },
-    "You reported that a clinician or pharmacist has a current medicine list.",
+    "blood_pressure_systolic",
+    { blood_pressure_systolic: 134, blood_pressure_diastolic: 84 },
+    "Your reading is in the 130–139 systolic or 80–89 diastolic range.",
   ),
   answered(
-    "interaction_shared_list",
-    { current_medications: true, interaction_shared_list: false },
-    "You reported that no clinician or pharmacist has a current medicine list.",
+    "blood_pressure_systolic",
+    { blood_pressure_systolic: 145, blood_pressure_diastolic: 92 },
+    "Your reading is in the 140–159 systolic or 90–99 diastolic range.",
   ),
-  missing(
-    "interaction_shared_list",
-    { current_medications: true, interaction_shared_list: null },
-    "A shared current medicine list was not answered.",
+  answered(
+    "blood_pressure_systolic",
+    { blood_pressure_systolic: 165, blood_pressure_diastolic: 102 },
+    "Your reading is 160 systolic or 100 diastolic mmHg or more.",
+  ),
+  answered(
+    "blood_pressure_systolic",
+    { bp_medication_current: true },
+    "Your reading is under 120/80 mmHg. Twenty points are removed because you take blood-pressure medicine.",
   ),
 ];
 
 const SCORE_COMPONENT_CASES: ReadonlyArray<ComponentCase> = [
-  ...tobaccoCases,
-  ...alcoholCases,
-  ...movementCases,
-  ...nutritionCases,
-  ...sleepAndRecoveryCases,
-  ...preventiveCases,
-  ...medicationCases,
+  ...dietCases,
+  ...activityCases,
+  ...nicotineCases,
+  ...sleepCases,
+  ...bmiCases,
+  ...lipidCases,
+  ...glucoseCases,
+  ...bloodPressureCases,
 ];
 
-function adultScore(answers: AnswerMap = COMPLETE_ANSWERS): AdultPurityScoreResult {
-  const result = calculatePurityScore(
+function adultScore(
+  answers: AnswerMap = {},
+  labs: ReadonlyArray<ConfirmedLabValue> = COMPLETE_LABS,
+): AdultEssentialEightResult {
+  const result = calculateEssentialEight(
     { ...COMPLETE_ANSWERS, ...answers },
     { ageYears: 35, assessmentDepth: "deep" },
+    labs,
   );
   expect(result.kind).toBe("adult-score");
   if (result.kind !== "adult-score") {
@@ -513,11 +425,23 @@ function adultScore(answers: AnswerMap = COMPLETE_ANSWERS): AdultPurityScoreResu
 }
 
 function componentFor(testCase: ComponentCase): ScoreComponent {
-  const component = adultScore(testCase.answers).categories
+  const component = adultScore(testCase.answers, testCase.labs).categories
     .flatMap((category) => category.components)
     .find((candidate) => candidate.questionId === testCase.questionId);
   if (!component) throw new Error(`Missing component ${testCase.questionId}`);
   return component;
+}
+
+/** Splits a canonical explanation into its base sentence and optional penalty suffix. */
+function explanationParts(explanation: string): { base: string; suffix: string | null } {
+  const [base, ...rest] = explanation.split(/(?<=\.) (?=Twenty points)/);
+  return { base, suffix: rest.length > 0 ? rest.join(" ") : null };
+}
+
+function localizedExplanation(explanation: string): string {
+  const { base, suffix } = explanationParts(explanation);
+  const localizedBase = scoreComponentExplanationsFr[base];
+  return suffix ? `${localizedBase} ${scoreExplanationSuffixesFr[suffix]}` : localizedBase;
 }
 
 function deepFreeze<T>(value: T): T {
@@ -703,7 +627,7 @@ function withoutApprovedDisplay(value: unknown): unknown {
 }
 
 describe("live French presentation corpus", () => {
-  it("covers all 59 risk rules, 91 distinct factor labels, and 9 emergency kinds", () => {
+  it("covers all 68 risk rules, 113 distinct factor labels, and 9 emergency kinds", () => {
     const factorLabels = riskRules.flatMap((rule) =>
       rule.factors.map((factor) => factor.label),
     );
@@ -711,12 +635,12 @@ describe("live French presentation corpus", () => {
       rule.emergencyKind ? [rule.emergencyKind] : [],
     );
 
-    expect(riskRules).toHaveLength(59);
+    expect(riskRules).toHaveLength(68);
     expect(Object.keys(riskRuleCopyFr).sort()).toEqual(
       riskRules.map((rule) => rule.id).sort(),
     );
-    expect(factorLabels).toHaveLength(111);
-    expect(new Set(factorLabels).size).toBe(91);
+    expect(factorLabels).toHaveLength(132);
+    expect(new Set(factorLabels).size).toBe(113);
     expect(Object.keys(riskFactorLabelsFr).sort()).toEqual(
       [...new Set(factorLabels)].sort(),
     );
@@ -747,97 +671,74 @@ describe("live French presentation corpus", () => {
     }
   });
 
-  it("covers 8 categories, 21 rendered components, and all 97 explanations across 116 variants", () => {
+  it("covers 8 metrics, 8 rendered components, all 63 base explanations and 3 penalty suffixes", () => {
     const components = SCORE_COMPONENT_CASES.map((testCase) => {
       const component = componentFor(testCase);
-      expect(component).toMatchObject({
+      expect(component, testCase.explanation).toMatchObject({
         questionId: testCase.questionId,
         status: testCase.status,
         explanation: testCase.explanation,
-        ...(testCase.exclusionReason
-          ? { exclusionReason: testCase.exclusionReason }
-          : {}),
       });
       return component;
     });
     const categoryIds = adultScore().categories.map((category) => category.id);
     const componentIds = [...new Set(components.map((component) => component.questionId))];
-    const explanations = [...new Set(components.map((component) => component.explanation))];
+    const parts = components.map((component) => explanationParts(component.explanation));
+    const baseExplanations = [...new Set(parts.map((part) => part.base))];
+    const suffixes = [...new Set(parts.flatMap((part) => (part.suffix ? [part.suffix] : [])))];
     const variantKeys = new Set(
       components.map((component) =>
-        JSON.stringify([
-          component.questionId,
-          component.status,
-          component.exclusionReason ?? null,
-          component.explanation,
-        ]),
+        JSON.stringify([component.questionId, component.status, component.explanation]),
       ),
     );
 
-    expect(categoryIds).toHaveLength(8);
+    expect(categoryIds).toEqual(SCORE_CATEGORY_IDS);
     expect(Object.keys(scoreCategoryLabelsFr).sort()).toEqual([...categoryIds].sort());
-    expect(componentIds).toHaveLength(21);
+    expect(componentIds).toHaveLength(8);
     expect(Object.keys(scoreComponentLabelsFr).sort()).toEqual(componentIds.sort());
-    expect(SCORE_COMPONENT_CASES).toHaveLength(116);
-    expect(variantKeys.size).toBe(116);
-    expect(explanations).toHaveLength(97);
+    expect(SCORE_COMPONENT_CASES).toHaveLength(66);
+    expect(variantKeys.size).toBe(66);
+    expect(baseExplanations).toHaveLength(63);
     expect(Object.keys(scoreComponentExplanationsFr).sort()).toEqual(
-      explanations.sort(),
+      baseExplanations.sort(),
     );
+    expect(suffixes).toHaveLength(3);
+    expect(Object.keys(scoreExplanationSuffixesFr).sort()).toEqual(suffixes.sort());
     expect(new Set(components.map((component) => component.status))).toEqual(
-      new Set(["answered", "missing", "excluded"]),
-    );
-    expect(
-      new Set(components.flatMap((component) =>
-        component.exclusionReason ? [component.exclusionReason] : [],
-      )),
-    ).toEqual(
-      new Set([
-        "prescribed-nrt-quit-plan",
-        "not-due",
-        "access-or-safety-barrier",
-        "no-current-access",
-        "medication-not-applicable",
-      ]),
+      new Set(["answered", "missing"]),
     );
     expect(Object.keys(scoreLedgerExplanationsFr).sort()).toEqual(
-      [
-        "This transparent index uses only answered, modifiable wellness habits.",
-        "The point weights are product choices, not disease probabilities or clinical coefficients.",
-        "Missing answers reduce coverage rather than earning zero points.",
-      ].sort(),
+      adultScore().explanations.slice().sort(),
     );
-    expect(PURITY_SCORE_LABEL_FR.trim(), "French score label").not.toBe("");
+    expect(ESSENTIAL_EIGHT_LABEL_FR.trim(), "French score label").not.toBe("");
     for (const dictionary of [
       scoreCategoryLabelsFr,
       scoreComponentLabelsFr,
       scoreComponentExplanationsFr,
+      scoreExplanationSuffixesFr,
       scoreLedgerExplanationsFr,
     ]) {
       for (const [key, value] of Object.entries(dictionary)) {
         expect(value.trim(), key).not.toBe("");
+        expect(value, key).not.toBe(key);
       }
     }
   });
 
   it("uses non-breaking French spacing before semicolons and colons", () => {
     const frenchCopy = [
-      PURITY_SCORE_LABEL_FR,
+      ESSENTIAL_EIGHT_LABEL_FR,
       ...Object.values(riskRuleCopyFr).flatMap(({ title, copy }) => [title, copy]),
       ...Object.values(riskFactorLabelsFr),
       ...Object.values(scoreCategoryLabelsFr),
       ...Object.values(scoreComponentLabelsFr),
       ...Object.values(scoreComponentExplanationsFr),
+      ...Object.values(scoreExplanationSuffixesFr),
       ...Object.values(scoreLedgerExplanationsFr),
       ...Object.values(actionCopyFr).flatMap(({ title, nextStep }) => [
         title,
         nextStep,
       ]),
-      bookedPreventiveActionCopyFr.title,
-      bookedPreventiveActionCopyFr.nextStep,
-      accessSupportCopyFr.title,
-      accessSupportCopyFr.nextStep,
-      ...Object.values(accessSupportReasonClausesFr),
       ...Object.values(protectiveRootLabelsFr),
     ];
 
@@ -867,48 +768,26 @@ describe("live French presentation corpus", () => {
     );
   });
 
-  it("uses the precise French clinical term for standard drinks", () => {
-    expect([
+  it("keeps laboratory thresholds in both unit systems and French decimal commas", () => {
+    expect(
+      scoreComponentExplanationsFr["Your non-HDL cholesterol is under 130 mg/dL (3.4 mmol/L)."],
+    ).toBe("Votre cholestérol non-HDL est inférieur à 130 mg/dL (3,4 mmol/L).");
+    expect(
       scoreComponentExplanationsFr[
-        "You reported up to one standard drink on a usual drinking day."
+        "No diagnosed diabetes and a fasting glucose of 100–125 mg/dL (5.6–6.9 mmol/L), the prediabetes range."
       ],
-      scoreComponentExplanationsFr[
-        "You reported more than one and up to two standard drinks."
-      ],
-      scoreComponentExplanationsFr[
-        "You reported more than two and up to three standard drinks."
-      ],
-      scoreComponentExplanationsFr[
-        "You reported more than three standard drinks."
-      ],
-    ]).toEqual([
-      "Vous déclarez boire au plus un verre standard lors d'une journée habituelle de consommation.",
-      "Vous déclarez boire plus d'un et jusqu'à deux verres standard.",
-      "Vous déclarez boire plus de deux et jusqu'à trois verres standard.",
-      "Vous déclarez boire plus de trois verres standard.",
-    ]);
+    ).toBe(
+      "Aucun diabète diagnostiqué et une glycémie à jeun de 100 à 125 mg/dL (5,6–6,9 mmol/L), dans la zone de prédiabète.",
+    );
   });
 
-  it("renders personally due follow-up as applicability, not debt", () => {
-    expect([
-      scoreComponentExplanationsFr[
-        "You reported that no routine follow-up was personally due."
-      ],
-      scoreComponentExplanationsFr[
-        "You reported completing a personally due follow-up."
-      ],
-      scoreComponentExplanationsFr[
-        "You reported booking or contacting a service about a personally due follow-up."
-      ],
-      scoreComponentExplanationsFr[
-        "You reported not yet acting on a personally due follow-up."
-      ],
-    ]).toEqual([
-      "Vous déclarez qu'aucun suivi de routine ne s'appliquait à votre situation.",
-      "Vous déclarez avoir effectué un suivi qui s'appliquait à votre situation.",
-      "Vous déclarez avoir pris rendez-vous ou contacté un service au sujet d'un suivi qui s'appliquait à votre situation.",
-      "Vous déclarez ne pas encore avoir agi concernant un suivi qui s'appliquait à votre situation.",
-    ]);
+  it("reports diagnosed diabetes as a declaration, not a verdict", () => {
+    for (const [english, french] of Object.entries(scoreComponentExplanationsFr)) {
+      if (english.includes("diagnosed diabetes with")) {
+        expect(english).toMatch(/^You reported diagnosed diabetes/);
+        expect(french).toMatch(/^Vous avez déclaré un diabète diagnostiqué/);
+      }
+    }
   });
 });
 
@@ -1212,11 +1091,11 @@ describe("risk presentation", () => {
 describe("score presentation", () => {
   it("returns canonical score objects by reference in English", () => {
     const adult = adultScore();
-    const insufficient = calculatePurityScore(
-      { current_tobacco_nicotine: false, alcohol_frequency: "never" },
+    const insufficient = calculateEssentialEight(
+      { current_tobacco_nicotine: false, smoking_history_former: false },
       { ageYears: 35, assessmentDepth: "deep" },
     );
-    const unavailable = calculatePurityScore(COMPLETE_ANSWERS, {
+    const unavailable = calculateEssentialEight(COMPLETE_ANSWERS, {
       ageYears: 17,
       assessmentDepth: "deep",
     });
@@ -1224,23 +1103,19 @@ describe("score presentation", () => {
       throw new Error("Expected insufficient score coverage");
     }
 
-    expect(localizePurityScore(adult, "en")).toBe(adult);
-    expect(localizePurityScore(insufficient, "en")).toBe(insufficient);
-    expect(localizePurityScore(unavailable, "en")).toBe(unavailable);
-    expect(adult.label).toBe(PURITY_SCORE_LABEL);
-    expect(insufficient.label).toBe(PURITY_SCORE_LABEL);
-    expect(PURITY_SCORE_LABEL).toBe(
-      "Purity Score — wellness habits, not a health verdict.",
+    expect(localizeEssentialEight(adult, "en")).toBe(adult);
+    expect(localizeEssentialEight(insufficient, "en")).toBe(insufficient);
+    expect(localizeEssentialEight(unavailable, "en")).toBe(unavailable);
+    expect(adult.label).toBe(ESSENTIAL_EIGHT_LABEL);
+    expect(insufficient.label).toBe(ESSENTIAL_EIGHT_LABEL);
+    expect(ESSENTIAL_EIGHT_LABEL).toBe(
+      "Life's Essential 8 — cardiovascular health score, not a mortality verdict.",
     );
   });
 
-  it("states applicability and score-component exclusion without clinical ambiguity", () => {
-    const canonical = adultScore({
-      preventive_followup_status: null,
-      preventive_followup_action: null,
-      adherence_access_barriers: ["cost"],
-    });
-    const localized = localizePurityScore(canonical, "fr");
+  it("localizes missing metrics as data gaps, not as clinical findings", () => {
+    const canonical = adultScore({ diagnosed_conditions_core: undefined }, NO_LABS);
+    const localized = localizeEssentialEight(canonical, "fr");
     if (localized.kind !== "adult-score") {
       throw new Error("Expected localized adult score");
     }
@@ -1249,48 +1124,33 @@ describe("score presentation", () => {
     );
 
     expect(
-      components.find(
-        (component) => component.questionId === "preventive_followup_action",
-      )?.explanation,
+      components.find((component) => component.questionId === "lab:glycaemic_status")
+        ?.explanation,
     ).toBe(
-      "Il reste à déterminer si le suivi préventif choisi s'applique à votre situation.",
+      "Les affections diagnostiquées n'ont pas été renseignées\u00a0; le statut diabétique est donc inconnu.",
     );
     expect(
-      components.find(
-        (component) => component.questionId === "adherence_missed_doses",
-      )?.explanation,
+      components.find((component) => component.questionId === "lab:non_hdl_cholesterol")
+        ?.explanation,
     ).toBe(
-      "Un obstacle à l'accès aux médicaments ou à leur utilisation a été signalé\u00a0; ce composant relatif aux habitudes de prise est donc exclu du calcul.",
+      "Des résultats confirmés de cholestérol total et de HDL sont nécessaires pour calculer le cholestérol non-HDL.",
     );
+    expect(localized.coverage).toBe(canonical.coverage);
+    expect(localized.answeredCategoryCount).toBe(6);
   });
 
   it("localizes an adult score without changing numeric, machine, order, or source fields", () => {
-    const canonical = deepFreeze(
-      structuredClone(
-        adultScore({
-          current_tobacco_nicotine: true,
-          tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
-          alcohol_frequency: "two_to_three_weekly",
-          alcohol_detail_typical_amount: 3,
-          alcohol_detail_heavy_episode: "weekly",
-          preventive_followup_action: "booked_or_contacted",
-          med_detail_prescriber_followup: "no_current_access",
-          adherence_missed_doses: "weekly",
-          adherence_access_barriers: ["cost"],
-        }),
-      ),
-    );
-    const localized = localizePurityScore(canonical, "fr");
+    const canonical = deepFreeze(structuredClone(adultScore(MIXED_ANSWERS, MIXED_LABS)));
+    const localized = localizeEssentialEight(canonical, "fr");
 
     expect(localized).not.toBe(canonical);
     expect(localized.kind).toBe("adult-score");
     if (localized.kind !== "adult-score") throw new Error("Expected adult presentation");
     expect(localized.label).not.toBe(canonical.label);
-    expect(localized.label).toBe(PURITY_SCORE_LABEL_FR);
+    expect(localized.label).toBe(ESSENTIAL_EIGHT_LABEL_FR);
     expect({ ...localized, label: canonical.label }).toEqual({
       ...canonical,
       categories: localized.categories,
-      supportContexts: localized.supportContexts,
       explanations: localized.explanations,
     });
     expect(localized.categories.map((category) => category.id)).toEqual(
@@ -1299,6 +1159,15 @@ describe("score presentation", () => {
     expect(localized.categories.map((category) => category.label)).toEqual(
       canonical.categories.map((category) => scoreCategoryLabelsFr[category.id]),
     );
+
+    const suffixed = canonical.categories.flatMap((category) =>
+      category.components.filter((component) => component.explanation.includes("Twenty points")),
+    );
+    expect(suffixed.map((component) => component.questionId)).toEqual([
+      "current_tobacco_nicotine",
+      "lab:non_hdl_cholesterol",
+      "blood_pressure_systolic",
+    ]);
 
     for (const [categoryIndex, category] of canonical.categories.entries()) {
       const presentedCategory = localized.categories[categoryIndex];
@@ -1315,16 +1184,10 @@ describe("score presentation", () => {
         expect(presentedComponent).toEqual({
           ...component,
           label: scoreComponentLabelsFr[component.questionId],
-          explanation: scoreComponentExplanationsFr[component.explanation],
+          explanation: localizedExplanation(component.explanation),
         });
+        expect(presentedComponent.explanation).not.toMatch(/Twenty points|You reported|Your /);
       }
-    }
-    for (const [index, context] of canonical.supportContexts.entries()) {
-      expect(localized.supportContexts[index]).toEqual({
-        ...context,
-        explanation: scoreComponentExplanationsFr[context.explanation],
-      });
-      expect(localized.supportContexts[index].source).toBe(context.source);
     }
     expect(localized.explanations).toEqual(
       canonical.explanations.map(
@@ -1337,29 +1200,30 @@ describe("score presentation", () => {
     ["express", "express-assessment"],
     ["quick", "quick-assessment"],
     ["deep", "answer-more-wellness-habits"],
-    ["deep", "unresolved-core-gate"],
   ] as const)(
     "preserves the %s insufficient-coverage branch and reason %s",
     (assessmentDepth, expectedReason) => {
-      const answers =
-        expectedReason === "unresolved-core-gate"
-          ? { current_tobacco_nicotine: true }
-          : { current_tobacco_nicotine: false, alcohol_frequency: "never" };
-      const canonical = calculatePurityScore(answers, {
-        ageYears: 35,
-        assessmentDepth,
-      });
+      const answers: AnswerMap =
+        expectedReason === "answer-more-wellness-habits"
+          ? { current_tobacco_nicotine: false, smoking_history_former: false, usual_sleep_hours: 8 }
+          : COMPLETE_ANSWERS;
+      const canonical = calculateEssentialEight(
+        answers,
+        { ageYears: 35, assessmentDepth },
+        expectedReason === "answer-more-wellness-habits" ? NO_LABS : COMPLETE_LABS,
+      );
       expect(canonical).toMatchObject({
         kind: "insufficient-coverage",
         reason: expectedReason,
       });
-      const localized = localizePurityScore(canonical, "fr");
+      const localized = localizeEssentialEight(canonical, "fr");
 
       expect(localized).toMatchObject({
         kind: "insufficient-coverage",
         reason: expectedReason,
-        scoreVersion: "purity-score-v1",
+        scoreVersion: "essential-eight-v1",
         assessmentDepth,
+        label: ESSENTIAL_EIGHT_LABEL_FR,
       });
       if (
         canonical.kind !== "insufficient-coverage" ||
@@ -1377,18 +1241,20 @@ describe("score presentation", () => {
           (category) => scoreCategoryLabelsFr[category.id],
         ),
       );
-      expect(localized.supportContexts.map((context) => context.source)).toEqual(
-        canonical.supportContexts.map((context) => context.source),
+      expect(localized.explanations).toEqual(
+        canonical.explanations.map(
+          (explanation) => scoreLedgerExplanationsFr[explanation],
+        ),
       );
     },
   );
 
   it("leaves the not-available result structurally and referentially unchanged in French", () => {
-    const canonical = calculatePurityScore(COMPLETE_ANSWERS, {
+    const canonical = calculateEssentialEight(COMPLETE_ANSWERS, {
       ageYears: 12,
       assessmentDepth: "quick",
     });
-    const localized = localizePurityScore(canonical, "fr");
+    const localized = localizeEssentialEight(canonical, "fr");
 
     expect(localized).toBe(canonical);
     expect(localized).toEqual({
@@ -1398,72 +1264,48 @@ describe("score presentation", () => {
   });
 });
 
-const habitFixtures: Readonly<Record<string, AnswerMap>> = {
-  "habit-tobacco-nicotine": {
+/** One answer set per metric that leaves a deficit only on that metric. */
+const habitFixtures: Readonly<Record<ScoreCategoryId, AnswerMap>> = {
+  diet: { diet_whole_grains: "never", diet_sugary_drinks: 4 },
+  "physical-activity": { weekly_moderate_activity_minutes: 0 },
+  nicotine: {
     current_tobacco_nicotine: true,
     tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
   },
-  "habit-alcohol": {
-    alcohol_frequency: "monthly_or_less",
-    alcohol_detail_typical_amount: 1,
-    alcohol_detail_heavy_episode: "never",
-  },
-  "habit-movement-sitting": { weekly_moderate_activity_minutes: 0 },
-  "habit-nutrition": { diet_whole_grains: "never" },
-  "habit-sleep": { usual_sleep_hours: 5 },
-  "habit-recovery": { stress_recovery_practice: "never" },
-  "habit-preventive-followup": { preventive_followup_action: "not_yet" },
-  "habit-medication-safety": { med_detail_prescriber_followup: "no" },
+  sleep: { usual_sleep_hours: 5 },
+  "body-mass-index": { weight_kg: 100 },
+  "blood-lipids": { statin_current: true },
+  "blood-glucose": { diagnosed_conditions_core: ["diabetes"] },
+  "blood-pressure": { blood_pressure_systolic: 150, blood_pressure_diastolic: 95 },
 };
 
-function actionById(id: string, answers: AnswerMap): ActionItem {
+function actionById(categoryId: ScoreCategoryId, answers: AnswerMap): ActionItem {
   const action = buildActionPlan([], adultScore(answers)).find(
-    (candidate) => candidate.id === id,
+    (candidate) => candidate.id === `habit-${categoryId}`,
   );
-  if (!action) throw new Error(`Missing action fixture ${id}`);
+  if (!action) throw new Error(`Missing action fixture habit-${categoryId}`);
   return action;
 }
 
 describe("action and protective-root presentation", () => {
   it("covers every reachable action ID and localizes habits immutably", () => {
-    const canonical = Object.entries(habitFixtures).map(([id, answers]) =>
-      actionById(id, answers),
+    const actions = deepFreeze(
+      structuredClone(
+        (Object.entries(habitFixtures) as Array<[ScoreCategoryId, AnswerMap]>).map(
+          ([categoryId, answers]) => actionById(categoryId, answers),
+        ),
+      ),
     );
-    const access = buildActionPlan(
-      [],
-      adultScore({
-        preventive_followup_action: "access_or_safety_barrier",
-        med_detail_prescriber_followup: "no_current_access",
-        adherence_missed_doses: "weekly",
-        adherence_access_barriers: ["cost"],
-      }),
-    )[0];
-    expect(access.id).toBe("access-support");
-    const actions = deepFreeze(structuredClone([access, ...canonical]));
 
     expect(localizeActions(actions, "en")).toBe(actions);
     const localized = localizeActions(actions, "fr");
     expect(localized.map((action) => action.id).sort()).toEqual(
-      ["access-support", ...Object.keys(habitFixtures)].sort(),
+      SCORE_CATEGORY_IDS.map((categoryId) => `habit-${categoryId}`).sort(),
     );
-    expect(Object.keys(actionCopyFr).sort()).toEqual(
-      adultScore().categories.map((category) => category.id).sort(),
-    );
+    expect(Object.keys(actionCopyFr).sort()).toEqual([...SCORE_CATEGORY_IDS].sort());
     for (const [id, copy] of Object.entries(actionCopyFr)) {
       expect(copy.title.trim(), `${id} title`).not.toBe("");
       expect(copy.nextStep.trim(), `${id} next step`).not.toBe("");
-    }
-    for (const [id, copy] of [
-      ["booked preventive", bookedPreventiveActionCopyFr],
-      ["access support", accessSupportCopyFr],
-    ] as const) {
-      expect(copy.title.trim(), `${id} title`).not.toBe("");
-      expect(copy.nextStep.trim(), `${id} next step`).not.toBe("");
-    }
-    for (const [reason, translation] of Object.entries(
-      accessSupportReasonClausesFr,
-    )) {
-      expect(translation.trim(), reason).not.toBe("");
     }
 
     for (const [index, action] of actions.entries()) {
@@ -1476,62 +1318,34 @@ describe("action and protective-root presentation", () => {
         nextStep: action.nextStep,
       }).toEqual(action);
       expect(presented.sources).toBe(action.sources);
-      expect(presented.sources.every((source, sourceIndex) => source === action.sources[sourceIndex])).toBe(true);
       expect(presented.opportunity).toBe(action.opportunity);
+      expect(presented.title).toBe(actionCopyFr[action.categoryId].title);
+      expect(presented.nextStep).toBe(actionCopyFr[action.categoryId].nextStep);
+      expect(presented.reason).toBe(localizedExplanation(action.reason));
       expect(presented.title).not.toBe(action.title);
       expect(presented.reason).not.toBe(action.reason);
       expect(presented.nextStep).not.toBe(action.nextStep);
     }
-    expect(localized[0]).toMatchObject({
-      title: accessSupportCopyFr.title,
-      nextStep: accessSupportCopyFr.nextStep,
-    });
-    expect(localized[0].reason).toContain(
-      scoreCategoryLabelsFr["preventive-followup"],
-    );
-    expect(localized[0].reason).toContain(
-      scoreCategoryLabelsFr["medication-safety"],
-    );
-    expect(localized[0].reason).not.toMatch(
-      /Chosen preventive follow-up|Medication-safety behaviour|You reported/i,
-    );
   });
 
-  it("uses established stress-practice terms and keeps access barriers about scoring", () => {
-    const recovery = localizeActions(
-      [
-        actionById("habit-recovery", {
-          stress_recovery_practice: "never",
-        }),
-      ],
-      "fr",
-    )[0];
-    const access = buildActionPlan(
-      [],
-      adultScore({ adherence_access_barriers: ["cost"] }),
-    )[0];
-    expect(access.id).toBe("access-support");
-    const localizedAccess = localizeActions([access], "fr")[0];
-
-    expect(recovery.nextStep).toBe(
-      "Choisissez de vous ancrer, de vous décrocher des pensées difficiles, d'agir en accord avec vos valeurs, d'être bienveillant ou de faire de la place à ce que vous ressentez, puis pratiquez pendant quelques minutes aujourd'hui.",
+  it("localizes the penalty suffix inside an action reason", () => {
+    const action = actionById("blood-lipids", { statin_current: true });
+    expect(action.reason).toBe(
+      "Your non-HDL cholesterol is under 130 mg/dL (3.4 mmol/L). Twenty points are removed because you take a statin.",
     );
-    expect(localizedAccess.reason).toBe(
-      "Comportements favorisant la sécurité des médicaments\u00a0: Un obstacle à l'accès aux médicaments ou à leur utilisation a été signalé\u00a0; ce composant relatif aux habitudes de prise est donc exclu du calcul.",
-    );
-  });
-
-  it("uses the special follow-through action for an already booked or contacted service", () => {
-    const action = actionById("habit-preventive-followup", {
-      preventive_followup_action: "booked_or_contacted",
-    });
     const localized = localizeActions([action], "fr")[0];
 
-    expect(localized.title).toBe(bookedPreventiveActionCopyFr.title);
-    expect(localized.nextStep).toBe(bookedPreventiveActionCopyFr.nextStep);
     expect(localized.reason).toBe(
-      scoreComponentExplanationsFr[action.reason],
+      "Votre cholestérol non-HDL est inférieur à 130 mg/dL (3,4 mmol/L). Vingt points sont retirés parce que vous prenez une statine.",
     );
+  });
+
+  it("keeps the blood-pressure action about re-measurement and never about changing medicines alone", () => {
+    const action = actionById("blood-pressure", habitFixtures["blood-pressure"]);
+    const localized = localizeActions([action], "fr")[0];
+
+    expect(localized.title).toBe("Faites recontrôler votre pression artérielle");
+    expect(localized.nextStep).toMatch(/ne modifiez aucun médicament/);
   });
 
   it("reproduces all seven canonical roots in order and localizes only their labels", () => {
@@ -1570,26 +1384,20 @@ describe("action and protective-root presentation", () => {
 describe("localized export equivalence", () => {
   it("changes only approved display values while retaining schema, IDs, numbers, privacy, and sources", async () => {
     const answers: AnswerMap = {
-      ...COMPLETE_ANSWERS,
-      current_tobacco_nicotine: true,
-      tobacco_nicotine_context: "tobacco_vape_or_other_nicotine",
-      preventive_followup_action: "access_or_safety_barrier",
-      med_detail_prescriber_followup: "no_current_access",
-      adherence_missed_doses: "weekly",
-      adherence_access_barriers: ["cost"],
+      ...MIXED_ANSWERS,
       gender_identity_optional: "SECRET FREE TEXT",
-      diagnosed_conditions_core: ["none"],
     };
-    const score = adultScore(answers);
+    const score = adultScore(answers, MIXED_LABS);
     const leaves = evaluateRisks(answers, adultProfile, prototypePolicy);
     const actions = buildActionPlan(leaves, score);
-    const localizedScore = localizePurityScore(score, "fr");
+    expect(actions).not.toHaveLength(0);
+    const localizedScore = localizeEssentialEight(score, "fr");
     const localizedLeaves = localizeRiskLeaves(leaves, "fr", adultProfile);
     const localizedActions = localizeActions(actions, "fr");
     const reportBase = {
       subjectAgeYears: 35,
       assessmentDepth: "deep" as const,
-      confirmedLabs: [],
+      confirmedLabs: MIXED_LABS,
       answers,
     };
     const canonicalJson = await readJson(
@@ -1616,7 +1424,7 @@ describe("localized export equivalence", () => {
     );
     expect(localizedJson.rawAnswers).toEqual(canonicalJson.rawAnswers);
     expect(JSON.stringify(localizedJson)).not.toContain("SECRET FREE TEXT");
-    expect(localizedJson.schemaVersion).toBe("health-risk-explorer-report-v5");
+    expect(localizedJson.schemaVersion).toBe("health-risk-explorer-report-v6");
     expect(localizedJson.score).not.toEqual(canonicalJson.score);
     expect(localizedJson.riskLeaves).not.toEqual(canonicalJson.riskLeaves);
     expect(localizedJson.actions).not.toEqual(canonicalJson.actions);

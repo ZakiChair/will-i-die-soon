@@ -66,14 +66,7 @@ const expectedDynamicKeys = {
   ],
   riskSignal: ["urgent", "high-signal", "worth-attention", "low-signal"],
   riskUrgency: ["urgent", "prompt-review", "long-term", "support"],
-  componentStatus: ["answered", "missing", "excluded"],
-  exclusionReason: [
-    "prescribed-nrt-quit-plan",
-    "not-due",
-    "access-or-safety-barrier",
-    "no-current-access",
-    "medication-not-applicable",
-  ],
+  componentStatus: ["answered", "missing"],
   adolescentSupport: [
     "adolescent_pregnancy_support",
     "adolescent_nicotine_support",
@@ -191,8 +184,9 @@ describe("complete bilingual UI copy", () => {
       "Je ne sais pas ou je préfère ne pas répondre",
     );
     expect(uiCopy.en["unit.reported_vo2_max_ml_kg_min"]).toBe("ml/kg/min");
-    expect(uiCopy.en["unit.squat_one_rep_max_kg"]).toBe("kg");
-    expect(uiCopy.en["unit.deadlift_one_rep_max_kg"]).toBe("kg");
+    expect(uiCopy.en["unit.chair_stand_30s_count"]).toBe("stands / 30 s");
+    expect(uiCopy.fr["unit.chair_stand_30s_count"]).toBe("levers / 30 s");
+    expect(uiCopy.en["unit.smoking_cigarettes_per_day"]).toBe("cigarettes / day");
     expect(uiCopy.en["results.urgent.eyebrow"]).toBe("Immediate signals first");
     expect(uiCopy.en["results.urgent.title"]).toBe("Act on these immediate signals now");
     expect(uiCopy.en["assessment.progress"]).toBe("{completed} of {total}");
@@ -288,23 +282,23 @@ describe("complete bilingual UI copy", () => {
     expect(uiCopy.fr["minor.adolescent.body"]).toBe(
       "Le fonctionnement en local ne garantit pas à lui seul la confidentialité médicale. Les personnes à proximité peuvent toujours voir cet écran.",
     );
-    expect(uiCopy.fr["exclusionReason.not-due"]).toBe("Pas à échéance actuellement");
   });
 
   test("uses the approved concise French score-ledger language", () => {
     expect(uiCopy.fr["score.readout"]).toBe(
-      "{score} / 100 · {coverage}\u202f% de couverture des réponses",
+      "{score} / 100 · {coverage}\u202f% des métriques évaluées",
     );
     expect(uiCopy.fr["score.category.assessed"]).toBe(
       "{earned} points sur {assessed} évalués",
     );
-    expect(uiCopy.fr["score.category.excluded"]).toBe("hors calcul");
+    expect(uiCopy.fr["score.category.excluded"]).toBe("non évaluée");
     expect(uiCopy.fr["score.category.coverage"]).toBe(
-      "{coverage}\u202f% des composantes couvertes",
+      "{coverage}\u202f% de la métrique couverte",
     );
     expect(uiCopy.fr["score.coverage"]).toBe(
-      "{coverage}\u202f% de couverture des réponses",
+      "{coverage}\u202f% des métriques évaluées",
     );
+    expect(uiCopy.fr["score.version"]).toBe("Life's Essential 8 de l'AHA / {version}");
   });
 
   test("keeps French high punctuation and percentages inseparable from their preceding text", () => {
@@ -330,14 +324,7 @@ describe("complete bilingual UI copy", () => {
     expect(uiCopyKeys.componentStatus).toEqual({
       answered: "componentStatus.answered",
       missing: "componentStatus.missing",
-      excluded: "componentStatus.excluded",
     });
-    expect(uiCopyKeys.exclusionReason).toEqual({
-      "prescribed-nrt-quit-plan": "exclusionReason.prescribed-nrt-quit-plan",
-      "not-due": "exclusionReason.not-due",
-      "access-or-safety-barrier": "exclusionReason.access-or-safety-barrier",
-      "no-current-access": "exclusionReason.no-current-access",
-      "medication-not-applicable": "exclusionReason.medication-not-applicable",
-    });
+    expect("exclusionReason" in uiCopyKeys).toBe(false);
   });
 });

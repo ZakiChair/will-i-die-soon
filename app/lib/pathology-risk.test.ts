@@ -556,6 +556,15 @@ describe("FINDRISC", () => {
     expect(male.points).toBe(0);
   });
 
+  test("flags ages outside the validated 35–64 range as an extrapolation modifier", () => {
+    const young = complete(score("findrisc", FINDRISC_ZERO, { age: 30, countryCode: "CH" }));
+    expect(young.modifiers).toEqual(["findrisc-age-extrapolated"]);
+    const older = complete(score("findrisc", FINDRISC_ZERO, { age: 66, countryCode: "CH" }));
+    expect(older.modifiers).toEqual(["findrisc-age-extrapolated"]);
+    const inside = complete(score("findrisc", FINDRISC_ZERO, CH_40));
+    expect(inside.modifiers).toEqual([]);
+  });
+
   test("derives daily activity from weekly minutes and flags the derivation", () => {
     const withoutDaily = omit(FINDRISC_ZERO, "daily_activity_30_min");
     const active = complete(score("findrisc", { ...withoutDaily, weekly_moderate_activity_minutes: 150 }, CH_40));

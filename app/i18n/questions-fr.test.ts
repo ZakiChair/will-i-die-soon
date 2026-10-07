@@ -25,8 +25,8 @@ describe("French question translations", () => {
     expect(localized.options?.map(({ value }) => value)).toEqual(["procedure", "none"]);
   });
 
-  it("covers the audited 140-question bank with every canonical option value", () => {
-    expect(questionBank).toHaveLength(140);
+  it("covers the audited 150-question bank with every canonical option value", () => {
+    expect(questionBank).toHaveLength(150);
     expect(Object.keys(frQuestionTranslations).sort()).toEqual(
       questionBank.map(({ id }) => id).sort(),
     );
@@ -45,8 +45,8 @@ describe("French question translations", () => {
   it("keeps unit keys for every numeric Express performance question", () => {
     expect(questionUnitKeys).toMatchObject({
       reported_vo2_max_ml_kg_min: "unit.reported_vo2_max_ml_kg_min",
-      squat_one_rep_max_kg: "unit.squat_one_rep_max_kg",
-      deadlift_one_rep_max_kg: "unit.deadlift_one_rep_max_kg",
+      chair_stand_30s_count: "unit.chair_stand_30s_count",
+      weekly_moderate_activity_minutes: "unit.weekly_moderate_activity_minutes",
     });
   });
 
@@ -85,7 +85,7 @@ describe("French question translations", () => {
         .map(({ value }) => frQuestionTranslations[question.id].options?.[value]),
     );
 
-    expect(localizedLabels).toEqual(Array.from({ length: 9 }, () => "Je ne sais pas"));
+    expect(localizedLabels).toEqual(Array.from({ length: 10 }, () => "Je ne sais pas"));
   });
 
   it("uses natural French for missed medicine doses", () => {

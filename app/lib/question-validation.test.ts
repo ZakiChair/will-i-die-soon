@@ -22,7 +22,10 @@ test("limits age at diabetes diagnosis to the current age when it is known", () 
 
 test.each([
   ["sedentary_total_hours", 24, 25],
-  ["movement_walking_days", 7, 8],
+  ["movement_strength_days", 7, 8],
+  ["chair_stand_30s_count", 60, 61],
+  ["smoking_cigarettes_per_day", 100, 101],
+  ["blood_pressure_diastolic", 200, 201],
 ])("uses the stated observation period for %s", (id, valid, invalid) => {
   expect(validateQuestionAnswer({ id, answerType: "number" }, valid)).toBeNull();
   expect(validateQuestionAnswer({ id, answerType: "number" }, invalid)).toEqual({ kind: "range", maximum: valid });

@@ -10,11 +10,11 @@ import { useSectionReveal } from "../hooks/use-section-reveal";
 import {
   localizeActions,
   localizeProtectiveRoots,
-  localizePurityScore,
+  localizeEssentialEight,
   localizeRiskLeaves,
 } from "../i18n/presentation";
 import type {
-  PresentedAdultPurityScoreResult,
+  PresentedAdultEssentialEightResult,
   PresentedInsufficientCoverageResult,
 } from "../i18n/presentation";
 import { uiCopyKeys } from "../i18n/ui-copy";
@@ -26,7 +26,7 @@ import { evaluatePathologyRisk } from "../lib/pathology-risk";
 import { pruneIneligibleAnswers } from "../lib/questionnaire";
 import { prototypePolicy } from "../lib/release-policy";
 import { evaluateRisks } from "../lib/risk-engine";
-import { buildActionPlan, calculatePurityScore } from "../lib/scoring";
+import { buildActionPlan, calculateEssentialEight } from "../lib/scoring";
 import type { ActionItem } from "../lib/scoring";
 import type { AnalysisDepth, AnswerMap, AnswerValue, ProfileContext, RiskLeaf } from "../lib/types";
 import { ExpressResults } from "./express-results";
@@ -81,7 +81,7 @@ function UrgentSummary({
   );
 }
 
-function ScoreLedger({ score }: { readonly score: PresentedAdultPurityScoreResult }) {
+function ScoreLedger({ score }: { readonly score: PresentedAdultEssentialEightResult }) {
   const { t } = useI18n();
   return (
     <section className="score-sheet" aria-labelledby="score-title">
@@ -119,9 +119,7 @@ function ScoreLedger({ score }: { readonly score: PresentedAdultPurityScoreResul
                           earned: component.earnedPoints,
                           maximum: component.maxPoints,
                         })
-                      : component.status === "excluded"
-                        ? t("score.component.excluded", { maximum: component.maxPoints })
-                        : t("score.component.missing", { maximum: component.maxPoints })}
+                      : t("score.component.missing", { maximum: component.maxPoints })}
                   </span>
                   <a href={component.source.url} target="_blank" rel="noreferrer">
                     {component.source.title}
@@ -170,7 +168,6 @@ function CoverageReflection({
         {t("score.coverage", { coverage: score.coverage })}
       </p>
       <p data-reveal-item>{t("score.gate.body")}</p>
-      {score.reason === "unresolved-core-gate" ? <p data-reveal-item>{t("score.gate.core")}</p> : null}
     </section>
   );
 }
@@ -390,11 +387,12 @@ export function Results({
   );
   const score = useMemo(
     () =>
-      calculatePurityScore(answers, {
-        ageYears: profile.age,
-        assessmentDepth,
-      }),
-    [answers, assessmentDepth, profile.age],
+      calculateEssentialEight(
+        answers,
+        { ageYears: profile.age, assessmentDepth },
+        confirmedLabs,
+      ),
+    [answers, assessmentDepth, confirmedLabs, profile.age],
   );
   const actions = useMemo(
     () => assessmentDepth === "express" ? [] : buildActionPlan(leaves, score),
@@ -409,7 +407,7 @@ export function Results({
     [leaves, locale, profile],
   );
   const presentedScore = useMemo(
-    () => localizePurityScore(score, locale),
+    () => localizeEssentialEight(score, locale),
     [locale, score],
   );
   const presentedActions = useMemo(

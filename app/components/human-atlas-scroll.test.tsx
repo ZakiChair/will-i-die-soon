@@ -478,8 +478,8 @@ test("switches every story heading and input label to French", async () => {
   ]);
   expect([...container.querySelectorAll(".human-atlas-scene small")].map(({ textContent }) => textContent)).toEqual([
     "Durée habituelle de sommeil · récupération ressentie dans l’heure suivant le réveil",
-    "VO₂ max connue · mesurée ou estimée par un appareil · ml/kg/min",
-    "Max connus au squat et au soulevé de terre · kg · rapportés au poids",
+    "VO₂ max connue · ml/kg/min · minutes hebdomadaires d’activité modérée",
+    "Levers de chaise en 30 secondes · jours de renforcement musculaire par semaine",
     "Portions quotidiennes de fruits et légumes · aliments ultra-transformés comme repas principal",
   ]);
   expect(container.textContent).not.toMatch(

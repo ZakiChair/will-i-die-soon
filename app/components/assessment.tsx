@@ -264,6 +264,7 @@ export function Assessment({ depth, profile, onComplete }: AssessmentProps) {
                 }
                 answer={answers[question.id]}
                 subjectAgeYears={profile.age}
+                countryCode={profile.countryCode}
                 onAnswer={recordAnswer}
                 canGoBack={currentIndex > 0}
                 onBack={() => setCurrentIndex((index) => Math.max(0, index - 1))}

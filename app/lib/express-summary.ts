@@ -1,5 +1,10 @@
-import Decimal from "decimal.js";
-
+import {
+  chairStandBand,
+  expressSex,
+  vo2MaxPercentile,
+  type ChairStandBand,
+  type ExpressSex,
+} from "./express-assessment";
 import type { AnswerMap } from "./types";
 
 const ULTRA_PROCESSED_FREQUENCIES = new Set([
@@ -18,16 +23,16 @@ type UltraProcessedFrequency =
   | "daily";
 
 export type ExpressSummary = Readonly<{
-  vo2Max: number | null;
-  bodyContext: Readonly<{
-    heightCm: number | null;
-    weightKg: number | null;
+  sex: ExpressSex | null;
+  cardio: Readonly<{
+    vo2Max: number | null;
+    vo2Percentile: number | null;
+    moderateMinutes: number | null;
   }>;
   strength: Readonly<{
-    squatKg: number | null;
-    squatBodyWeightRatio: number | null;
-    deadliftKg: number | null;
-    deadliftBodyWeightRatio: number | null;
+    chairStandCount: number | null;
+    chairStandBand: ChairStandBand | null;
+    strengthDays: number | null;
   }>;
   sleep: Readonly<{
     hours: number | null;
@@ -50,37 +55,32 @@ function positive(value: unknown): number | null {
   return number !== null && number > 0 ? number : null;
 }
 
-function ratio(load: number | null, weight: number | null): number | null {
-  if (load === null || weight === null) return null;
-  const value = new Decimal(load)
-    .div(weight)
-    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
-    .toNumber();
-  return Number.isFinite(value) ? value : null;
-}
-
 function ultraProcessedFrequency(value: unknown): UltraProcessedFrequency | null {
   return typeof value === "string" && ULTRA_PROCESSED_FREQUENCIES.has(value)
     ? (value as UltraProcessedFrequency)
     : null;
 }
 
-export function buildExpressSummary(answers: AnswerMap): ExpressSummary {
-  const weightKg = positive(answers.weight_kg);
-  const squatKg = positive(answers.squat_one_rep_max_kg);
-  const deadliftKg = positive(answers.deadlift_one_rep_max_kg);
+export function buildExpressSummary(
+  answers: AnswerMap,
+  { ageYears }: { ageYears: number | null } = { ageYears: null },
+): ExpressSummary {
+  const sex = expressSex(answers.sex_assigned_at_birth);
+  const vo2Max = positive(answers.reported_vo2_max_ml_kg_min);
+  const chairStandCount = finiteAtLeastZero(answers.chair_stand_30s_count);
+  const percentile = vo2MaxPercentile(vo2Max, sex, ageYears);
 
   return {
-    vo2Max: positive(answers.reported_vo2_max_ml_kg_min),
-    bodyContext: {
-      heightCm: positive(answers.height_cm),
-      weightKg,
+    sex,
+    cardio: {
+      vo2Max,
+      vo2Percentile: percentile === null ? null : Math.round(percentile),
+      moderateMinutes: finiteAtLeastZero(answers.weekly_moderate_activity_minutes),
     },
     strength: {
-      squatKg,
-      squatBodyWeightRatio: ratio(squatKg, weightKg),
-      deadliftKg,
-      deadliftBodyWeightRatio: ratio(deadliftKg, weightKg),
+      chairStandCount,
+      chairStandBand: chairStandBand(chairStandCount, sex, ageYears),
+      strengthDays: finiteAtLeastZero(answers.movement_strength_days),
     },
     sleep: {
       hours: finiteAtLeastZero(answers.usual_sleep_hours),

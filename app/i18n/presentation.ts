@@ -2,12 +2,11 @@ import { emergencyContactsFor, type CrisisLine } from "../data/emergency-contact
 import { riskRules } from "../data/rules";
 import type {
   ActionItem,
-  AdultPurityScoreResult,
+  AdultEssentialEightResult,
   PublicInsufficientCoverageResult,
-  PurityScoreResult,
+  EssentialEightResult,
   ScoreCategoryId,
   ScoreComponent,
-  ScoreSupportContext,
 } from "../lib/scoring";
 import type {
   AnswerMap,
@@ -18,21 +17,19 @@ import type {
 } from "../lib/types";
 import { riskFactorLabelsFr, riskRuleCopyFr } from "./risk-copy-fr";
 import {
-  PURITY_SCORE_LABEL_FR,
-  accessSupportCopyFr,
-  accessSupportReasonClausesFr,
+  ESSENTIAL_EIGHT_LABEL_FR,
   actionCopyFr,
-  bookedPreventiveActionCopyFr,
   protectiveRootLabelsFr,
   scoreCategoryLabelsFr,
   scoreComponentExplanationsFr,
   scoreComponentLabelsFr,
+  scoreExplanationSuffixesFr,
   scoreLedgerExplanationsFr,
 } from "./score-copy-fr";
 import type { Locale } from "./types";
 
-export type PresentedAdultPurityScoreResult = Omit<
-  AdultPurityScoreResult,
+export type PresentedAdultEssentialEightResult = Omit<
+  AdultEssentialEightResult,
   "label"
 > & {
   readonly label: string;
@@ -45,10 +42,10 @@ export type PresentedInsufficientCoverageResult = Omit<
   readonly label: string;
 };
 
-export type PresentedPurityScoreResult =
-  | PresentedAdultPurityScoreResult
+export type PresentedEssentialEightResult =
+  | PresentedAdultEssentialEightResult
   | PresentedInsufficientCoverageResult
-  | Extract<PurityScoreResult, { kind: "not-available" }>;
+  | Extract<EssentialEightResult, { kind: "not-available" }>;
 
 const rulesById = new Map(riskRules.map((rule) => [rule.id, rule]));
 
@@ -151,6 +148,21 @@ export function localizeRiskLeaves(
   });
 }
 
+// Les explications LE8 se composent d'une phrase de base et, parfois, d'un suffixe de
+// pénalité ("Twenty points are removed…"). Chaque partie est traduite séparément.
+function localizeScoreExplanation(explanation: string): string {
+  const [first, ...rest] = explanation.split(/(?<=\.) (?=Twenty points)/);
+  const suffix = rest.join(" ");
+  const base = requiredTranslation(
+    scoreComponentExplanationsFr,
+    first,
+    "score component explanation",
+  );
+  return suffix
+    ? `${base} ${requiredTranslation(scoreExplanationSuffixesFr, suffix, "score explanation suffix")}`
+    : base;
+}
+
 function localizeComponent(component: ScoreComponent): ScoreComponent {
   return {
     ...component,
@@ -159,24 +171,7 @@ function localizeComponent(component: ScoreComponent): ScoreComponent {
       component.questionId,
       "score component label",
     ),
-    explanation: requiredTranslation(
-      scoreComponentExplanationsFr,
-      component.explanation,
-      "score component explanation",
-    ),
-  };
-}
-
-function localizeSupportContext(
-  context: ScoreSupportContext,
-): ScoreSupportContext {
-  return {
-    ...context,
-    explanation: requiredTranslation(
-      scoreComponentExplanationsFr,
-      context.explanation,
-      "score support explanation",
-    ),
+    explanation: localizeScoreExplanation(component.explanation),
   };
 }
 
@@ -192,12 +187,12 @@ function localizeLedgerExplanations(
   );
 }
 
-export function localizePurityScore(
-  score: PurityScoreResult,
+export function localizeEssentialEight(
+  score: EssentialEightResult,
   locale: Locale,
-): PresentedPurityScoreResult {
+): PresentedEssentialEightResult {
   if (locale === "en" || score.kind === "not-available") return score;
-  const label = requiredFrenchCopy(PURITY_SCORE_LABEL_FR, "score label");
+  const label = requiredFrenchCopy(ESSENTIAL_EIGHT_LABEL_FR, "score label");
 
   if (score.kind === "insufficient-coverage") {
     return {
@@ -211,7 +206,6 @@ export function localizePurityScore(
           "score category label",
         ),
       })),
-      supportContexts: score.supportContexts.map(localizeSupportContext),
       explanations: localizeLedgerExplanations(score.explanations),
     };
   }
@@ -228,34 +222,12 @@ export function localizePurityScore(
       ),
       components: category.components.map(localizeComponent),
     })),
-    supportContexts: score.supportContexts.map(localizeSupportContext),
     explanations: localizeLedgerExplanations(score.explanations),
   };
 }
 
 function isScoreCategoryId(value: string): value is ScoreCategoryId {
   return Object.prototype.hasOwnProperty.call(actionCopyFr, value);
-}
-
-function localizeAccessSupportReason(reason: string): string {
-  const translatedClauses: string[] = [];
-  let remaining = reason.trim();
-  const clauses = Object.entries(accessSupportReasonClausesFr);
-
-  while (remaining.length > 0) {
-    const entry = clauses.find(
-      ([canonical]) =>
-        remaining === canonical || remaining.startsWith(`${canonical} `),
-    );
-    if (!entry) {
-      throw new Error(`Missing French access-support reason clause: ${remaining}`);
-    }
-    const [canonical, translated] = entry;
-    translatedClauses.push(translated);
-    remaining = remaining.slice(canonical.length).trimStart();
-  }
-
-  return translatedClauses.join(" ");
 }
 
 function localizeHabitAction(action: ActionItem): ActionItem {
@@ -269,21 +241,12 @@ function localizeHabitAction(action: ActionItem): ActionItem {
   ) {
     throw new Error(`Missing French action: ${action.id}`);
   }
-  const isBookedPreventive =
-    categoryId === "preventive-followup" &&
-    action.title === "Follow through on the follow-up already underway";
-  const copy = isBookedPreventive
-    ? bookedPreventiveActionCopyFr
-    : actionCopyFr[categoryId];
+  const copy = actionCopyFr[categoryId];
 
   return {
     ...action,
     title: copy.title,
-    reason: requiredTranslation(
-      scoreComponentExplanationsFr,
-      action.reason,
-      "habit action reason",
-    ),
+    reason: localizeScoreExplanation(action.reason),
     nextStep: copy.nextStep,
   };
 }
@@ -293,18 +256,7 @@ export function localizeActions(
   locale: Locale,
 ): ReadonlyArray<ActionItem> {
   if (locale === "en") return actions;
-
-  return actions.map((action) => {
-    if (action.id === "access-support" && action.kind === "access-support") {
-      return {
-        ...action,
-        title: accessSupportCopyFr.title,
-        reason: localizeAccessSupportReason(action.reason),
-        nextStep: accessSupportCopyFr.nextStep,
-      };
-    }
-    return localizeHabitAction(action);
-  });
+  return actions.map(localizeHabitAction);
 }
 
 const protectiveRootDefinitions: ReadonlyArray<{

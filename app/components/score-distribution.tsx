@@ -3,12 +3,12 @@
 import { useId } from "react";
 import { useI18n } from "../i18n/context";
 import { resultsExplorerCopy } from "../i18n/results-explorer-copy";
-import type { AdultPurityScoreResult, PublicInsufficientCoverageResult, PurityScoreResult } from "../lib/scoring";
+import type { AdultEssentialEightResult, PublicInsufficientCoverageResult, EssentialEightResult } from "../lib/scoring";
 
 export type DistributionScore =
-  | Pick<AdultPurityScoreResult, "kind" | "score">
+  | Pick<AdultEssentialEightResult, "kind" | "score">
   | Pick<PublicInsufficientCoverageResult, "kind" | "reason">
-  | Extract<PurityScoreResult, { kind: "not-available" }>;
+  | Extract<EssentialEightResult, { kind: "not-available" }>;
 
 const LEFT = 36;
 const RIGHT = 684;

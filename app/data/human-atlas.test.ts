@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { uiCopy } from "../i18n/ui-copy";
 import { EXPRESS_QUESTION_IDS } from "../lib/questionnaire";
 import {
-  humanAtlasBodyContextQuestionIds,
+  humanAtlasReferenceQuestionIds,
   humanAtlasSceneIds,
   humanAtlasStorySceneIds,
   humanAtlasScenes,
@@ -30,13 +30,22 @@ describe("Human Atlas landing contract", () => {
   test("covers every Express input exactly once without inventing a fifth glow", () => {
     const mapped = [
       ...humanAtlasScenes.flatMap(({ questionIds }) => questionIds),
-      ...humanAtlasBodyContextQuestionIds,
+      ...humanAtlasReferenceQuestionIds,
     ];
 
     expect(mapped).toHaveLength(EXPRESS_QUESTION_IDS.length);
     expect(new Set(mapped).size).toBe(mapped.length);
     expect([...mapped].sort()).toEqual([...EXPRESS_QUESTION_IDS].sort());
     expect(humanAtlasScenes).toHaveLength(4);
+  });
+
+  test("maps the cardio and strength scenes to the normed measurements and their guideline companions", () => {
+    const byId = Object.fromEntries(humanAtlasScenes.map((scene) => [scene.id, scene.questionIds]));
+    expect(byId.breath).toEqual(["reported_vo2_max_ml_kg_min", "weekly_moderate_activity_minutes"]);
+    expect(byId.strength).toEqual(["chair_stand_30s_count", "movement_strength_days"]);
+    expect(byId.sleep).toEqual(["usual_sleep_hours", "sleep_refreshed"]);
+    expect(byId.energy).toEqual(["plant_food_frequency", "diet_ultra_processed"]);
+    expect(humanAtlasReferenceQuestionIds).toEqual(["sex_assigned_at_birth"]);
   });
 
   test("points every scene at complete bilingual UI copy", () => {

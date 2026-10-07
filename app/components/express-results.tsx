@@ -4,7 +4,7 @@ import { useId, useMemo, useState, type ReactNode } from "react";
 import { useI18n } from "../i18n/context";
 import { expressAssessmentCopy } from "../i18n/express-assessment-copy";
 import { uiCopyKeys } from "../i18n/ui-copy";
-import { buildExpressAssessment, EXPRESS_INDEX_REFERENCE, type ExpressAxis, type ExpressAxisId } from "../lib/express-assessment";
+import { buildExpressAssessment, chairStandReference, EXPRESS_INDEX_REFERENCE, type ExpressAxis, type ExpressAxisId, type ExpressSignalId } from "../lib/express-assessment";
 import { buildExpressSummary } from "../lib/express-summary";
 import type { AnswerMap } from "../lib/types";
 
@@ -98,12 +98,16 @@ export function ExpressResults({ answers, ageYears }: { readonly answers: Answer
   const inspectorId = useId();
   const scaleNoteId = useId();
   const assessment = useMemo(() => buildExpressAssessment(answers, { ageYears }), [answers, ageYears]);
-  const summary = useMemo(() => buildExpressSummary(answers), [answers]);
+  const summary = useMemo(() => buildExpressSummary(answers, { ageYears }), [answers, ageYears]);
   const numberFormat = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
-  const ratioFormat = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const missing = t("expressResults.missing");
   const metric = (value: number | null, unit: string) => value === null ? missing : `${numberFormat.format(value)} ${unit}`;
-  const ratio = (value: number) => t("expressResults.strength.ratio", { ratio: ratioFormat.format(value) });
+  const referenceSex = summary.sex === "female" || summary.sex === "male" ? summary.sex : null;
+  const chairStandRange = chairStandReference(summary.sex, ageYears);
+  const signalCopy = (axis: ExpressAxis) => {
+    const first: ExpressSignalId | undefined = axis.signals[0];
+    return first ? copy.signals[first] : axis.score === null ? copy.signals["complete-measurements"] : copy.axes[axis.id].develop;
+  };
   const frequency = summary.nutrition.ultraProcessedFrequency === null
     ? missing : t(uiCopyKeys.expressFrequency[summary.nutrition.ultraProcessedFrequency]);
   const listFormat = new Intl.ListFormat(locale, { style: "long", type: "conjunction" });
@@ -126,14 +130,34 @@ export function ExpressResults({ answers, ageYears }: { readonly answers: Answer
 
   const selectedAxis = assessment.axes.find((axis) => axis.id === selectedAxisId)!;
   const selectedAxisCopy = copy.axes[selectedAxis.id];
-  const selectedSignal = copy.signals[selectedAxis.signals[0] ?? "complete-measurements"];
+  const selectedSignal = signalCopy(selectedAxis);
+  const percentileNote = summary.cardio.vo2Max === null ? null
+    : summary.cardio.vo2Percentile !== null && referenceSex !== null
+      ? [copy.readings.percentile(summary.cardio.vo2Percentile, ageYears, referenceSex), copy.readings.percentileExtrapolated(ageYears)].filter(Boolean).join(" · ")
+      : copy.readings.noPercentile;
+  const chairStandNote = summary.strength.chairStandCount === null ? null
+    : ageYears < EXPRESS_INDEX_REFERENCE.chairStandReferenceFromAge ? copy.readings.chairStandFrom60
+      : summary.strength.chairStandBand !== null && chairStandRange !== null && referenceSex !== null
+        ? copy.readings.chairStand(metric(summary.strength.chairStandCount, t("expressResults.unit.stands")), summary.strength.chairStandBand,
+          chairStandRange.low, chairStandRange.high, referenceSex, chairStandRange.ageFrom, chairStandRange.ageTo)
+        : copy.readings.chairStandNoReference;
 
   const rawReadings: Record<ExpressAxisId, ReactNode> = {
-    cardio: <><p>{metric(summary.vo2Max, "ml/kg/min")}</p><p>{t("expressResults.vo2.note")}</p></>,
+    cardio: (
+      <>
+        <dl>
+          <div><dt>{t("expressResults.vo2.title")}</dt><dd>{metric(summary.cardio.vo2Max, "ml/kg/min")}{percentileNote ? <> · <span>{percentileNote}</span></> : null}</dd></div>
+          <div><dt>{t("expressResults.cardio.activity")}</dt><dd>{summary.cardio.moderateMinutes === null ? missing : copy.readings.activity(metric(summary.cardio.moderateMinutes, t("expressResults.unit.minutesPerWeek")))}</dd></div>
+        </dl>
+        <p>{t("expressResults.vo2.note")}</p>
+      </>
+    ),
     strength: (
       <dl>
-        <div><dt>{t("expressResults.strength.squat")}</dt><dd>{metric(summary.strength.squatKg, "kg")}{summary.strength.squatBodyWeightRatio === null ? null : <> · <span>{ratio(summary.strength.squatBodyWeightRatio)}</span></>}</dd></div>
-        <div><dt>{t("expressResults.strength.deadlift")}</dt><dd>{metric(summary.strength.deadliftKg, "kg")}{summary.strength.deadliftBodyWeightRatio === null ? null : <> · <span>{ratio(summary.strength.deadliftBodyWeightRatio)}</span></>}</dd></div>
+        <div><dt>{t("expressResults.strength.chairStand")}</dt><dd>{summary.strength.chairStandCount === null ? missing
+          : summary.strength.chairStandBand !== null ? chairStandNote
+          : <>{metric(summary.strength.chairStandCount, t("expressResults.unit.stands"))} · <span>{chairStandNote}</span></>}</dd></div>
+        <div><dt>{t("expressResults.strength.days")}</dt><dd>{summary.strength.strengthDays === null ? missing : copy.readings.strengthDays(metric(summary.strength.strengthDays, t("expressResults.unit.daysPerWeek")))}</dd></div>
       </dl>
     ),
     sleep: <>
@@ -175,7 +199,7 @@ export function ExpressResults({ answers, ageYears }: { readonly answers: Answer
             </div>
           ) : null}
           <span className="express-profile__status" data-kind={assessment.kind}>{copy.kind[assessment.kind]}</span>
-          <p className="express-profile__coverage">{copy.coverage(assessment.interpretableComponentCount, assessment.answeredCount)}</p>
+          <p className="express-profile__coverage">{copy.coverage(assessment.interpretableComponentCount, assessment.applicableComponentCount, assessment.answeredCount)}</p>
           {assessment.kind === "partial-index" ? <p className="express-profile__insight">{copy.partialNote}</p> : null}
           {assessment.kind === "insufficient-inputs" ? <p className="express-profile__insight">{copy.insufficientNote}</p> : null}
           <div className="express-profile__portrait" data-profile={assessment.profile}>
@@ -201,17 +225,17 @@ export function ExpressResults({ answers, ageYears }: { readonly answers: Answer
           <a href={`#express-axis-${selectedAxis.id}`}>{copy.axisReadingsLink(selectedAxisCopy.label)}</a>
         </div>
       </section>
-      <p className="express-results__boundary">{copy.fixedReferences}</p>
+      <p className="express-results__boundary">{copy.referenceBoundary}</p>
 
       <p className="express-results__context-title">{t("expressResults.context.title")}</p>
       <dl className="express-results__context">
-        <div><dt>{t("expressResults.context.height")}</dt><dd>{metric(summary.bodyContext.heightCm, "cm")}</dd></div>
-        <div><dt>{t("expressResults.context.weight")}</dt><dd>{metric(summary.bodyContext.weightKg, "kg")}</dd></div>
+        <div><dt>{t("expressResults.context.sex")}</dt><dd>{summary.sex === null ? missing : t(uiCopyKeys.expressSex[summary.sex])}</dd></div>
+        <div><dt>{t("expressResults.context.age")}</dt><dd>{copy.ageValue(ageYears)}</dd></div>
       </dl>
       <div className="express-results__grid" data-reveal="group">
         {assessment.axes.map((axis) => {
           const axisCopy = copy.axes[axis.id];
-          const signal = copy.signals[axis.signals[0] ?? "complete-measurements"];
+          const signal = signalCopy(axis);
           return (
             <article className="express-result-card" data-axis={axis.id} data-status={axis.status} aria-labelledby={`express-axis-${axis.id}`} key={axis.id} data-reveal-item>
               <div className="express-result-card__overview">
@@ -263,8 +287,9 @@ export function ExpressResults({ answers, ageYears }: { readonly answers: Answer
           <p>{copy.methodPortrait}</p>
           <p>{copy.sourceNote}</p>
           <ul>
-            <li><a href="https://www.cdc.gov/sleep/about/index.html" target="_blank" rel="noreferrer">{copy.sleepSource}</a></li>
-            <li><a href="https://www.who.int/news-room/fact-sheets/detail/healthy-diet" target="_blank" rel="noreferrer">{copy.dietSource}</a></li>
+            {(Object.keys(EXPRESS_INDEX_REFERENCE.sources) as (keyof typeof EXPRESS_INDEX_REFERENCE.sources)[]).map((source) => (
+              <li key={source}><a href={EXPRESS_INDEX_REFERENCE.sources[source].url} target="_blank" rel="noreferrer">{copy.sources[source]}</a></li>
+            ))}
           </ul>
         </details>
       </section>

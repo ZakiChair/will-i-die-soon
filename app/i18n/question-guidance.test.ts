@@ -28,3 +28,29 @@ test("explains a non-finite numeric answer in both languages", () => {
   expect(questionValidationMessage({ kind: "number" }, "en")).toMatch(/valid number/);
   expect(questionValidationMessage({ kind: "number" }, "fr")).toMatch(/nombre valide/);
 });
+
+test("anchors the standard-drink count to the local definition for each supported country", () => {
+  expect(getQuestionGuidance("alcohol_detail_typical_amount", "en", "US").notice).toContain("14 g");
+  expect(getQuestionGuidance("alcohol_detail_typical_amount", "en", "CA").notice).toContain("13.6 g");
+  expect(getQuestionGuidance("alcohol_detail_heavy_episode", "en", "GB").notice).toContain("one unit is 8 g");
+  expect(getQuestionGuidance("alcohol_detail_typical_amount", "fr", "FR").notice).toContain("environ 10 g");
+  expect(getQuestionGuidance("alcohol_detail_typical_amount", "fr", "BE").notice).toContain("environ 10 g");
+  expect(getQuestionGuidance("alcohol_detail_typical_amount", "fr", "CH").notice).toContain("10 à 12 g");
+  expect(getQuestionGuidance("alcohol_detail_typical_amount", "en", "DE").notice).toContain("10–12 g");
+  expect(getQuestionGuidance("alcohol_detail_typical_amount", "en", "MA").notice).toContain("WHO");
+  expect(getQuestionGuidance("alcohol_detail_typical_amount", "en", "OTHER").notice).toContain("WHO");
+  expect(getQuestionGuidance("alcohol_detail_typical_amount", "en").notice).toContain("WHO");
+  expect(getQuestionGuidance("alcohol_frequency", "en", "US").notice).toBeUndefined();
+});
+
+test("keeps French standard-drink notices inseparable before high punctuation", () => {
+  for (const countryCode of ["US", "CA", "GB", "FR", "BE", "LU", "DE", "CH", "MA", "OTHER"]) {
+    for (const questionId of ["alcohol_detail_typical_amount", "alcohol_detail_heavy_episode"]) {
+      const notice = getQuestionGuidance(questionId, "fr", countryCode).notice;
+      expect(notice?.trim(), `${questionId} ${countryCode}`).toBeTruthy();
+      for (const match of notice!.matchAll(/[;:]/gu)) {
+        expect(notice![match.index - 1], `${questionId} ${countryCode} before ${match[0]}`).toBe(" ");
+      }
+    }
+  }
+});

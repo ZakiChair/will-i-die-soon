@@ -49,13 +49,13 @@ export const healthHomeCopy: Readonly<Record<Locale, HealthHomeCopy>> = {
     axes: {
       breath: {
         title: "Cardio",
-        metric: "A VO₂ max you already know",
-        body: "Use an existing measured or device-estimated value, if you know it.",
+        metric: "VO₂ max percentile and weekly activity",
+        body: "An existing VO₂ max placed against FRIEND-registry norms for your age and sex, plus your weekly minutes of moderate activity.",
       },
       strength: {
         title: "Strength",
-        metric: "Lifting loads / body weight",
-        body: "Your known squat and deadlift results, considered relative to your body weight.",
+        metric: "Chair stands and strengthening days",
+        body: "Your 30-second chair-stand count against published normal ranges from age 60, plus your weekly muscle-strengthening days.",
       },
       sleep: {
         title: "Sleep",
@@ -86,8 +86,8 @@ export const healthHomeCopy: Readonly<Record<Locale, HealthHomeCopy>> = {
     ],
     conversionTitle: "Check in, at your own pace.",
     conversionBody: "Start with nine questions. Even when some measurements are missing, your answers can offer a first perspective.",
-    measurementNote: "Use only measurements you already know. You can skip any question, without performing a new test or maximal lift.",
-    indexNote: "The index uses your answers and explicit reading references. It is not a diagnosis.",
+    measurementNote: "Use only measurements you already know. You can skip any question; the chair stand is the only short test, and no maximal lift is involved.",
+    indexNote: "The index compares VO₂ max and chair stand with published norms for your age and sex, and reads the other answers against public guidelines. It is not a diagnosis.",
     privacyNote: "Your answers stay in this browser session.",
   },
   fr: {
@@ -104,13 +104,13 @@ export const healthHomeCopy: Readonly<Record<Locale, HealthHomeCopy>> = {
     axes: {
       breath: {
         title: "Cardio",
-        metric: "VO₂ max déjà connue",
-        body: "Reprenez une valeur mesurée ou estimée par votre appareil, si vous la connaissez.",
+        metric: "Percentile de VO₂ max et activité hebdomadaire",
+        body: "Une VO₂ max déjà connue, située face aux normes du registre FRIEND pour votre âge et votre sexe, et vos minutes hebdomadaires d’activité modérée.",
       },
       strength: {
         title: "Force",
-        metric: "Charges / poids corporel",
-        body: "Vos résultats connus au squat et au soulevé de terre, rapportés à votre poids.",
+        metric: "Levers de chaise et jours de renforcement",
+        body: "Votre nombre de levers de chaise en 30 secondes face aux intervalles normaux publiés dès 60 ans, et vos jours hebdomadaires de renforcement musculaire.",
       },
       sleep: {
         title: "Sommeil",
@@ -141,8 +141,8 @@ export const healthHomeCopy: Readonly<Record<Locale, HealthHomeCopy>> = {
     ],
     conversionTitle: "Faites le point, à votre rythme.",
     conversionBody: "Commencez par neuf questions. Même si certaines mesures manquent, vos réponses peuvent déjà apporter un premier éclairage.",
-    measurementNote: "Utilisez uniquement des mesures déjà connues. Vous pouvez passer chaque question, sans effectuer de nouveau test ni d’effort maximal.",
-    indexNote: "L’indice utilise vos réponses et des repères de lecture explicites. Il ne constitue pas un diagnostic.",
+    measurementNote: "Utilisez uniquement des mesures déjà connues. Vous pouvez passer chaque question ; le lever de chaise est le seul test court, sans aucun effort maximal.",
+    indexNote: "L’indice compare la VO₂ max et le lever de chaise à des normes publiées pour votre âge et votre sexe, et lit les autres réponses face à des recommandations publiques. Il ne constitue pas un diagnostic.",
     privacyNote: "Vos réponses restent dans cette session du navigateur.",
   },
 };

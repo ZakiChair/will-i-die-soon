@@ -26,13 +26,13 @@ const adult = { age: 35, countryCode: "CH" };
 const child = { age: 12, countryCode: "CH", assistedMinor: true };
 const adolescent = { age: 15, countryCode: "CH" };
 const expressIds = [
+  "sex_assigned_at_birth",
   "reported_vo2_max_ml_kg_min",
-  "squat_one_rep_max_kg",
-  "deadlift_one_rep_max_kg",
+  "weekly_moderate_activity_minutes",
+  "chair_stand_30s_count",
+  "movement_strength_days",
   "usual_sleep_hours",
   "sleep_refreshed",
-  "height_cm",
-  "weight_kg",
   "plant_food_frequency",
   "diet_ultra_processed",
 ] as const;
@@ -50,7 +50,7 @@ describe("questions adaptées au sexe déclaré", () => {
       const queue = buildAssessmentQueue(depth, questionBank, adult, answers);
 
       expect(queue.some((question) => question.domain === "pregnancy")).toBe(false);
-      expect(queue).toHaveLength({ express: 9, quick: 20, detailed: 50, deep: 91 }[depth]);
+      expect(queue).toHaveLength({ express: 9, quick: 20, detailed: 50, deep: 92 }[depth]);
       expect(getAvailableDepths(questionBank, adult, answers)).toContain(depth);
     },
   );
@@ -202,8 +202,8 @@ const expectedDomains: ReadonlyArray<HealthDomain> = [
 ];
 
 describe("question bank invariants", () => {
-  test("contains 140 curated questions with stable unique IDs and prompts", () => {
-    expect(questionBank).toHaveLength(140);
+  test("contains 150 curated questions with stable unique IDs and prompts", () => {
+    expect(questionBank).toHaveLength(150);
     expect(new Set(questionBank.map((question) => question.id)).size).toBe(
       questionBank.length,
     );
@@ -511,7 +511,7 @@ describe("questionnaire selection", () => {
 
     for (const depth of ["quick", "detailed", "deep"] as const) {
       const queue = buildAssessmentQueue(depth, questionBank, adult, {});
-      const expectedCount = depth === "quick" ? 20 : depth === "detailed" ? 50 : 92;
+      const expectedCount = depth === "quick" ? 20 : depth === "detailed" ? 50 : 93;
 
       expect(queue).toHaveLength(expectedCount);
       expect(queue.map(({ id }) => id).sort()).toEqual(
@@ -544,7 +544,7 @@ describe("questionnaire selection", () => {
   test("builds the promised deterministic queue size for each depth", () => {
     expect(buildAssessmentQueue("quick", questionBank, adult, {})).toHaveLength(20);
     expect(buildAssessmentQueue("detailed", questionBank, adult, {})).toHaveLength(50);
-    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(92);
+    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(93);
     expect(buildAssessmentQueue("deep", questionBank, adult, {})).toEqual(
       buildAssessmentQueue("deep", questionBank, adult, {}),
     );
@@ -557,7 +557,7 @@ describe("questionnaire selection", () => {
 
       expect(buildAssessmentQueue("quick", questionBank, profile, {})).toHaveLength(20);
       expect(buildAssessmentQueue("detailed", questionBank, profile, {})).toHaveLength(50);
-      expect(buildAssessmentQueue("deep", questionBank, profile, {})).toHaveLength(89);
+      expect(buildAssessmentQueue("deep", questionBank, profile, {})).toHaveLength(90);
     },
   );
 
@@ -740,7 +740,7 @@ describe("questionnaire selection", () => {
     expect(() => buildAssessmentQueue("deep", questionBank, adolescent, {})).toThrow(
       /Deep.+adults only.+at least 80 are required/,
     );
-    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(92);
+    expect(buildAssessmentQueue("deep", questionBank, adult, {})).toHaveLength(93);
   });
 
   test("removes adult-only questions from a child profile", () => {
@@ -831,8 +831,8 @@ describe("adaptive branches", () => {
     expect(
       medicationsSkipped.queue.some((question) => question.id.startsWith("med_detail_")),
     ).toBe(false);
-    expect(deepMedicationsYes.queue).toHaveLength(96);
-    expect(deepInitial.queue).toHaveLength(92);
+    expect(deepMedicationsYes.queue).toHaveLength(99);
+    expect(deepInitial.queue).toHaveLength(93);
     expect(
       deepInitial.queue.every((question) =>
         deepMedicationsYes.queue.some((candidate) => candidate.id === question.id),

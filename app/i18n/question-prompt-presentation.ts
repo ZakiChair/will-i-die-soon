@@ -166,28 +166,16 @@ const commonQuestionPromptPresentations = {
       detail: "Indiquez votre dernière valeur mesurée ou estimée par un appareil, en ml/kg/min. Vous pouvez passer si vous ne la connaissez pas.",
     },
   },
-  squat_one_rep_max_kg: {
+  chair_stand_30s_count: {
     en: {
-      completePrompt: "What is the heaviest squat you have already completed for one repetition?",
-      title: "What is your heaviest completed squat?",
-      detail: "Use the heaviest weight you have already completed for one repetition, in kilograms.",
+      completePrompt: "How many times can you stand up fully from a chair and sit back down in 30 seconds, arms crossed over your chest?",
+      title: "How many chair stands can you do in 30 seconds?",
+      detail: "Sit in the middle of a stable chair without armrests, feet flat, arms crossed over your chest. Count full stands in 30 seconds. Skip the test if you feel unsteady or are alone without support.",
     },
     fr: {
-      completePrompt: "Quel est le squat le plus lourd que vous ayez déjà effectué pour une répétition ?",
-      title: "Quelle est votre charge maximale déjà soulevée au squat ?",
-      detail: "Indiquez la charge du squat le plus lourd déjà effectué sur une répétition, en kilogrammes.",
-    },
-  },
-  deadlift_one_rep_max_kg: {
-    en: {
-      completePrompt: "What is the heaviest deadlift you have already completed for one repetition?",
-      title: "What is your heaviest completed deadlift?",
-      detail: "Use the heaviest weight you have already completed for one repetition, in kilograms.",
-    },
-    fr: {
-      completePrompt: "Quel est le soulevé de terre le plus lourd que vous ayez déjà effectué pour une répétition ?",
-      title: "Quelle est votre charge maximale déjà soulevée au soulevé de terre ?",
-      detail: "Indiquez la charge du soulevé de terre le plus lourd déjà effectué sur une répétition, en kilogrammes.",
+      completePrompt: "Combien de fois pouvez-vous vous lever complètement d'une chaise et vous rasseoir en 30 secondes, bras croisés sur la poitrine ?",
+      title: "Combien de levers de chaise réussissez-vous en 30 secondes ?",
+      detail: "Asseyez-vous au milieu d'une chaise stable sans accoudoirs, pieds à plat, bras croisés sur la poitrine. Comptez les levers complets en 30 secondes. Passez le test si vous vous sentez instable ou si vous êtes seul sans appui.",
     },
   },
   height_cm: {
@@ -240,14 +228,26 @@ const commonQuestionPromptPresentations = {
   },
   weekly_moderate_activity_minutes: {
     en: {
-      completePrompt: "About how many minutes of moderate or vigorous activity do you get in a usual week?",
-      title: "How much time do you spend being active each week?",
-      detail: "Count minutes of moderate or vigorous activity in a usual week.",
+      completePrompt: "About how many minutes of moderate-intensity activity, such as brisk walking or easy cycling, do you get in a usual week?",
+      title: "How many minutes of moderate activity do you get each week?",
+      detail: "Count minutes of moderate activity, such as brisk walking or easy cycling, in a usual week. Vigorous activity is asked separately.",
     },
     fr: {
-      completePrompt: "Environ combien de minutes d'activité modérée ou vigoureuse pratiquez-vous au cours d'une semaine habituelle ?",
-      title: "Combien de temps êtes-vous actif chaque semaine ?",
-      detail: "Comptez les minutes d'activité modérée ou vigoureuse au cours d'une semaine habituelle.",
+      completePrompt: "Environ combien de minutes d'activité d'intensité modérée, comme la marche rapide ou le vélo tranquille, pratiquez-vous au cours d'une semaine habituelle ?",
+      title: "Combien de minutes d'activité modérée pratiquez-vous chaque semaine ?",
+      detail: "Comptez les minutes d'activité modérée, comme la marche rapide ou le vélo tranquille, au cours d'une semaine habituelle. L'activité intense est demandée séparément.",
+    },
+  },
+  weekly_vigorous_activity_minutes: {
+    en: {
+      completePrompt: "About how many minutes of vigorous activity that makes you breathe hard, such as running or fast cycling, do you get in a usual week?",
+      title: "How many minutes of vigorous activity do you get each week?",
+      detail: "Count minutes of activity that makes you breathe hard, such as running or fast cycling, in a usual week. Enter 0 if none.",
+    },
+    fr: {
+      completePrompt: "Environ combien de minutes d'activité intense qui vous essouffle, comme la course ou le vélo rapide, pratiquez-vous au cours d'une semaine habituelle ?",
+      title: "Combien de minutes d'activité intense pratiquez-vous chaque semaine ?",
+      detail: "Comptez les minutes d'activité qui vous essouffle, comme la course ou le vélo rapide, au cours d'une semaine habituelle. Indiquez 0 si aucune.",
     },
   },
   movement_strength_days: {
@@ -321,6 +321,18 @@ const commonQuestionPromptPresentations = {
       completePrompt: "Quel était le chiffre systolique, ou maximum, de votre lecture de tension artérielle la plus récente\u00a0?",
       title: "Quel était le chiffre du haut de votre dernière mesure de tension ?",
       detail: "La systolique est le premier chiffre, le plus élevé, en mmHg : 125 pour une tension de 125/80, parfois notée 12,5/8. Une mesure fiable se prend assis après quelques minutes de repos, le bras posé à hauteur du cœur.",
+    },
+  },
+  blood_pressure_diastolic: {
+    en: {
+      completePrompt: "What was the diastolic, or bottom, number of that same blood-pressure reading?",
+      title: "What was the bottom number of that blood-pressure reading?",
+      detail: "The diastolic value is the second, lower number, in mmHg: 80 for a reading of 125/80.",
+    },
+    fr: {
+      completePrompt: "Quel était le chiffre diastolique, ou minimum, de cette même mesure de tension artérielle ?",
+      title: "Quel était le chiffre du bas de cette mesure de tension ?",
+      detail: "La diastolique est le second chiffre, le plus bas, en mmHg : 80 pour une tension de 125/80, parfois notée 12,5/8.",
     },
   },
 } as const satisfies Readonly<Record<string, Readonly<Record<Locale, CompleteQuestionPromptPresentation>>>>;

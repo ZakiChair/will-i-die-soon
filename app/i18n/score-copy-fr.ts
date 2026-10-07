@@ -1,246 +1,184 @@
 import type { ScoreCategoryId } from "../lib/scoring";
 
-export const PURITY_SCORE_LABEL_FR =
-  "Purity Score — habitudes de bien-être, pas un verdict sur la santé.";
+export const ESSENTIAL_EIGHT_LABEL_FR =
+  "Life's Essential 8 — score de santé cardiovasculaire, pas un verdict de mortalité.";
 
 export const scoreCategoryLabelsFr: Readonly<Record<ScoreCategoryId, string>> = {
-  "tobacco-nicotine": "Évitement du tabac et de la nicotine",
-  alcohol: "Habitudes de consommation d'alcool",
-  "movement-sitting": "Mouvement et temps passé assis",
-  nutrition: "Habitudes alimentaires",
-  sleep: "Routine de sommeil",
-  recovery: "Pratique de gestion du stress",
-  "preventive-followup": "Suivi préventif choisi",
-  "medication-safety": "Comportements favorisant la sécurité des médicaments",
+  diet: "Alimentation",
+  "physical-activity": "Activité physique",
+  nicotine: "Exposition à la nicotine",
+  sleep: "Santé du sommeil",
+  "body-mass-index": "Indice de masse corporelle",
+  "blood-lipids": "Lipides sanguins",
+  "blood-glucose": "Glycémie",
+  "blood-pressure": "Pression artérielle",
 };
 
 export const scoreComponentLabelsFr: Readonly<Record<string, string>> = {
-  current_tobacco_nicotine: "Évitement actuel du tabac et de la nicotine",
-  alcohol_frequency: "Fréquence de consommation d'alcool",
-  alcohol_detail_typical_amount: "Quantité habituelle",
-  alcohol_detail_heavy_episode: "Fréquence des épisodes de consommation importante",
-  weekly_moderate_activity_minutes: "Activité modérée ou intense hebdomadaire",
-  movement_strength_days: "Jours d'activité de renforcement",
-  movement_walking_days: "Jours de marche rapide",
-  sedentary_total_hours: "Temps quotidien passé assis ou allongé",
-  plant_food_frequency: "Portions de légumes et de fruits",
-  diet_whole_grains: "Choix de céréales complètes",
-  diet_legumes: "Repas contenant des légumineuses",
-  diet_processed_meat: "Fréquence de consommation de viande transformée",
-  diet_sugary_drinks: "Fréquence de consommation de boissons sucrées",
+  diet_pattern: "Profil alimentaire (questionnaire de type méditerranéen)",
+  weekly_moderate_activity_minutes: "Activité hebdomadaire en équivalent modéré",
+  current_tobacco_nicotine: "Exposition à la nicotine",
   usual_sleep_hours: "Durée habituelle du sommeil",
-  sleep_refreshed: "Sensation de repos au réveil",
-  circadian_bedtime_variation: "Variation de l'heure du coucher",
-  stress_recovery_practice: "Brève pratique de gestion du stress",
-  preventive_followup_action: "Suivi préventif choisi",
-  med_detail_prescriber_followup: "Suivi par le prescripteur",
-  adherence_missed_doses: "Habitudes de prise des doses",
-  interaction_shared_list: "Liste partagée des médicaments",
+  body_mass_index: "Indice de masse corporelle",
+  "lab:non_hdl_cholesterol": "Cholestérol non-HDL",
+  "lab:glycaemic_status": "Statut glycémique",
+  blood_pressure_systolic: "Pression artérielle",
 };
 
 export const scoreComponentExplanationsFr: Readonly<Record<string, string>> = {
-  "This component was not answered with a valid value.":
-    "Ce composant n'a pas reçu de valeur valide.",
-  "This component was not answered with a mapped option.":
-    "Ce composant n'a pas reçu de réponse parmi les options prévues.",
-  "You reported no current tobacco or nicotine use.":
-    "Vous ne déclarez aucune consommation actuelle de tabac ou de nicotine.",
-  "Prescribed nicotine replacement in a quit plan is excluded from this component.":
-    "Un substitut nicotinique prescrit dans le cadre d'un plan d'arrêt est exclu de ce composant.",
-  "You reported current tobacco, vaping, or other nicotine use.":
-    "Vous déclarez une consommation actuelle de tabac, de produits de vapotage ou d'une autre forme de nicotine.",
-  "You reported no alcohol use.": "Vous ne déclarez aucune consommation d'alcool.",
-  "You reported alcohol use monthly or less.":
-    "Vous déclarez consommer de l'alcool au plus une fois par mois.",
-  "You reported alcohol use two to four times a month.":
-    "Vous déclarez consommer de l'alcool deux à quatre fois par mois.",
-  "You reported alcohol use two to three times a week.":
-    "Vous déclarez consommer de l'alcool deux à trois fois par semaine.",
-  "You reported alcohol use four or more times a week.":
-    "Vous déclarez consommer de l'alcool au moins quatre fois par semaine.",
-  "Typical amount is fully assessed because no alcohol use was reported.":
-    "La quantité habituelle est entièrement évaluée puisqu'aucune consommation d'alcool n'est déclarée.",
-  "You reported up to one standard drink on a usual drinking day.":
-    "Vous déclarez boire au plus un verre standard lors d'une journée habituelle de consommation.",
-  "You reported more than one and up to two standard drinks.":
-    "Vous déclarez boire plus d'un et jusqu'à deux verres standard.",
-  "You reported more than two and up to three standard drinks.":
-    "Vous déclarez boire plus de deux et jusqu'à trois verres standard.",
-  "You reported more than three standard drinks.":
-    "Vous déclarez boire plus de trois verres standard.",
-  "Heavy episodes are fully assessed because no alcohol use was reported.":
-    "Les épisodes de consommation importante sont entièrement évalués puisqu'aucune consommation d'alcool n'est déclarée.",
-  "You reported no heavy drinking episodes.":
-    "Vous ne déclarez aucun épisode de consommation importante.",
-  "You reported a heavy episode less than monthly.":
-    "Vous déclarez un épisode de consommation importante moins d'une fois par mois.",
-  "You reported a heavy episode monthly.":
-    "Vous déclarez un épisode de consommation importante chaque mois.",
-  "You reported a heavy episode weekly.":
-    "Vous déclarez un épisode de consommation importante chaque semaine.",
-  "You reported a heavy episode daily or almost daily.":
-    "Vous déclarez un épisode de consommation importante chaque jour ou presque.",
+  // Alimentation
+  "All five diet items are needed to place the diet pattern.":
+    "Les cinq questions alimentaires sont nécessaires pour situer le profil alimentaire.",
+  "Your diet items place you in the top band of the Mediterranean-style screener (15–16 of 16).":
+    "Vos réponses alimentaires vous situent dans la tranche la plus élevée du questionnaire de type méditerranéen (15–16 sur 16).",
+  "Your diet items place you in the second band of the Mediterranean-style screener (12–14 of 16).":
+    "Vos réponses alimentaires vous situent dans la deuxième tranche du questionnaire de type méditerranéen (12–14 sur 16).",
+  "Your diet items place you in the middle band of the Mediterranean-style screener (8–11 of 16).":
+    "Vos réponses alimentaires vous situent dans la tranche intermédiaire du questionnaire de type méditerranéen (8–11 sur 16).",
+  "Your diet items place you in the fourth band of the Mediterranean-style screener (4–7 of 16).":
+    "Vos réponses alimentaires vous situent dans la quatrième tranche du questionnaire de type méditerranéen (4–7 sur 16).",
+  "Your diet items place you in the lowest band of the Mediterranean-style screener (0–3 of 16).":
+    "Vos réponses alimentaires vous situent dans la tranche la plus basse du questionnaire de type méditerranéen (0–3 sur 16).",
+  // Activité physique
+  "Weekly moderate activity minutes were not answered with a valid value.":
+    "Les minutes hebdomadaires d'activité modérée n'ont pas reçu de valeur valide.",
+  "You reported at least 150 moderate-equivalent minutes a week (vigorous minutes count double).":
+    "Vous déclarez au moins 150 minutes hebdomadaires en équivalent modéré (les minutes intenses comptent double).",
+  "You reported 120–149 moderate-equivalent minutes a week.":
+    "Vous déclarez 120 à 149 minutes hebdomadaires en équivalent modéré.",
+  "You reported 90–119 moderate-equivalent minutes a week.":
+    "Vous déclarez 90 à 119 minutes hebdomadaires en équivalent modéré.",
+  "You reported 60–89 moderate-equivalent minutes a week.":
+    "Vous déclarez 60 à 89 minutes hebdomadaires en équivalent modéré.",
+  "You reported 30–59 moderate-equivalent minutes a week.":
+    "Vous déclarez 30 à 59 minutes hebdomadaires en équivalent modéré.",
+  "You reported 1–29 moderate-equivalent minutes a week.":
+    "Vous déclarez 1 à 29 minutes hebdomadaires en équivalent modéré.",
   "You reported no moderate or vigorous activity in a usual week.":
     "Vous ne déclarez aucune activité modérée ou intense au cours d'une semaine habituelle.",
-  "You reported 1–74 minutes of weekly activity.":
-    "Vous déclarez 1 à 74 minutes d'activité par semaine.",
-  "You reported 75–149 minutes of weekly activity.":
-    "Vous déclarez 75 à 149 minutes d'activité par semaine.",
-  "You reported at least 150 minutes of weekly activity.":
-    "Vous déclarez au moins 150 minutes d'activité par semaine.",
-  "You reported no strength-activity days.":
-    "Vous ne déclarez aucun jour d'activité de renforcement.",
-  "You reported one strength-activity day.":
-    "Vous déclarez un jour d'activité de renforcement.",
-  "You reported at least two strength-activity days.":
-    "Vous déclarez au moins deux jours d'activité de renforcement.",
-  "You reported no brisk-walking days.":
-    "Vous ne déclarez aucun jour de marche rapide.",
-  "You reported one or two brisk-walking days.":
-    "Vous déclarez un ou deux jours de marche rapide.",
-  "You reported three or four brisk-walking days.":
-    "Vous déclarez trois ou quatre jours de marche rapide.",
-  "You reported at least five brisk-walking days.":
-    "Vous déclarez au moins cinq jours de marche rapide.",
-  "You reported up to four waking hours sitting or reclining.":
-    "Vous déclarez jusqu'à quatre heures éveillées passées en position assise ou allongée.",
-  "You reported more than four and under seven sedentary hours.":
-    "Vous déclarez plus de quatre et moins de sept heures de sédentarité.",
-  "You reported seven to under ten sedentary hours.":
-    "Vous déclarez entre sept heures et moins de dix heures de sédentarité.",
-  "You reported ten or more sedentary hours.":
-    "Vous déclarez au moins dix heures de sédentarité.",
-  "You reported no vegetable or fruit portions on a typical day.":
-    "Vous ne déclarez aucune portion de légumes ou de fruits lors d'une journée habituelle.",
-  "You reported one or two vegetable or fruit portions.":
-    "Vous déclarez une ou deux portions de légumes ou de fruits.",
-  "You reported three or four vegetable or fruit portions.":
-    "Vous déclarez trois ou quatre portions de légumes ou de fruits.",
-  "You reported at least five vegetable or fruit portions.":
-    "Vous déclarez au moins cinq portions de légumes ou de fruits.",
-  "You reported never choosing whole grains.":
-    "Vous déclarez ne jamais choisir de céréales complètes.",
-  "You reported rarely choosing whole grains.":
-    "Vous déclarez choisir rarement des céréales complètes.",
-  "You reported sometimes choosing whole grains.":
-    "Vous déclarez choisir parfois des céréales complètes.",
-  "You reported often choosing whole grains.":
-    "Vous déclarez choisir souvent des céréales complètes.",
-  "You reported choosing whole grains daily or almost daily.":
-    "Vous déclarez choisir des céréales complètes chaque jour ou presque.",
-  "You reported no legume meals in a usual week.":
-    "Vous ne déclarez aucun repas contenant des légumineuses au cours d'une semaine habituelle.",
-  "You reported one legume meal in a usual week.":
-    "Vous déclarez un repas contenant des légumineuses au cours d'une semaine habituelle.",
-  "You reported two legume meals in a usual week.":
-    "Vous déclarez deux repas contenant des légumineuses au cours d'une semaine habituelle.",
-  "You reported at least three legume meals in a usual week.":
-    "Vous déclarez au moins trois repas contenant des légumineuses au cours d'une semaine habituelle.",
-  "You reported never eating processed meat.":
-    "Vous déclarez ne jamais consommer de viande transformée.",
-  "You reported rarely eating processed meat.":
-    "Vous déclarez consommer rarement de la viande transformée.",
-  "You reported sometimes eating processed meat.":
-    "Vous déclarez consommer parfois de la viande transformée.",
-  "You reported often eating processed meat.":
-    "Vous déclarez consommer souvent de la viande transformée.",
-  "You reported eating processed meat daily or almost daily.":
-    "Vous déclarez consommer de la viande transformée chaque jour ou presque.",
-  "You reported no sugary drinks in a usual week.":
-    "Vous ne déclarez aucune boisson sucrée au cours d'une semaine habituelle.",
-  "You reported one sugary drink in a usual week.":
-    "Vous déclarez une boisson sucrée au cours d'une semaine habituelle.",
-  "You reported two or three sugary drinks in a usual week.":
-    "Vous déclarez deux ou trois boissons sucrées au cours d'une semaine habituelle.",
-  "You reported four to six sugary drinks in a usual week.":
-    "Vous déclarez quatre à six boissons sucrées au cours d'une semaine habituelle.",
-  "You reported seven or more sugary drinks in a usual week.":
-    "Vous déclarez au moins sept boissons sucrées au cours d'une semaine habituelle.",
-  "You reported under six hours of usual sleep.":
-    "Vous déclarez habituellement moins de six heures de sommeil.",
+  // Nicotine
+  "You reported using only prescribed nicotine replacement in a quit plan, scored like a quit under one year ago.":
+    "Vous déclarez utiliser uniquement un substitut nicotinique prescrit dans un plan d'arrêt, compté comme un arrêt datant de moins d'un an.",
+  "You reported current tobacco, vaping, or other nicotine use.":
+    "Vous déclarez une consommation actuelle de tabac, de produits de vapotage ou d'une autre forme de nicotine.",
+  "You reported never smoking regularly and no current nicotine use.":
+    "Vous déclarez n'avoir jamais fumé régulièrement et n'utiliser aucune nicotine actuellement.",
+  "You reported stopping smoking five or more years ago.":
+    "Vous déclarez avoir arrêté de fumer il y a cinq ans ou plus.",
+  "You reported stopping smoking one to under five years ago.":
+    "Vous déclarez avoir arrêté de fumer il y a un à moins de cinq ans.",
+  "You reported stopping smoking under one year ago.":
+    "Vous déclarez avoir arrêté de fumer il y a moins d'un an.",
+  "The current nicotine context was not resolved.":
+    "Le contexte actuel de consommation de nicotine n'a pas été précisé.",
+  "Past smoking history, or the time since quitting, was not answered.":
+    "L'historique tabagique, ou le délai depuis l'arrêt, n'a pas été renseigné.",
+  "Current tobacco or nicotine use was not answered.":
+    "La consommation actuelle de tabac ou de nicotine n'a pas été renseignée.",
+  // Sommeil
+  "Usual sleep hours were not answered with a valid value.":
+    "La durée habituelle du sommeil n'a pas reçu de valeur valide.",
+  "You reported seven to under nine hours of usual sleep.":
+    "Vous déclarez habituellement entre sept et moins de neuf heures de sommeil.",
+  "You reported nine to under ten hours of usual sleep.":
+    "Vous déclarez habituellement entre neuf et moins de dix heures de sommeil.",
   "You reported six to under seven hours of usual sleep.":
-    "Vous déclarez habituellement entre six heures et moins de sept heures de sommeil.",
-  "You reported at least seven hours of usual sleep.":
-    "Vous déclarez habituellement au moins sept heures de sommeil.",
-  "You placed refreshed sleep in the 0–2 band.":
-    "Vous situez la sensation de repos après le sommeil dans la plage de 0 à 2.",
-  "You placed refreshed sleep in the 3–4 band.":
-    "Vous situez la sensation de repos après le sommeil dans la plage de 3 à 4.",
-  "You placed refreshed sleep in the 5–6 band.":
-    "Vous situez la sensation de repos après le sommeil dans la plage de 5 à 6.",
-  "You placed refreshed sleep in the 7–8 band.":
-    "Vous situez la sensation de repos après le sommeil dans la plage de 7 à 8.",
-  "You placed refreshed sleep in the 9–10 band.":
-    "Vous situez la sensation de repos après le sommeil dans la plage de 9 à 10.",
-  "You reported up to one hour of bedtime variation.":
-    "Vous déclarez une variation de l'heure du coucher allant jusqu'à une heure.",
-  "You reported more than one and up to two hours of bedtime variation.":
-    "Vous déclarez une variation de l'heure du coucher de plus d'une heure et jusqu'à deux heures.",
-  "You reported more than two and up to three hours of bedtime variation.":
-    "Vous déclarez une variation de l'heure du coucher de plus de deux heures et jusqu'à trois heures.",
-  "You reported more than three hours of bedtime variation.":
-    "Vous déclarez une variation de l'heure du coucher supérieure à trois heures.",
-  "You reported never practising a brief stress-management skill.":
-    "Vous déclarez ne jamais pratiquer une brève technique de gestion du stress.",
-  "You reported rarely practising a brief stress-management skill.":
-    "Vous déclarez pratiquer rarement une brève technique de gestion du stress.",
-  "You reported sometimes practising a brief stress-management skill.":
-    "Vous déclarez pratiquer parfois une brève technique de gestion du stress.",
-  "You reported often practising a brief stress-management skill.":
-    "Vous déclarez pratiquer souvent une brève technique de gestion du stress.",
-  "You reported practising a brief stress-management skill daily or almost daily.":
-    "Vous déclarez pratiquer une brève technique de gestion du stress chaque jour ou presque.",
-  "You reported that no routine follow-up was personally due.":
-    "Vous déclarez qu'aucun suivi de routine ne s'appliquait à votre situation.",
-  "You reported an access or safety barrier to a personally chosen follow-up.":
-    "Vous déclarez un obstacle d'accès ou de sécurité concernant un suivi choisi personnellement.",
-  "The chosen follow-up action was not answered.":
-    "Aucune réponse n'a été donnée concernant l'action de suivi choisie.",
-  "You reported completing a personally due follow-up.":
-    "Vous déclarez avoir effectué un suivi qui s'appliquait à votre situation.",
-  "You reported booking or contacting a service about a personally due follow-up.":
-    "Vous déclarez avoir pris rendez-vous ou contacté un service au sujet d'un suivi qui s'appliquait à votre situation.",
-  "You reported not yet acting on a personally due follow-up.":
-    "Vous déclarez ne pas encore avoir agi concernant un suivi qui s'appliquait à votre situation.",
-  "Whether a chosen preventive follow-up applies is unresolved.":
-    "Il reste à déterminer si le suivi préventif choisi s'applique à votre situation.",
-  "This component does not apply because you reported no current prescription medicines.":
-    "Ce composant ne s'applique pas, car vous ne déclarez aucun médicament sur ordonnance actuellement.",
-  "Current prescription-medicine use is unresolved.":
-    "L'utilisation actuelle de médicaments sur ordonnance n'est pas établie.",
-  "You reported no current access to prescriber follow-up.":
-    "Vous déclarez ne pas avoir actuellement accès à un suivi par le prescripteur.",
-  "You reported prescriber follow-up for all current medicines.":
-    "Vous déclarez un suivi par le prescripteur pour tous les médicaments actuels.",
-  "You reported prescriber follow-up for some current medicines.":
-    "Vous déclarez un suivi par le prescripteur pour certains médicaments actuels.",
-  "You reported no prescriber follow-up for current medicines.":
-    "Vous ne déclarez aucun suivi par le prescripteur pour les médicaments actuels.",
-  "A medicine access or use barrier was reported, so dose-taking is excluded.":
-    "Un obstacle à l'accès aux médicaments ou à leur utilisation a été signalé\u00a0; ce composant relatif aux habitudes de prise est donc exclu du calcul.",
-  "You reported never missing, delaying, or repeating a dose.":
-    "Vous déclarez ne jamais omettre, retarder ou répéter une dose.",
-  "You reported rarely missing, delaying, or repeating a dose.":
-    "Vous déclarez omettre, retarder ou répéter rarement une dose.",
-  "You reported this happening a few times a month.":
-    "Vous déclarez que cela se produit quelques fois par mois.",
-  "You reported this happening at least weekly.":
-    "Vous déclarez que cela se produit au moins chaque semaine.",
-  "You reported that a clinician or pharmacist has a current medicine list.":
-    "Vous déclarez qu'un professionnel de santé ou un pharmacien dispose d'une liste à jour de vos médicaments.",
-  "You reported that no clinician or pharmacist has a current medicine list.":
-    "Vous déclarez qu'aucun professionnel de santé ni pharmacien ne dispose d'une liste à jour de vos médicaments.",
-  "A shared current medicine list was not answered.":
-    "Aucune réponse n'a été donnée concernant une liste à jour et partagée des médicaments.",
+    "Vous déclarez habituellement entre six et moins de sept heures de sommeil.",
+  "You reported ten or more hours of usual sleep.":
+    "Vous déclarez habituellement dix heures de sommeil ou plus.",
+  "You reported five to under six hours of usual sleep.":
+    "Vous déclarez habituellement entre cinq et moins de six heures de sommeil.",
+  "You reported four to under five hours of usual sleep.":
+    "Vous déclarez habituellement entre quatre et moins de cinq heures de sommeil.",
+  "You reported under four hours of usual sleep.":
+    "Vous déclarez habituellement moins de quatre heures de sommeil.",
+  // IMC
+  "Height and weight are both needed to compute body-mass index.":
+    "La taille et le poids sont tous deux nécessaires pour calculer l'indice de masse corporelle.",
+  "Your body-mass index is under 25 kg/m².":
+    "Votre indice de masse corporelle est inférieur à 25 kg/m².",
+  "Your body-mass index is between 25 and 29.9 kg/m².":
+    "Votre indice de masse corporelle est compris entre 25 et 29,9 kg/m².",
+  "Your body-mass index is between 30 and 34.9 kg/m².":
+    "Votre indice de masse corporelle est compris entre 30 et 34,9 kg/m².",
+  "Your body-mass index is between 35 and 39.9 kg/m².":
+    "Votre indice de masse corporelle est compris entre 35 et 39,9 kg/m².",
+  "Your body-mass index is 40 kg/m² or more.":
+    "Votre indice de masse corporelle est de 40 kg/m² ou plus.",
+  // Lipides
+  "Confirmed total and HDL cholesterol results are needed to compute non-HDL cholesterol.":
+    "Des résultats confirmés de cholestérol total et de HDL sont nécessaires pour calculer le cholestérol non-HDL.",
+  "Your non-HDL cholesterol is under 130 mg/dL (3.4 mmol/L).":
+    "Votre cholestérol non-HDL est inférieur à 130 mg/dL (3,4 mmol/L).",
+  "Your non-HDL cholesterol is 130–159 mg/dL (3.4–4.1 mmol/L).":
+    "Votre cholestérol non-HDL est compris entre 130 et 159 mg/dL (3,4–4,1 mmol/L).",
+  "Your non-HDL cholesterol is 160–189 mg/dL (4.1–4.9 mmol/L).":
+    "Votre cholestérol non-HDL est compris entre 160 et 189 mg/dL (4,1–4,9 mmol/L).",
+  "Your non-HDL cholesterol is 190–219 mg/dL (4.9–5.7 mmol/L).":
+    "Votre cholestérol non-HDL est compris entre 190 et 219 mg/dL (4,9–5,7 mmol/L).",
+  "Your non-HDL cholesterol is 220 mg/dL (5.7 mmol/L) or more.":
+    "Votre cholestérol non-HDL est de 220 mg/dL (5,7 mmol/L) ou plus.",
+  // Glycémie
+  "Diagnosed conditions were not answered, so diabetes status is unknown.":
+    "Les affections diagnostiquées n'ont pas été renseignées\u00a0; le statut diabétique est donc inconnu.",
+  "A confirmed HbA1c result is needed to score glucose with diagnosed diabetes.":
+    "Un résultat confirmé d'HbA1c est nécessaire pour noter la glycémie en cas de diabète diagnostiqué.",
+  "You reported diagnosed diabetes with an HbA1c under 7 %.":
+    "Vous avez déclaré un diabète diagnostiqué avec une HbA1c inférieure à 7 %.",
+  "You reported diagnosed diabetes with an HbA1c of 7–7.9 %.":
+    "Vous avez déclaré un diabète diagnostiqué avec une HbA1c de 7 à 7,9 %.",
+  "You reported diagnosed diabetes with an HbA1c of 8–8.9 %.":
+    "Vous avez déclaré un diabète diagnostiqué avec une HbA1c de 8 à 8,9 %.",
+  "You reported diagnosed diabetes with an HbA1c of 9–9.9 %.":
+    "Vous avez déclaré un diabète diagnostiqué avec une HbA1c de 9 à 9,9 %.",
+  "You reported diagnosed diabetes with an HbA1c of 10 % or more.":
+    "Vous avez déclaré un diabète diagnostiqué avec une HbA1c de 10 % ou plus.",
+  "No diagnosed diabetes and an HbA1c under 5.7 %.":
+    "Aucun diabète diagnostiqué et une HbA1c inférieure à 5,7 %.",
+  "No diagnosed diabetes and an HbA1c of 5.7–6.4 %, the prediabetes range.":
+    "Aucun diabète diagnostiqué et une HbA1c de 5,7 à 6,4 %, dans la zone de prédiabète.",
+  "No diagnosed diabetes but an HbA1c of 6.5 % or more, which is in the diabetes range and deserves clinical confirmation.":
+    "Aucun diabète diagnostiqué mais une HbA1c de 6,5 % ou plus, dans la zone du diabète, ce qui mérite une confirmation clinique.",
+  "No diagnosed diabetes and a fasting glucose under 100 mg/dL (5.6 mmol/L).":
+    "Aucun diabète diagnostiqué et une glycémie à jeun inférieure à 100 mg/dL (5,6 mmol/L).",
+  "No diagnosed diabetes and a fasting glucose of 100–125 mg/dL (5.6–6.9 mmol/L), the prediabetes range.":
+    "Aucun diabète diagnostiqué et une glycémie à jeun de 100 à 125 mg/dL (5,6–6,9 mmol/L), dans la zone de prédiabète.",
+  "No diagnosed diabetes but a fasting glucose of 126 mg/dL (7.0 mmol/L) or more, which is in the diabetes range and deserves clinical confirmation.":
+    "Aucun diabète diagnostiqué mais une glycémie à jeun de 126 mg/dL (7,0 mmol/L) ou plus, dans la zone du diabète, ce qui mérite une confirmation clinique.",
+  "A confirmed HbA1c or fasting glucose result is needed to score glucose.":
+    "Un résultat confirmé d'HbA1c ou de glycémie à jeun est nécessaire pour noter la glycémie.",
+  // Pression artérielle
+  "A recent systolic and diastolic reading are both needed to score blood pressure.":
+    "Une mesure récente de la systolique et de la diastolique est nécessaire pour noter la pression artérielle.",
+  "Your reading is under 120/80 mmHg.":
+    "Votre mesure est inférieure à 120/80 mmHg.",
+  "Your systolic reading is 120–129 mmHg with a diastolic under 80.":
+    "Votre systolique est comprise entre 120 et 129 mmHg avec une diastolique inférieure à 80.",
+  "Your reading is in the 130–139 systolic or 80–89 diastolic range.":
+    "Votre mesure se situe dans la zone 130–139 de systolique ou 80–89 de diastolique.",
+  "Your reading is in the 140–159 systolic or 90–99 diastolic range.":
+    "Votre mesure se situe dans la zone 140–159 de systolique ou 90–99 de diastolique.",
+  "Your reading is 160 systolic or 100 diastolic mmHg or more.":
+    "Votre mesure atteint 160 mmHg de systolique ou 100 mmHg de diastolique, ou plus.",
+};
+
+// Suffixes ajoutés par le moteur après l'explication de base (pénalités LE8).
+export const scoreExplanationSuffixesFr: Readonly<Record<string, string>> = {
+  "Twenty points are removed because someone smokes indoors at your home.":
+    "Vingt points sont retirés parce qu'une personne fume à l'intérieur de votre domicile.",
+  "Twenty points are removed because you take a statin.":
+    "Vingt points sont retirés parce que vous prenez une statine.",
+  "Twenty points are removed because you take blood-pressure medicine.":
+    "Vingt points sont retirés parce que vous prenez un médicament contre l'hypertension.",
 };
 
 export const scoreLedgerExplanationsFr: Readonly<Record<string, string>> = {
-  "This transparent index uses only answered, modifiable wellness habits.":
-    "Cet indice transparent utilise uniquement les habitudes de bien-être modifiables pour lesquelles une réponse a été fournie.",
-  "The point weights are product choices, not disease probabilities or clinical coefficients.":
-    "La pondération des points relève de choix de conception du produit, et non de probabilités de maladie ni de coefficients cliniques.",
-  "Missing answers reduce coverage rather than earning zero points.":
-    "Les réponses manquantes réduisent la couverture au lieu d'attribuer zéro point.",
+  "This score applies the American Heart Association Life's Essential 8 cut-points to your answers and confirmed laboratory values.":
+    "Ce score applique les seuils Life's Essential 8 de l'American Heart Association à vos réponses et à vos résultats de laboratoire confirmés.",
+  "Each metric is scored 0–100 as published; the total is the unweighted mean of the metrics that could be assessed.":
+    "Chaque métrique est notée de 0 à 100 selon la publication\u00a0; le total est la moyenne non pondérée des métriques évaluables.",
+  "Missing metrics reduce coverage rather than earning zero points; the full score needs all eight metrics.":
+    "Les métriques manquantes réduisent la couverture au lieu de valoir zéro\u00a0; le score complet nécessite les huit métriques.",
 };
 
 export type ActionCopyTranslation = {
@@ -249,67 +187,46 @@ export type ActionCopyTranslation = {
 };
 
 export const actionCopyFr: Readonly<Record<ScoreCategoryId, ActionCopyTranslation>> = {
-  "tobacco-nicotine": {
-    title: "Choisissez le soutien lié au tabac ou à la nicotine qui vous convient",
-    nextStep:
-      "Si vous souhaitez modifier votre consommation actuelle, choisissez une première étape volontaire\u00a0: renseignez-vous auprès d'un service local qualifié, d'un pharmacien ou d'un professionnel de santé sur les options de soutien.",
-  },
-  alcohol: {
-    title: "Choisissez une étape concernant vos habitudes de consommation d'alcool",
-    nextStep:
-      "Si vous souhaitez modifier ces habitudes, choisissez une occasion réalisable sans alcool ou demandez un soutien sans jugement auprès d'un service local qualifié.",
-  },
-  "movement-sitting": {
-    title: "Choisissez une étape réalisable concernant le mouvement ou le temps passé assis",
-    nextStep:
-      "Choisissez un petit changement de mouvement ou une pause dans le temps passé assis qui soit adapté à votre corps, à votre accès, à votre travail et à votre sécurité.",
-  },
-  nutrition: {
+  diet: {
     title: "Choisissez une étape pratique concernant vos habitudes alimentaires",
     nextStep:
-      "Choisissez un ajout ou un remplacement réalisable à partir des habitudes déclarées, sans objectif calorique ni règle alimentaire restrictive.",
+      "Choisissez un ajout ou un remplacement réalisable, comme une portion quotidienne de légumes, un choix de céréales complètes ou une boisson sucrée en moins, sans objectif calorique ni règle restrictive.",
+  },
+  "physical-activity": {
+    title: "Choisissez une étape réalisable concernant le mouvement",
+    nextStep:
+      "Ajoutez un bloc d'activité modérée que vous pouvez tenir, comme une marche rapide de 20 à 30 minutes plus souvent\u00a0; les minutes intenses comptent double vers la cible de 150 minutes.",
+  },
+  nicotine: {
+    title: "Choisissez le soutien lié au tabac ou à la nicotine qui vous convient",
+    nextStep:
+      "Si vous souhaitez modifier votre consommation actuelle, renseignez-vous auprès d'un service local qualifié, d'un pharmacien ou d'un professionnel de santé\u00a0; associer accompagnement et traitement double environ les chances d'arrêt.",
   },
   sleep: {
     title: "Choisissez une étape concernant votre routine de sommeil",
     nextStep:
-      "Choisissez un changement de routine réalisable, par exemple préserver votre temps de sommeil ou rendre l'heure du coucher plus régulière.",
+      "Protégez une plage de sommeil régulière permettant sept à neuf heures, et parlez à un professionnel de santé d'un sommeil durablement court, long ou non réparateur.",
   },
-  recovery: {
-    title: "Essayez une brève pratique de gestion du stress",
+  "body-mass-index": {
+    title: "Replacez le poids et la composition corporelle dans leur contexte",
     nextStep:
-      "Choisissez de vous ancrer, de vous décrocher des pensées difficiles, d'agir en accord avec vos valeurs, d'être bienveillant ou de faire de la place à ce que vous ressentez, puis pratiquez pendant quelques minutes aujourd'hui.",
+      "L'indice de masse corporelle n'est qu'une métrique sur huit\u00a0; si vous souhaitez agir, un professionnel de santé ou un diététicien peut vous aider à définir un plan réaliste et non restrictif.",
   },
-  "preventive-followup": {
-    title: "Faites une étape concernant le suivi choisi",
+  "blood-lipids": {
+    title: "Faites le point sur vos résultats de cholestérol avec un professionnel de santé",
     nextStep:
-      "Si cela reste réalisable et sûr, choisissez de contacter le service concerné ou de prendre rendez-vous.",
+      "Un cholestérol non-HDL au-dessus de la cible mérite d'être discuté\u00a0; les mesures de mode de vie et, le cas échéant, les décisions de traitement relèvent de cette conversation.",
   },
-  "medication-safety": {
-    title: "Renforcez une routine de sécurité des médicaments",
+  "blood-glucose": {
+    title: "Faites le point sur vos résultats de glycémie avec un professionnel de santé",
     nextStep:
-      "Choisissez une étape réalisable, comme mettre à jour votre liste de médicaments ou poser une question à un pharmacien ou au prescripteur\u00a0; ne modifiez pas une dose sur la base de ce rapport.",
+      "Un résultat en zone de prédiabète ou au-dessus de la cible mérite une conversation sur la confirmation, le suivi et les options de prévention.",
   },
-};
-
-export const bookedPreventiveActionCopyFr: ActionCopyTranslation = {
-  title: "Poursuivez le suivi déjà engagé",
-  nextStep:
-    "Un rendez-vous est déjà pris ou un service a déjà été contacté\u00a0; si cela reste réalisable et sûr, choisissez une petite étape qui vous aide à vous y rendre ou à vous préparer.",
-};
-
-export const accessSupportCopyFr: ActionCopyTranslation = {
-  title: "Commencez par un soutien pratique concernant l'accès et la sécurité",
-  nextStep:
-    "Si vous souhaitez un soutien, choisissez un service local qualifié, un pharmacien, un professionnel de santé ou une personne de confiance capable de tenir compte de l'obstacle indiqué.",
-};
-
-export const accessSupportReasonClausesFr: Readonly<Record<string, string>> = {
-  "Chosen preventive follow-up: You reported an access or safety barrier to a personally chosen follow-up.":
-    `${scoreCategoryLabelsFr["preventive-followup"]}\u00a0: ${scoreComponentExplanationsFr["You reported an access or safety barrier to a personally chosen follow-up."]}`,
-  "Medication-safety behaviour: You reported no current access to prescriber follow-up.":
-    `${scoreCategoryLabelsFr["medication-safety"]}\u00a0: ${scoreComponentExplanationsFr["You reported no current access to prescriber follow-up."]}`,
-  "Medication-safety behaviour: A medicine access or use barrier was reported, so dose-taking is excluded.":
-    `${scoreCategoryLabelsFr["medication-safety"]}\u00a0: ${scoreComponentExplanationsFr["A medicine access or use barrier was reported, so dose-taking is excluded."]}`,
+  "blood-pressure": {
+    title: "Faites recontrôler votre pression artérielle",
+    nextStep:
+      "Une mesure au-dessus de 120/80 mmHg mérite d'être répétée et, à partir de 130/80, une conversation avec un professionnel de santé sur la suite\u00a0; ne modifiez aucun médicament sur la base de ce rapport.",
+  },
 };
 
 export const protectiveRootLabelsFr: Readonly<Record<string, string>> = {

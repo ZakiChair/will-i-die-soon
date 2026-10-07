@@ -468,6 +468,9 @@ function evaluateFindrisc(context: EvaluationContext): PathologyScoreResult {
 
   if (collector.missing.length > 0) return incomplete("findrisc", FINDRISC_SOURCES, collector);
   const band = bandFor(FINDRISC_BANDS, points);
+  // FINDRISC was validated in 35–64-year-olds; outside that range the points
+  // remain computable but the estimate is an extrapolation.
+  const modifiers = age < 35 || age > 64 ? ["findrisc-age-extrapolated"] : [];
   return complete(
     "findrisc",
     FINDRISC_SOURCES,
@@ -479,6 +482,7 @@ function evaluateFindrisc(context: EvaluationContext): PathologyScoreResult {
       level: band.level,
       riskPercent: band.riskPercent,
       riskHorizonYears: 10,
+      modifiers,
     },
     context.policy,
   );

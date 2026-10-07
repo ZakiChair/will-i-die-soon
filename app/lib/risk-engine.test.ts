@@ -1877,24 +1877,6 @@ describe("audited medication and substance class routes", () => {
       "isotretinoin-pregnancy-program-review",
     ],
     [
-      "topical minoxidil scalp context",
-      {
-        uses_minoxidil: true,
-        minoxidil_detail_route_product: "topical",
-        minoxidil_detail_hair_scalp_context: "one_or_more",
-      },
-      "topical-minoxidil-scalp-review",
-    ],
-    [
-      "combined oral and topical minoxidil scalp context",
-      {
-        uses_minoxidil: true,
-        minoxidil_detail_route_product: "both",
-        minoxidil_detail_hair_scalp_context: "one_or_more",
-      },
-      "topical-minoxidil-scalp-review",
-    ],
-    [
       "topical minoxidil symptoms",
       {
         uses_minoxidil: true,
@@ -1932,6 +1914,141 @@ describe("audited medication and substance class routes", () => {
     expect(leaf.urgency).toBe("prompt-review");
     expect(leaf.copy).not.toMatch(/call .*emergency|you have|caused by/i);
     expect(leaf.sources.length).toBeGreaterThan(0);
+  });
+
+  test("approximates 20 pack-years from cigarettes per day and years smoked", () => {
+    const senior: ProfileContext = { age: 62, countryCode: "FR" };
+    const eligible = leafById(
+      "lung-cancer-screening-eligibility",
+      {
+        current_tobacco_nicotine: true,
+        smoking_cigarettes_per_day: 20,
+        smoking_years_total: 25,
+      },
+      senior,
+    );
+    expect(eligible.urgency).toBe("long-term");
+    expect(eligible.factors).toContain("Currently uses tobacco or nicotine");
+    expect(eligible.missingInputs).toEqual([
+      "smoking_history_former",
+      "smoking_years_since_quit",
+    ]);
+
+    const formerRecent = leafIds(
+      {
+        current_tobacco_nicotine: false,
+        smoking_history_former: true,
+        smoking_cigarettes_per_day: 10,
+        smoking_years_total: 40,
+        smoking_years_since_quit: 10,
+      },
+      senior,
+    );
+    expect(formerRecent).toContain("lung-cancer-screening-eligibility");
+
+    expect(
+      leafIds(
+        {
+          current_tobacco_nicotine: false,
+          smoking_history_former: true,
+          smoking_cigarettes_per_day: 20,
+          smoking_years_total: 30,
+          smoking_years_since_quit: 16,
+        },
+        senior,
+      ),
+    ).not.toContain("lung-cancer-screening-eligibility");
+    expect(
+      leafIds(
+        {
+          current_tobacco_nicotine: true,
+          smoking_cigarettes_per_day: 5,
+          smoking_years_total: 30,
+        },
+        senior,
+      ),
+    ).not.toContain("lung-cancer-screening-eligibility");
+    expect(
+      leafIds(
+        {
+          current_tobacco_nicotine: true,
+          smoking_cigarettes_per_day: 20,
+          smoking_years_total: 25,
+        },
+        { age: 45, countryCode: "FR" },
+      ),
+    ).not.toContain("lung-cancer-screening-eligibility");
+  });
+
+  test("routes the falls screen, polypharmacy, and high-risk classes as long-term review", () => {
+    const senior: ProfileContext = { age: 70, countryCode: "GB" };
+    const falls = leafById("falls-risk-review", { falls_past_year: ["fallen", "worried"] }, senior);
+    expect(falls.factors).toEqual(["Fell in the past year", "Worries about falling"]);
+    expect(falls.sources.map((source) => source.id)).toEqual([
+      "world-falls-guidelines-2022",
+      "cdc-steadi-older-adult-fall-prevention",
+    ]);
+    expect(leafIds({ falls_past_year: ["none"] }, senior)).not.toContain("falls-risk-review");
+
+    const poly = leafById("polypharmacy-review", {
+      current_medications: true,
+      medication_count: "ten_or_more",
+    });
+    expect(poly.factors).toContain("Takes ten or more regular medicines");
+    expect(
+      leafIds({ current_medications: true, medication_count: "one_to_four" }),
+    ).not.toContain("polypharmacy-review");
+
+    const highRisk = leafById("high-risk-medication-review", {
+      current_medications: true,
+      high_risk_medication_classes: ["anticoagulant", "opioid"],
+    });
+    expect(highRisk.factors).toEqual([
+      "Takes regular prescription medicines",
+      "Takes an anticoagulant",
+      "Takes an opioid painkiller",
+    ]);
+    expect(
+      leafIds({ current_medications: true, high_risk_medication_classes: ["none"] }),
+    ).not.toContain("high-risk-medication-review");
+  });
+
+  test("keeps sex-specific risk enhancers and walking pace informational", () => {
+    const woman: ProfileContext = { age: 50, countryCode: "DE" };
+    expect(
+      leafById(
+        "pregnancy-complication-cardiovascular-context",
+        { pregnancy_complication_history: ["gestational_diabetes"] },
+        woman,
+      ).urgency,
+    ).toBe("long-term");
+    expect(
+      leafIds({ pregnancy_complication_history: ["never_pregnant"] }, woman),
+    ).not.toContain("pregnancy-complication-cardiovascular-context");
+    expect(leafIds({ menopause_before_45: true }, woman)).toContain(
+      "early-menopause-cardiovascular-context",
+    );
+    expect(leafIds({ menopause_before_45: true }, { age: 39, countryCode: "DE" })).not.toContain(
+      "early-menopause-cardiovascular-context",
+    );
+    expect(leafIds({ erectile_difficulty: "often_or_always" }, woman)).toContain(
+      "erectile-difficulty-vascular-review",
+    );
+    expect(leafIds({ erectile_difficulty: "sometimes" }, woman)).not.toContain(
+      "erectile-difficulty-vascular-review",
+    );
+
+    const pace = leafById("slow-walking-pace-review", { walking_pace: "slow" });
+    expect(pace.evidenceTier).toBe("evidence-limited-association");
+    expect(pace.copy).not.toMatch(/you have|caused by/i);
+    expect(leafIds({ walking_pace: "brisk" })).not.toContain("slow-walking-pace-review");
+
+    const strain = leafById("financial-strain-support", { financial_strain: "often" });
+    expect(strain.urgency).toBe("support");
+    expect(leafIds({ financial_strain: "sometimes" })).not.toContain(
+      "financial-strain-support",
+    );
+    expect(leafIds({ secondhand_smoke_home: true })).toContain("secondhand-smoke-exposure");
   });
 
   test("keeps the NIDA psychedelic route evidence-limited and supportive", () => {

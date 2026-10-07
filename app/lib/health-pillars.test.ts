@@ -69,9 +69,9 @@ test("keeps every conditional gate in the same or an earlier pillar", () => {
       }
     }
   }
-  expect(questionBank).toHaveLength(140);
-  expect(conditionalQuestions).toBe(47);
-  expect(gateEdges).toBe(57);
+  expect(questionBank).toHaveLength(150);
+  expect(conditionalQuestions).toBe(55);
+  expect(gateEdges).toBe(68);
   expect(violations).toEqual([]);
 });
 
@@ -104,19 +104,17 @@ test("maps adult Express performance questions to their intended pillars", () =>
   expect(healthPillarForQuestion(byId.get("reported_vo2_max_ml_kg_min")!)).toBe(
     "cardio-energy",
   );
-  expect(healthPillarForQuestion(byId.get("squat_one_rep_max_kg")!)).toBe(
+  expect(healthPillarForQuestion(byId.get("chair_stand_30s_count")!)).toBe(
     "strength-neural",
   );
-  expect(healthPillarForQuestion(byId.get("deadlift_one_rep_max_kg")!)).toBe(
+  expect(healthPillarForQuestion(byId.get("falls_past_year")!)).toBe(
     "strength-neural",
   );
-  for (const id of [
-    "reported_vo2_max_ml_kg_min",
-    "squat_one_rep_max_kg",
-    "deadlift_one_rep_max_kg",
-  ]) {
+  expect(healthPillarForQuestion(byId.get("walking_pace")!)).toBe("cardio-energy");
+  for (const id of ["reported_vo2_max_ml_kg_min", "chair_stand_30s_count"]) {
     expect(byId.get(id)).toMatchObject({ id, minAge: 18 });
   }
+  expect(byId.get("falls_past_year")).toMatchObject({ minAge: 60 });
 });
 
 test("groups without changing IDs and preserves order inside each pillar", () => {
@@ -128,11 +126,11 @@ test("groups without changing IDs and preserves order inside each pillar", () =>
   }
 });
 
-test("classifies all 59 risk rules in the required pillar distribution", () => {
-  expect(Object.keys(RISK_RULE_PILLAR_BY_ID)).toHaveLength(59);
+test("classifies all 68 risk rules in the required pillar distribution", () => {
+  expect(Object.keys(RISK_RULE_PILLAR_BY_ID)).toHaveLength(68);
   expect(HEALTH_PILLARS.map((pillar) =>
     Object.values(RISK_RULE_PILLAR_BY_ID).filter((mapped) => mapped === pillar).length,
-  )).toEqual([16, 23, 2, 18]);
+  )).toEqual([22, 26, 2, 18]);
   for (const ruleId of Object.keys(RISK_RULE_PILLAR_BY_ID)) {
     expect(healthPillarForRiskRule(ruleId)).toBe(
       RISK_RULE_PILLAR_BY_ID[ruleId as keyof typeof RISK_RULE_PILLAR_BY_ID],

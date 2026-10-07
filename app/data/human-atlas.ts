@@ -44,7 +44,7 @@ export const humanAtlasScenes = [
     titleKey: "landing.atlas.breath.title",
     descriptionKey: "landing.atlas.breath.description",
     inputLabelKey: "landing.atlas.breath.input",
-    questionIds: ["reported_vo2_max_ml_kg_min"],
+    questionIds: ["reported_vo2_max_ml_kg_min", "weekly_moderate_activity_minutes"],
   },
   {
     id: "strength",
@@ -52,7 +52,7 @@ export const humanAtlasScenes = [
     titleKey: "landing.atlas.strength.title",
     descriptionKey: "landing.atlas.strength.description",
     inputLabelKey: "landing.atlas.strength.input",
-    questionIds: ["squat_one_rep_max_kg", "deadlift_one_rep_max_kg"],
+    questionIds: ["chair_stand_30s_count", "movement_strength_days"],
   },
   {
     id: "energy",
@@ -64,7 +64,8 @@ export const humanAtlasScenes = [
   },
 ] as const satisfies readonly HumanAtlasScene[];
 
-export const humanAtlasBodyContextQuestionIds = ["height_cm", "weight_kg"] as const;
+// Le sexe à la naissance sert de clé de référence (normes FRIEND et Rikli-Jones) ; il n'illumine aucune scène.
+export const humanAtlasReferenceQuestionIds = ["sex_assigned_at_birth"] as const satisfies readonly ExpressQuestionId[];
 
 export function isHumanAtlasSceneId(value: unknown): value is HumanAtlasSceneId {
   return humanAtlasSceneIds.some((sceneId) => sceneId === value);

@@ -10,10 +10,16 @@ export type QuestionValidationError =
 const MAXIMUM_BY_QUESTION: Readonly<Record<string, number>> = {
   usual_sleep_hours: 24,
   sedentary_total_hours: 24,
-  movement_walking_days: 7,
   movement_strength_days: 7,
+  weekly_moderate_activity_minutes: 10080,
+  weekly_vigorous_activity_minutes: 10080,
   waist_circumference_cm: 250,
   neck_circumference_cm: 80,
+  chair_stand_30s_count: 60,
+  smoking_cigarettes_per_day: 100,
+  smoking_years_total: 100,
+  smoking_years_since_quit: 100,
+  blood_pressure_diastolic: 200,
 };
 
 const POSITIVE_MEASUREMENTS: ReadonlySet<string> = new Set([
